@@ -28,7 +28,7 @@ namespace functions {
     std::string to_string(argument_type_t t);
 
     class argument_t {
-        // unions are too much paint prior to C++ 17, we gonna waste some memory
+        // unions are too much pain prior to C++ 17, we gonna waste some memory
         long _size{ 0 };
         number_expression_p _number{ nullptr };
         matrix_expression_p _matrix{ nullptr };
