@@ -1,0 +1,15 @@
+﻿  pch.cpp
+  dllmain.cpp
+  exported.cpp
+     Creating library C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.lib and object C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.exp
+  dll_test.vcxproj -> C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.dll
+  C:\dev\playing\share_libraries_template\dll_test\exported.h
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\dll_test_export_macros.h
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.dll
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.lib
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test_d.pdb
+  1 File(s) copied

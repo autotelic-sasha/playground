@@ -1,0 +1,19 @@
+﻿  pch.cpp
+  dllmain.cpp
+  exported.cpp
+     Creating library C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.lib and object C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.exp
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 9 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  dll_test.vcxproj -> C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.dll
+  C:\dev\playing\share_libraries_template\dll_test\exported.h
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\dll_test_export_macros.h
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.dll
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.lib
+  1 File(s) copied
+  C:\dev\playing\share_libraries_template\dll_test\windows_build\x64\lib\dll_test.pdb
+  1 File(s) copied

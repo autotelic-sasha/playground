@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "type_traits": "cpp",
+        "iosfwd": "cpp",
+        "functional": "cpp"
+    },
+    "dll_test_test":{
+        "release_target_name" : "dll_test_test",
+        "debug_target_name" : "dll_test_test_d"
+    }
+}

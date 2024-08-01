@@ -1,0 +1,839 @@
+int
+unsigned short
+short
+double 
+float
+bool
+std::string
+std::wstring
+
+std::vector<int>
+std::vector<unsigned short>
+std::vector<short>
+std::vector<double> 
+std::vector<float>
+std::vector<bool>
+std::vector<std::string>
+std::vector<std::wstring>
+
+std::list<int>
+std::list<unsigned short>
+std::list<short>
+std::list<double> 
+std::list<float>
+std::list<bool>
+std::list<std::string>
+std::list<std::wstring>
+
+std::vector<std::vector<int>>
+std::vector<std::vector<unsigned short>>
+std::vector<std::vector<short>>
+std::vector<std::vector<double>> 
+std::vector<std::vector<float>>
+std::vector<std::vector<bool>>
+std::vector<std::vector<std::string>>
+std::vector<std::vector<std::wstring>>
+
+std::list<std::vector<int>>
+std::list<std::vector<unsigned short>>
+std::list<std::vector<short>>
+std::list<std::vector<double>> 
+std::list<std::vector<float>>
+std::list<std::vector<bool>>
+std::list<std::vector<std::string>>
+std::list<std::vector<std::wstring>>
+
+std::vector<std::list<int>>
+std::vector<std::list<unsigned short>>
+std::vector<std::list<short>>
+std::vector<std::list<double>> 
+std::vector<std::list<float>>
+std::vector<std::list<bool>>
+std::vector<std::list<std::string>>
+std::vector<std::list<std::wstring>>
+
+std::list<std::list<int>>
+std::list<std::list<unsigned short>>
+std::list<std::list<short>>
+std::list<std::list<double>> 
+std::list<std::list<float>>
+std::list<std::list<bool>>
+std::list<std::list<std::string>>
+std::list<std::list<std::wstring>>
+
+std::map<int, std::vector<int>>
+std::map<int, std::vector<unsigned short>>
+std::map<int, std::vector<short>>
+std::map<int, std::vector<double>> 
+std::map<int, std::vector<float>>
+std::map<int, std::vector<bool>>
+std::map<int, std::vector<std::string>>
+std::map<int, std::vector<std::wstring>>
+std::map<unsigned short, std::vector<unsigned short>>
+std::map<unsigned short, std::vector<unsigned short>>
+std::map<unsigned short, std::vector<short>>
+std::map<unsigned short, std::vector<double>> 
+std::map<unsigned short, std::vector<float>>
+std::map<unsigned short, std::vector<bool>>
+std::map<unsigned short, std::vector<std::string>>
+std::map<unsigned short, std::vector<std::wstring>>
+std::map<short, std::vector<short>>
+std::map<short, std::vector<unsigned short>>
+std::map<short, std::vector<short>>
+std::map<short, std::vector<double>> 
+std::map<short, std::vector<float>>
+std::map<short, std::vector<bool>>
+std::map<short, std::vector<std::string>>
+std::map<short, std::vector<std::wstring>>
+std::map<double, std::vector<double>>
+std::map<double, std::vector<unsigned short>>
+std::map<double, std::vector<short>>
+std::map<double, std::vector<double>> 
+std::map<double, std::vector<float>>
+std::map<double, std::vector<bool>>
+std::map<double, std::vector<std::string>>
+std::map<double, std::vector<std::wstring>>
+std::map<float, std::vector<float>>
+std::map<float, std::vector<unsigned short>>
+std::map<float, std::vector<short>>
+std::map<float, std::vector<double>> 
+std::map<float, std::vector<float>>
+std::map<float, std::vector<bool>>
+std::map<float, std::vector<std::string>>
+std::map<float, std::vector<std::wstring>>
+std::map<bool, std::vector<bool>>
+std::map<bool, std::vector<unsigned short>>
+std::map<bool, std::vector<short>>
+std::map<bool, std::vector<double>> 
+std::map<bool, std::vector<float>>
+std::map<bool, std::vector<bool>>
+std::map<bool, std::vector<std::string>>
+std::map<bool, std::vector<std::wstring>>
+std::map<std::string, std::vector<std::string>>
+std::map<std::string, std::vector<unsigned short>>
+std::map<std::string, std::vector<short>>
+std::map<std::string, std::vector<double>> 
+std::map<std::string, std::vector<float>>
+std::map<std::string, std::vector<bool>>
+std::map<std::string, std::vector<std::string>>
+std::map<std::string, std::vector<std::wstring>>
+std::map<std::wstring, std::vector<std::wstring>>
+std::map<std::wstring, std::vector<unsigned short>>
+std::map<std::wstring, std::vector<short>>
+std::map<std::wstring, std::vector<double>> 
+std::map<std::wstring, std::vector<float>>
+std::map<std::wstring, std::vector<bool>>
+std::map<std::wstring, std::vector<std::string>>
+std::map<std::wstring, std::vector<std::wstring>>
+
+std::map<int, std::list<int>>
+std::map<int, std::list<unsigned short>>
+std::map<int, std::list<short>>
+std::map<int, std::list<double>> 
+std::map<int, std::list<float>>
+std::map<int, std::list<bool>>
+std::map<int, std::list<std::string>>
+std::map<int, std::list<std::wstring>>
+std::map<unsigned short, std::list<unsigned short>>
+std::map<unsigned short, std::list<unsigned short>>
+std::map<unsigned short, std::list<short>>
+std::map<unsigned short, std::list<double>> 
+std::map<unsigned short, std::list<float>>
+std::map<unsigned short, std::list<bool>>
+std::map<unsigned short, std::list<std::string>>
+std::map<unsigned short, std::list<std::wstring>>
+std::map<short, std::list<short>>
+std::map<short, std::list<unsigned short>>
+std::map<short, std::list<short>>
+std::map<short, std::list<double>> 
+std::map<short, std::list<float>>
+std::map<short, std::list<bool>>
+std::map<short, std::list<std::string>>
+std::map<short, std::list<std::wstring>>
+std::map<double, std::list<double>>
+std::map<double, std::list<unsigned short>>
+std::map<double, std::list<short>>
+std::map<double, std::list<double>> 
+std::map<double, std::list<float>>
+std::map<double, std::list<bool>>
+std::map<double, std::list<std::string>>
+std::map<double, std::list<std::wstring>>
+std::map<float, std::list<float>>
+std::map<float, std::list<unsigned short>>
+std::map<float, std::list<short>>
+std::map<float, std::list<double>> 
+std::map<float, std::list<float>>
+std::map<float, std::list<bool>>
+std::map<float, std::list<std::string>>
+std::map<float, std::list<std::wstring>>
+std::map<bool, std::list<bool>>
+std::map<bool, std::list<unsigned short>>
+std::map<bool, std::list<short>>
+std::map<bool, std::list<double>> 
+std::map<bool, std::list<float>>
+std::map<bool, std::list<bool>>
+std::map<bool, std::list<std::string>>
+std::map<bool, std::list<std::wstring>>
+std::map<std::string, std::list<std::string>>
+std::map<std::string, std::list<unsigned short>>
+std::map<std::string, std::list<short>>
+std::map<std::string, std::list<double>> 
+std::map<std::string, std::list<float>>
+std::map<std::string, std::list<bool>>
+std::map<std::string, std::list<std::string>>
+std::map<std::string, std::list<std::wstring>>
+std::map<std::wstring, std::list<std::wstring>>
+std::map<std::wstring, std::list<unsigned short>>
+std::map<std::wstring, std::list<short>>
+std::map<std::wstring, std::list<double>> 
+std::map<std::wstring, std::list<float>>
+std::map<std::wstring, std::list<bool>>
+std::map<std::wstring, std::list<std::string>>
+std::map<std::wstring, std::list<std::wstring>>
+
+std::map<int, std::vector<std::vector<int>>>
+std::map<int, std::vector<std::vector<unsigned short>>>
+std::map<int, std::vector<std::vector<short>>>
+std::map<int, std::vector<std::vector<double>> >
+std::map<int, std::vector<std::vector<float>>>
+std::map<int, std::vector<std::vector<bool>>>
+std::map<int, std::vector<std::vector<std::string>>>
+std::map<int, std::vector<std::vector<std::wstring>>>
+std::map<int, std::list<std::vector<int>>>
+std::map<int, std::list<std::vector<unsigned short>>>
+std::map<int, std::list<std::vector<short>>>
+std::map<int, std::list<std::vector<double>> >
+std::map<int, std::list<std::vector<float>>>
+std::map<int, std::list<std::vector<bool>>>
+std::map<int, std::list<std::vector<std::string>>>
+std::map<int, std::list<std::vector<std::wstring>>>
+std::map<int, std::vector<std::list<int>>>
+std::map<int, std::vector<std::list<unsigned short>>>
+std::map<int, std::vector<std::list<short>>>
+std::map<int, std::vector<std::list<double>> >
+std::map<int, std::vector<std::list<float>>>
+std::map<int, std::vector<std::list<bool>>>
+std::map<int, std::vector<std::list<std::string>>>
+std::map<int, std::vector<std::list<std::wstring>>>
+std::map<int, std::list<std::list<int>>>
+std::map<int, std::list<std::list<unsigned short>>>
+std::map<int, std::list<std::list<short>>>
+std::map<int, std::list<std::list<double>> >
+std::map<int, std::list<std::list<float>>>
+std::map<int, std::list<std::list<bool>>>
+std::map<int, std::list<std::list<std::string>>>
+std::map<int, std::list<std::list<std::wstring>>>
+std::map<unsigned short, std::vector<std::vector<unsigned short>>>
+std::map<unsigned short, std::vector<std::vector<unsigned short>>>
+std::map<unsigned short, std::vector<std::vector<short>>>
+std::map<unsigned short, std::vector<std::vector<double>> >
+std::map<unsigned short, std::vector<std::vector<float>>>
+std::map<unsigned short, std::vector<std::vector<bool>>>
+std::map<unsigned short, std::vector<std::vector<std::string>>>
+std::map<unsigned short, std::vector<std::vector<std::wstring>>>
+std::map<unsigned short, std::list<std::vector<unsigned short>>>
+std::map<unsigned short, std::list<std::vector<unsigned short>>>
+std::map<unsigned short, std::list<std::vector<short>>>
+std::map<unsigned short, std::list<std::vector<double>> >
+std::map<unsigned short, std::list<std::vector<float>>>
+std::map<unsigned short, std::list<std::vector<bool>>>
+std::map<unsigned short, std::list<std::vector<std::string>>>
+std::map<unsigned short, std::list<std::vector<std::wstring>>>
+std::map<unsigned short, std::vector<std::list<unsigned short>>>
+std::map<unsigned short, std::vector<std::list<unsigned short>>>
+std::map<unsigned short, std::vector<std::list<short>>>
+std::map<unsigned short, std::vector<std::list<double>> >
+std::map<unsigned short, std::vector<std::list<float>>>
+std::map<unsigned short, std::vector<std::list<bool>>>
+std::map<unsigned short, std::vector<std::list<std::string>>>
+std::map<unsigned short, std::vector<std::list<std::wstring>>>
+std::map<unsigned short, std::list<std::list<unsigned short>>>
+std::map<unsigned short, std::list<std::list<unsigned short>>>
+std::map<unsigned short, std::list<std::list<short>>>
+std::map<unsigned short, std::list<std::list<double>> >
+std::map<unsigned short, std::list<std::list<float>>>
+std::map<unsigned short, std::list<std::list<bool>>>
+std::map<unsigned short, std::list<std::list<std::string>>>
+std::map<unsigned short, std::list<std::list<std::wstring>>>
+std::map<short, std::vector<std::vector<short>>>
+std::map<short, std::vector<std::vector<unsigned short>>>
+std::map<short, std::vector<std::vector<short>>>
+std::map<short, std::vector<std::vector<double>> >
+std::map<short, std::vector<std::vector<float>>>
+std::map<short, std::vector<std::vector<bool>>>
+std::map<short, std::vector<std::vector<std::string>>>
+std::map<short, std::vector<std::vector<std::wstring>>>
+std::map<short, std::list<std::vector<short>>>
+std::map<short, std::list<std::vector<unsigned short>>>
+std::map<short, std::list<std::vector<short>>>
+std::map<short, std::list<std::vector<double>> >
+std::map<short, std::list<std::vector<float>>>
+std::map<short, std::list<std::vector<bool>>>
+std::map<short, std::list<std::vector<std::string>>>
+std::map<short, std::list<std::vector<std::wstring>>>
+std::map<short, std::vector<std::list<short>>>
+std::map<short, std::vector<std::list<unsigned short>>>
+std::map<short, std::vector<std::list<short>>>
+std::map<short, std::vector<std::list<double>> >
+std::map<short, std::vector<std::list<float>>>
+std::map<short, std::vector<std::list<bool>>>
+std::map<short, std::vector<std::list<std::string>>>
+std::map<short, std::vector<std::list<std::wstring>>>
+std::map<short, std::list<std::list<short>>>
+std::map<short, std::list<std::list<unsigned short>>>
+std::map<short, std::list<std::list<short>>>
+std::map<short, std::list<std::list<double>> >
+std::map<short, std::list<std::list<float>>>
+std::map<short, std::list<std::list<bool>>>
+std::map<short, std::list<std::list<std::string>>>
+std::map<short, std::list<std::list<std::wstring>>>
+std::map<double, std::vector<std::vector<double>>>
+std::map<double, std::vector<std::vector<unsigned short>>>
+std::map<double, std::vector<std::vector<short>>>
+std::map<double, std::vector<std::vector<double>> >
+std::map<double, std::vector<std::vector<float>>>
+std::map<double, std::vector<std::vector<bool>>>
+std::map<double, std::vector<std::vector<std::string>>>
+std::map<double, std::vector<std::vector<std::wstring>>>
+std::map<double, std::list<std::vector<double>>>
+std::map<double, std::list<std::vector<unsigned short>>>
+std::map<double, std::list<std::vector<short>>>
+std::map<double, std::list<std::vector<double>> >
+std::map<double, std::list<std::vector<float>>>
+std::map<double, std::list<std::vector<bool>>>
+std::map<double, std::list<std::vector<std::string>>>
+std::map<double, std::list<std::vector<std::wstring>>>
+std::map<double, std::vector<std::list<double>>>
+std::map<double, std::vector<std::list<unsigned short>>>
+std::map<double, std::vector<std::list<short>>>
+std::map<double, std::vector<std::list<double>> >
+std::map<double, std::vector<std::list<float>>>
+std::map<double, std::vector<std::list<bool>>>
+std::map<double, std::vector<std::list<std::string>>>
+std::map<double, std::vector<std::list<std::wstring>>>
+std::map<double, std::list<std::list<double>>>
+std::map<double, std::list<std::list<unsigned short>>>
+std::map<double, std::list<std::list<short>>>
+std::map<double, std::list<std::list<double>> >
+std::map<double, std::list<std::list<float>>>
+std::map<double, std::list<std::list<bool>>>
+std::map<double, std::list<std::list<std::string>>>
+std::map<double, std::list<std::list<std::wstring>>>
+std::map<float, std::vector<std::vector<float>>>
+std::map<float, std::vector<std::vector<unsigned short>>>
+std::map<float, std::vector<std::vector<short>>>
+std::map<float, std::vector<std::vector<double>> >
+std::map<float, std::vector<std::vector<float>>>
+std::map<float, std::vector<std::vector<bool>>>
+std::map<float, std::vector<std::vector<std::string>>>
+std::map<float, std::vector<std::vector<std::wstring>>>
+std::map<float, std::list<std::vector<float>>>
+std::map<float, std::list<std::vector<unsigned short>>>
+std::map<float, std::list<std::vector<short>>>
+std::map<float, std::list<std::vector<double>> >
+std::map<float, std::list<std::vector<float>>>
+std::map<float, std::list<std::vector<bool>>>
+std::map<float, std::list<std::vector<std::string>>>
+std::map<float, std::list<std::vector<std::wstring>>>
+std::map<float, std::vector<std::list<float>>>
+std::map<float, std::vector<std::list<unsigned short>>>
+std::map<float, std::vector<std::list<short>>>
+std::map<float, std::vector<std::list<double>> >
+std::map<float, std::vector<std::list<float>>>
+std::map<float, std::vector<std::list<bool>>>
+std::map<float, std::vector<std::list<std::string>>>
+std::map<float, std::vector<std::list<std::wstring>>>
+std::map<float, std::list<std::list<float>>>
+std::map<float, std::list<std::list<unsigned short>>>
+std::map<float, std::list<std::list<short>>>
+std::map<float, std::list<std::list<double>> >
+std::map<float, std::list<std::list<float>>>
+std::map<float, std::list<std::list<bool>>>
+std::map<float, std::list<std::list<std::string>>>
+std::map<float, std::list<std::list<std::wstring>>>
+std::map<bool, std::vector<std::vector<bool>>>
+std::map<bool, std::vector<std::vector<unsigned short>>>
+std::map<bool, std::vector<std::vector<short>>>
+std::map<bool, std::vector<std::vector<double>> >
+std::map<bool, std::vector<std::vector<bool>>>
+std::map<bool, std::vector<std::vector<bool>>>
+std::map<bool, std::vector<std::vector<std::string>>>
+std::map<bool, std::vector<std::vector<std::wstring>>>
+std::map<bool, std::list<std::vector<bool>>>
+std::map<bool, std::list<std::vector<unsigned short>>>
+std::map<bool, std::list<std::vector<short>>>
+std::map<bool, std::list<std::vector<double>> >
+std::map<bool, std::list<std::vector<bool>>>
+std::map<bool, std::list<std::vector<bool>>>
+std::map<bool, std::list<std::vector<std::string>>>
+std::map<bool, std::list<std::vector<std::wstring>>>
+std::map<bool, std::vector<std::list<bool>>>
+std::map<bool, std::vector<std::list<unsigned short>>>
+std::map<bool, std::vector<std::list<short>>>
+std::map<bool, std::vector<std::list<double>> >
+std::map<bool, std::vector<std::list<bool>>>
+std::map<bool, std::vector<std::list<bool>>>
+std::map<bool, std::vector<std::list<std::string>>>
+std::map<bool, std::vector<std::list<std::wstring>>>
+std::map<bool, std::list<std::list<bool>>>
+std::map<bool, std::list<std::list<unsigned short>>>
+std::map<bool, std::list<std::list<short>>>
+std::map<bool, std::list<std::list<double>> >
+std::map<bool, std::list<std::list<bool>>>
+std::map<bool, std::list<std::list<bool>>>
+std::map<bool, std::list<std::list<std::string>>>
+std::map<bool, std::list<std::list<std::wstring>>>
+std::map<std::string, std::vector<std::vector<std::string>>>
+std::map<std::string, std::vector<std::vector<unsigned short>>>
+std::map<std::string, std::vector<std::vector<short>>>
+std::map<std::string, std::vector<std::vector<double>> >
+std::map<std::string, std::vector<std::vector<std::string>>>
+std::map<std::string, std::vector<std::vector<bool>>>
+std::map<std::string, std::vector<std::vector<std::string>>>
+std::map<std::string, std::vector<std::vector<std::wstring>>>
+std::map<std::string, std::list<std::vector<std::string>>>
+std::map<std::string, std::list<std::vector<unsigned short>>>
+std::map<std::string, std::list<std::vector<short>>>
+std::map<std::string, std::list<std::vector<double>> >
+std::map<std::string, std::list<std::vector<std::string>>>
+std::map<std::string, std::list<std::vector<bool>>>
+std::map<std::string, std::list<std::vector<std::string>>>
+std::map<std::string, std::list<std::vector<std::wstring>>>
+std::map<std::string, std::vector<std::list<std::string>>>
+std::map<std::string, std::vector<std::list<unsigned short>>>
+std::map<std::string, std::vector<std::list<short>>>
+std::map<std::string, std::vector<std::list<double>> >
+std::map<std::string, std::vector<std::list<std::string>>>
+std::map<std::string, std::vector<std::list<bool>>>
+std::map<std::string, std::vector<std::list<std::string>>>
+std::map<std::string, std::vector<std::list<std::wstring>>>
+std::map<std::string, std::list<std::list<std::string>>>
+std::map<std::string, std::list<std::list<unsigned short>>>
+std::map<std::string, std::list<std::list<short>>>
+std::map<std::string, std::list<std::list<double>> >
+std::map<std::string, std::list<std::list<std::string>>>
+std::map<std::string, std::list<std::list<bool>>>
+std::map<std::string, std::list<std::list<std::string>>>
+std::map<std::string, std::list<std::list<std::wstring>>>
+std::map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::map<std::wstring, std::vector<std::vector<unsigned short>>>
+std::map<std::wstring, std::vector<std::vector<short>>>
+std::map<std::wstring, std::vector<std::vector<double>> >
+std::map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::map<std::wstring, std::vector<std::vector<bool>>>
+std::map<std::wstring, std::vector<std::vector<std::string>>>
+std::map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::map<std::wstring, std::list<std::vector<std::wstring>>>
+std::map<std::wstring, std::list<std::vector<unsigned short>>>
+std::map<std::wstring, std::list<std::vector<short>>>
+std::map<std::wstring, std::list<std::vector<double>> >
+std::map<std::wstring, std::list<std::vector<std::wstring>>>
+std::map<std::wstring, std::list<std::vector<bool>>>
+std::map<std::wstring, std::list<std::vector<std::string>>>
+std::map<std::wstring, std::list<std::vector<std::wstring>>>
+std::map<std::wstring, std::vector<std::list<std::wstring>>>
+std::map<std::wstring, std::vector<std::list<unsigned short>>>
+std::map<std::wstring, std::vector<std::list<short>>>
+std::map<std::wstring, std::vector<std::list<double>> >
+std::map<std::wstring, std::vector<std::list<std::wstring>>>
+std::map<std::wstring, std::vector<std::list<bool>>>
+std::map<std::wstring, std::vector<std::list<std::string>>>
+std::map<std::wstring, std::vector<std::list<std::wstring>>>
+std::map<std::wstring, std::list<std::list<std::wstring>>>
+std::map<std::wstring, std::list<std::list<unsigned short>>>
+std::map<std::wstring, std::list<std::list<short>>>
+std::map<std::wstring, std::list<std::list<double>> >
+std::map<std::wstring, std::list<std::list<std::wstring>>>
+std::map<std::wstring, std::list<std::list<bool>>>
+std::map<std::wstring, std::list<std::list<std::string>>>
+std::map<std::wstring, std::list<std::list<std::wstring>>>
+
+std::map<int, std::vector<int>>
+std::map<int, std::vector<unsigned short>>
+std::map<int, std::vector<short>>
+std::map<int, std::vector<double>> 
+std::map<int, std::vector<float>>
+std::map<int, std::vector<bool>>
+std::map<int, std::vector<std::string>>
+std::map<int, std::vector<std::wstring>>
+std::map<unsigned short, std::vector<unsigned short>>
+std::map<unsigned short, std::vector<unsigned short>>
+std::map<unsigned short, std::vector<short>>
+std::map<unsigned short, std::vector<double>> 
+std::map<unsigned short, std::vector<float>>
+std::map<unsigned short, std::vector<bool>>
+std::map<unsigned short, std::vector<std::string>>
+std::map<unsigned short, std::vector<std::wstring>>
+std::map<short, std::vector<short>>
+std::map<short, std::vector<unsigned short>>
+std::map<short, std::vector<short>>
+std::map<short, std::vector<double>> 
+std::map<short, std::vector<float>>
+std::map<short, std::vector<bool>>
+std::map<short, std::vector<std::string>>
+std::map<short, std::vector<std::wstring>>
+std::map<double, std::vector<double>>
+std::map<double, std::vector<unsigned short>>
+std::map<double, std::vector<short>>
+std::map<double, std::vector<double>> 
+std::map<double, std::vector<float>>
+std::map<double, std::vector<bool>>
+std::map<double, std::vector<std::string>>
+std::map<double, std::vector<std::wstring>>
+std::map<float, std::vector<float>>
+std::map<float, std::vector<unsigned short>>
+std::map<float, std::vector<short>>
+std::map<float, std::vector<double>> 
+std::map<float, std::vector<float>>
+std::map<float, std::vector<bool>>
+std::map<float, std::vector<std::string>>
+std::map<float, std::vector<std::wstring>>
+std::map<bool, std::vector<bool>>
+std::map<bool, std::vector<unsigned short>>
+std::map<bool, std::vector<short>>
+std::map<bool, std::vector<double>> 
+std::map<bool, std::vector<float>>
+std::map<bool, std::vector<bool>>
+std::map<bool, std::vector<std::string>>
+std::map<bool, std::vector<std::wstring>>
+std::map<std::string, std::vector<std::string>>
+std::map<std::string, std::vector<unsigned short>>
+std::map<std::string, std::vector<short>>
+std::map<std::string, std::vector<double>> 
+std::map<std::string, std::vector<float>>
+std::map<std::string, std::vector<bool>>
+std::map<std::string, std::vector<std::string>>
+std::map<std::string, std::vector<std::wstring>>
+std::map<std::wstring, std::vector<std::wstring>>
+std::map<std::wstring, std::vector<unsigned short>>
+std::map<std::wstring, std::vector<short>>
+std::map<std::wstring, std::vector<double>> 
+std::map<std::wstring, std::vector<float>>
+std::map<std::wstring, std::vector<bool>>
+std::map<std::wstring, std::vector<std::string>>
+std::map<std::wstring, std::vector<std::wstring>>
+
+std::map<int, std::list<int>>
+std::map<int, std::list<unsigned short>>
+std::map<int, std::list<short>>
+std::map<int, std::list<double>> 
+std::map<int, std::list<float>>
+std::map<int, std::list<bool>>
+std::map<int, std::list<std::string>>
+std::map<int, std::list<std::wstring>>
+std::map<unsigned short, std::list<unsigned short>>
+std::map<unsigned short, std::list<unsigned short>>
+std::map<unsigned short, std::list<short>>
+std::map<unsigned short, std::list<double>> 
+std::map<unsigned short, std::list<float>>
+std::map<unsigned short, std::list<bool>>
+std::map<unsigned short, std::list<std::string>>
+std::map<unsigned short, std::list<std::wstring>>
+std::map<short, std::list<short>>
+std::map<short, std::list<unsigned short>>
+std::map<short, std::list<short>>
+std::map<short, std::list<double>> 
+std::map<short, std::list<float>>
+std::map<short, std::list<bool>>
+std::map<short, std::list<std::string>>
+std::map<short, std::list<std::wstring>>
+std::map<double, std::list<double>>
+std::map<double, std::list<unsigned short>>
+std::map<double, std::list<short>>
+std::map<double, std::list<double>> 
+std::map<double, std::list<float>>
+std::map<double, std::list<bool>>
+std::map<double, std::list<std::string>>
+std::map<double, std::list<std::wstring>>
+std::map<float, std::list<float>>
+std::map<float, std::list<unsigned short>>
+std::map<float, std::list<short>>
+std::map<float, std::list<double>> 
+std::map<float, std::list<float>>
+std::map<float, std::list<bool>>
+std::map<float, std::list<std::string>>
+std::map<float, std::list<std::wstring>>
+std::map<bool, std::list<bool>>
+std::map<bool, std::list<unsigned short>>
+std::map<bool, std::list<short>>
+std::map<bool, std::list<double>> 
+std::map<bool, std::list<float>>
+std::map<bool, std::list<bool>>
+std::map<bool, std::list<std::string>>
+std::map<bool, std::list<std::wstring>>
+std::map<std::string, std::list<std::string>>
+std::map<std::string, std::list<unsigned short>>
+std::map<std::string, std::list<short>>
+std::map<std::string, std::list<double>> 
+std::map<std::string, std::list<float>>
+std::map<std::string, std::list<bool>>
+std::map<std::string, std::list<std::string>>
+std::map<std::string, std::list<std::wstring>>
+std::map<std::wstring, std::list<std::wstring>>
+std::map<std::wstring, std::list<unsigned short>>
+std::map<std::wstring, std::list<short>>
+std::map<std::wstring, std::list<double>> 
+std::map<std::wstring, std::list<float>>
+std::map<std::wstring, std::list<bool>>
+std::map<std::wstring, std::list<std::string>>
+std::map<std::wstring, std::list<std::wstring>>
+
+std::unordered_map<int, std::vector<std::vector<int>>>
+std::unordered_map<int, std::vector<std::vector<unsigned short>>>
+std::unordered_map<int, std::vector<std::vector<short>>>
+std::unordered_map<int, std::vector<std::vector<double>> >
+std::unordered_map<int, std::vector<std::vector<float>>>
+std::unordered_map<int, std::vector<std::vector<bool>>>
+std::unordered_map<int, std::vector<std::vector<std::string>>>
+std::unordered_map<int, std::vector<std::vector<std::wstring>>>
+std::unordered_map<int, std::list<std::vector<int>>>
+std::unordered_map<int, std::list<std::vector<unsigned short>>>
+std::unordered_map<int, std::list<std::vector<short>>>
+std::unordered_map<int, std::list<std::vector<double>> >
+std::unordered_map<int, std::list<std::vector<float>>>
+std::unordered_map<int, std::list<std::vector<bool>>>
+std::unordered_map<int, std::list<std::vector<std::string>>>
+std::unordered_map<int, std::list<std::vector<std::wstring>>>
+std::unordered_map<int, std::vector<std::list<int>>>
+std::unordered_map<int, std::vector<std::list<unsigned short>>>
+std::unordered_map<int, std::vector<std::list<short>>>
+std::unordered_map<int, std::vector<std::list<double>> >
+std::unordered_map<int, std::vector<std::list<float>>>
+std::unordered_map<int, std::vector<std::list<bool>>>
+std::unordered_map<int, std::vector<std::list<std::string>>>
+std::unordered_map<int, std::vector<std::list<std::wstring>>>
+std::unordered_map<int, std::list<std::list<int>>>
+std::unordered_map<int, std::list<std::list<unsigned short>>>
+std::unordered_map<int, std::list<std::list<short>>>
+std::unordered_map<int, std::list<std::list<double>> >
+std::unordered_map<int, std::list<std::list<float>>>
+std::unordered_map<int, std::list<std::list<bool>>>
+std::unordered_map<int, std::list<std::list<std::string>>>
+std::unordered_map<int, std::list<std::list<std::wstring>>>
+std::unordered_map<unsigned short, std::vector<std::vector<unsigned short>>>
+std::unordered_map<unsigned short, std::vector<std::vector<unsigned short>>>
+std::unordered_map<unsigned short, std::vector<std::vector<short>>>
+std::unordered_map<unsigned short, std::vector<std::vector<double>> >
+std::unordered_map<unsigned short, std::vector<std::vector<float>>>
+std::unordered_map<unsigned short, std::vector<std::vector<bool>>>
+std::unordered_map<unsigned short, std::vector<std::vector<std::string>>>
+std::unordered_map<unsigned short, std::vector<std::vector<std::wstring>>>
+std::unordered_map<unsigned short, std::list<std::vector<unsigned short>>>
+std::unordered_map<unsigned short, std::list<std::vector<unsigned short>>>
+std::unordered_map<unsigned short, std::list<std::vector<short>>>
+std::unordered_map<unsigned short, std::list<std::vector<double>> >
+std::unordered_map<unsigned short, std::list<std::vector<float>>>
+std::unordered_map<unsigned short, std::list<std::vector<bool>>>
+std::unordered_map<unsigned short, std::list<std::vector<std::string>>>
+std::unordered_map<unsigned short, std::list<std::vector<std::wstring>>>
+std::unordered_map<unsigned short, std::vector<std::list<unsigned short>>>
+std::unordered_map<unsigned short, std::vector<std::list<unsigned short>>>
+std::unordered_map<unsigned short, std::vector<std::list<short>>>
+std::unordered_map<unsigned short, std::vector<std::list<double>> >
+std::unordered_map<unsigned short, std::vector<std::list<float>>>
+std::unordered_map<unsigned short, std::vector<std::list<bool>>>
+std::unordered_map<unsigned short, std::vector<std::list<std::string>>>
+std::unordered_map<unsigned short, std::vector<std::list<std::wstring>>>
+std::unordered_map<unsigned short, std::list<std::list<unsigned short>>>
+std::unordered_map<unsigned short, std::list<std::list<unsigned short>>>
+std::unordered_map<unsigned short, std::list<std::list<short>>>
+std::unordered_map<unsigned short, std::list<std::list<double>> >
+std::unordered_map<unsigned short, std::list<std::list<float>>>
+std::unordered_map<unsigned short, std::list<std::list<bool>>>
+std::unordered_map<unsigned short, std::list<std::list<std::string>>>
+std::unordered_map<unsigned short, std::list<std::list<std::wstring>>>
+std::unordered_map<short, std::vector<std::vector<short>>>
+std::unordered_map<short, std::vector<std::vector<unsigned short>>>
+std::unordered_map<short, std::vector<std::vector<short>>>
+std::unordered_map<short, std::vector<std::vector<double>> >
+std::unordered_map<short, std::vector<std::vector<float>>>
+std::unordered_map<short, std::vector<std::vector<bool>>>
+std::unordered_map<short, std::vector<std::vector<std::string>>>
+std::unordered_map<short, std::vector<std::vector<std::wstring>>>
+std::unordered_map<short, std::list<std::vector<short>>>
+std::unordered_map<short, std::list<std::vector<unsigned short>>>
+std::unordered_map<short, std::list<std::vector<short>>>
+std::unordered_map<short, std::list<std::vector<double>> >
+std::unordered_map<short, std::list<std::vector<float>>>
+std::unordered_map<short, std::list<std::vector<bool>>>
+std::unordered_map<short, std::list<std::vector<std::string>>>
+std::unordered_map<short, std::list<std::vector<std::wstring>>>
+std::unordered_map<short, std::vector<std::list<short>>>
+std::unordered_map<short, std::vector<std::list<unsigned short>>>
+std::unordered_map<short, std::vector<std::list<short>>>
+std::unordered_map<short, std::vector<std::list<double>> >
+std::unordered_map<short, std::vector<std::list<float>>>
+std::unordered_map<short, std::vector<std::list<bool>>>
+std::unordered_map<short, std::vector<std::list<std::string>>>
+std::unordered_map<short, std::vector<std::list<std::wstring>>>
+std::unordered_map<short, std::list<std::list<short>>>
+std::unordered_map<short, std::list<std::list<unsigned short>>>
+std::unordered_map<short, std::list<std::list<short>>>
+std::unordered_map<short, std::list<std::list<double>> >
+std::unordered_map<short, std::list<std::list<float>>>
+std::unordered_map<short, std::list<std::list<bool>>>
+std::unordered_map<short, std::list<std::list<std::string>>>
+std::unordered_map<short, std::list<std::list<std::wstring>>>
+std::unordered_map<double, std::vector<std::vector<double>>>
+std::unordered_map<double, std::vector<std::vector<unsigned short>>>
+std::unordered_map<double, std::vector<std::vector<short>>>
+std::unordered_map<double, std::vector<std::vector<double>> >
+std::unordered_map<double, std::vector<std::vector<float>>>
+std::unordered_map<double, std::vector<std::vector<bool>>>
+std::unordered_map<double, std::vector<std::vector<std::string>>>
+std::unordered_map<double, std::vector<std::vector<std::wstring>>>
+std::unordered_map<double, std::list<std::vector<double>>>
+std::unordered_map<double, std::list<std::vector<unsigned short>>>
+std::unordered_map<double, std::list<std::vector<short>>>
+std::unordered_map<double, std::list<std::vector<double>> >
+std::unordered_map<double, std::list<std::vector<float>>>
+std::unordered_map<double, std::list<std::vector<bool>>>
+std::unordered_map<double, std::list<std::vector<std::string>>>
+std::unordered_map<double, std::list<std::vector<std::wstring>>>
+std::unordered_map<double, std::vector<std::list<double>>>
+std::unordered_map<double, std::vector<std::list<unsigned short>>>
+std::unordered_map<double, std::vector<std::list<short>>>
+std::unordered_map<double, std::vector<std::list<double>> >
+std::unordered_map<double, std::vector<std::list<float>>>
+std::unordered_map<double, std::vector<std::list<bool>>>
+std::unordered_map<double, std::vector<std::list<std::string>>>
+std::unordered_map<double, std::vector<std::list<std::wstring>>>
+std::unordered_map<double, std::list<std::list<double>>>
+std::unordered_map<double, std::list<std::list<unsigned short>>>
+std::unordered_map<double, std::list<std::list<short>>>
+std::unordered_map<double, std::list<std::list<double>> >
+std::unordered_map<double, std::list<std::list<float>>>
+std::unordered_map<double, std::list<std::list<bool>>>
+std::unordered_map<double, std::list<std::list<std::string>>>
+std::unordered_map<double, std::list<std::list<std::wstring>>>
+std::unordered_map<float, std::vector<std::vector<float>>>
+std::unordered_map<float, std::vector<std::vector<unsigned short>>>
+std::unordered_map<float, std::vector<std::vector<short>>>
+std::unordered_map<float, std::vector<std::vector<double>> >
+std::unordered_map<float, std::vector<std::vector<float>>>
+std::unordered_map<float, std::vector<std::vector<bool>>>
+std::unordered_map<float, std::vector<std::vector<std::string>>>
+std::unordered_map<float, std::vector<std::vector<std::wstring>>>
+std::unordered_map<float, std::list<std::vector<float>>>
+std::unordered_map<float, std::list<std::vector<unsigned short>>>
+std::unordered_map<float, std::list<std::vector<short>>>
+std::unordered_map<float, std::list<std::vector<double>> >
+std::unordered_map<float, std::list<std::vector<float>>>
+std::unordered_map<float, std::list<std::vector<bool>>>
+std::unordered_map<float, std::list<std::vector<std::string>>>
+std::unordered_map<float, std::list<std::vector<std::wstring>>>
+std::unordered_map<float, std::vector<std::list<float>>>
+std::unordered_map<float, std::vector<std::list<unsigned short>>>
+std::unordered_map<float, std::vector<std::list<short>>>
+std::unordered_map<float, std::vector<std::list<double>> >
+std::unordered_map<float, std::vector<std::list<float>>>
+std::unordered_map<float, std::vector<std::list<bool>>>
+std::unordered_map<float, std::vector<std::list<std::string>>>
+std::unordered_map<float, std::vector<std::list<std::wstring>>>
+std::unordered_map<float, std::list<std::list<float>>>
+std::unordered_map<float, std::list<std::list<unsigned short>>>
+std::unordered_map<float, std::list<std::list<short>>>
+std::unordered_map<float, std::list<std::list<double>> >
+std::unordered_map<float, std::list<std::list<float>>>
+std::unordered_map<float, std::list<std::list<bool>>>
+std::unordered_map<float, std::list<std::list<std::string>>>
+std::unordered_map<float, std::list<std::list<std::wstring>>>
+std::unordered_map<bool, std::vector<std::vector<bool>>>
+std::unordered_map<bool, std::vector<std::vector<unsigned short>>>
+std::unordered_map<bool, std::vector<std::vector<short>>>
+std::unordered_map<bool, std::vector<std::vector<double>> >
+std::unordered_map<bool, std::vector<std::vector<bool>>>
+std::unordered_map<bool, std::vector<std::vector<bool>>>
+std::unordered_map<bool, std::vector<std::vector<std::string>>>
+std::unordered_map<bool, std::vector<std::vector<std::wstring>>>
+std::unordered_map<bool, std::list<std::vector<bool>>>
+std::unordered_map<bool, std::list<std::vector<unsigned short>>>
+std::unordered_map<bool, std::list<std::vector<short>>>
+std::unordered_map<bool, std::list<std::vector<double>> >
+std::unordered_map<bool, std::list<std::vector<bool>>>
+std::unordered_map<bool, std::list<std::vector<bool>>>
+std::unordered_map<bool, std::list<std::vector<std::string>>>
+std::unordered_map<bool, std::list<std::vector<std::wstring>>>
+std::unordered_map<bool, std::vector<std::list<bool>>>
+std::unordered_map<bool, std::vector<std::list<unsigned short>>>
+std::unordered_map<bool, std::vector<std::list<short>>>
+std::unordered_map<bool, std::vector<std::list<double>> >
+std::unordered_map<bool, std::vector<std::list<bool>>>
+std::unordered_map<bool, std::vector<std::list<bool>>>
+std::unordered_map<bool, std::vector<std::list<std::string>>>
+std::unordered_map<bool, std::vector<std::list<std::wstring>>>
+std::unordered_map<bool, std::list<std::list<bool>>>
+std::unordered_map<bool, std::list<std::list<unsigned short>>>
+std::unordered_map<bool, std::list<std::list<short>>>
+std::unordered_map<bool, std::list<std::list<double>> >
+std::unordered_map<bool, std::list<std::list<bool>>>
+std::unordered_map<bool, std::list<std::list<bool>>>
+std::unordered_map<bool, std::list<std::list<std::string>>>
+std::unordered_map<bool, std::list<std::list<std::wstring>>>
+std::unordered_map<std::string, std::vector<std::vector<std::string>>>
+std::unordered_map<std::string, std::vector<std::vector<unsigned short>>>
+std::unordered_map<std::string, std::vector<std::vector<short>>>
+std::unordered_map<std::string, std::vector<std::vector<double>> >
+std::unordered_map<std::string, std::vector<std::vector<std::string>>>
+std::unordered_map<std::string, std::vector<std::vector<bool>>>
+std::unordered_map<std::string, std::vector<std::vector<std::string>>>
+std::unordered_map<std::string, std::vector<std::vector<std::wstring>>>
+std::unordered_map<std::string, std::list<std::vector<std::string>>>
+std::unordered_map<std::string, std::list<std::vector<unsigned short>>>
+std::unordered_map<std::string, std::list<std::vector<short>>>
+std::unordered_map<std::string, std::list<std::vector<double>> >
+std::unordered_map<std::string, std::list<std::vector<std::string>>>
+std::unordered_map<std::string, std::list<std::vector<bool>>>
+std::unordered_map<std::string, std::list<std::vector<std::string>>>
+std::unordered_map<std::string, std::list<std::vector<std::wstring>>>
+std::unordered_map<std::string, std::vector<std::list<std::string>>>
+std::unordered_map<std::string, std::vector<std::list<unsigned short>>>
+std::unordered_map<std::string, std::vector<std::list<short>>>
+std::unordered_map<std::string, std::vector<std::list<double>> >
+std::unordered_map<std::string, std::vector<std::list<std::string>>>
+std::unordered_map<std::string, std::vector<std::list<bool>>>
+std::unordered_map<std::string, std::vector<std::list<std::string>>>
+std::unordered_map<std::string, std::vector<std::list<std::wstring>>>
+std::unordered_map<std::string, std::list<std::list<std::string>>>
+std::unordered_map<std::string, std::list<std::list<unsigned short>>>
+std::unordered_map<std::string, std::list<std::list<short>>>
+std::unordered_map<std::string, std::list<std::list<double>> >
+std::unordered_map<std::string, std::list<std::list<std::string>>>
+std::unordered_map<std::string, std::list<std::list<bool>>>
+std::unordered_map<std::string, std::list<std::list<std::string>>>
+std::unordered_map<std::string, std::list<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::vector<unsigned short>>>
+std::unordered_map<std::wstring, std::vector<std::vector<short>>>
+std::unordered_map<std::wstring, std::vector<std::vector<double>> >
+std::unordered_map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::vector<bool>>>
+std::unordered_map<std::wstring, std::vector<std::vector<std::string>>>
+std::unordered_map<std::wstring, std::vector<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::vector<unsigned short>>>
+std::unordered_map<std::wstring, std::list<std::vector<short>>>
+std::unordered_map<std::wstring, std::list<std::vector<double>> >
+std::unordered_map<std::wstring, std::list<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::vector<bool>>>
+std::unordered_map<std::wstring, std::list<std::vector<std::string>>>
+std::unordered_map<std::wstring, std::list<std::vector<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::list<unsigned short>>>
+std::unordered_map<std::wstring, std::vector<std::list<short>>>
+std::unordered_map<std::wstring, std::vector<std::list<double>> >
+std::unordered_map<std::wstring, std::vector<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::vector<std::list<bool>>>
+std::unordered_map<std::wstring, std::vector<std::list<std::string>>>
+std::unordered_map<std::wstring, std::vector<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::list<unsigned short>>>
+std::unordered_map<std::wstring, std::list<std::list<short>>>
+std::unordered_map<std::wstring, std::list<std::list<double>> >
+std::unordered_map<std::wstring, std::list<std::list<std::wstring>>>
+std::unordered_map<std::wstring, std::list<std::list<bool>>>
+std::unordered_map<std::wstring, std::list<std::list<std::string>>>
+std::unordered_map<std::wstring, std::list<std::list<std::wstring>>>
+
+
+

@@ -1,0 +1,57 @@
+{
+    "configurations": [
+        {
+            "name": "C/C++: build and debug dll use",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/debug/dll_test_test_d",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/debug",
+            "environment": [{"name":"LD_LIBRARY_PATH", "value":"${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/debug:$LD_LIBRARY_PATH"}],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ debug build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: release build and run",
+            "type":"cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/release/dll_test_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/release",
+            "environment": [{"name":"LD_LIBRARY_PATH", "value":"${workspaceFolder}/dll_test_test/linux_build/packages/dll_test_test/release:$LD_LIBRARY_PATH"}],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ release build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }        
+    ],
+    "version": "2.0.0"
+}

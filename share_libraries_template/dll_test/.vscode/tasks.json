@@ -1,0 +1,85 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ clean",
+            "command": "/usr/bin/make",
+            "args": [
+                "clean_all",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/dll_test_test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Clean everything."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ debug build",
+            "command": "/usr/bin/make",
+            "args": [
+                "package_debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/dll_test_test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Debug build."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ release build",
+            "command": "/usr/bin/make",
+            "args": [
+                "package_release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/dll_test_test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Release build."
+        },        
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ rebuild all",
+            "command": "/usr/bin/make",
+            "args": [
+                "package"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/dll_test_test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Re-build the whole world."
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ package",
+            "command": "/usr/bin/make",
+            "args": [
+                "package"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/dll_test_test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "Package for shipping."
+        }
+    ],
+    "version": "2.0.0"
+}
