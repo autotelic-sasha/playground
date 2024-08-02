@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "C:\\dev\\autotelica\\playground\\code_templates\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid.hxx||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:libstud\\uuid.hxx||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid\\uuid.hxx||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:libstud\\uuid\\uuid.hxx||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\bpl.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:bpl.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
@@ -42,7 +50,7 @@
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "string_util.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\autotelica_core\\util\\string_util.h",
               "RelativeDocumentMoniker": "..\\..\\autotelica_core\\util\\string_util.h",
@@ -55,7 +63,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 9,
               "Title": "filesystem",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\include\\experimental\\filesystem",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\include\\experimental\\filesystem",
@@ -67,13 +75,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "bpl.cpp",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp",
               "RelativeDocumentMoniker": "bpl.cpp",
               "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp",
               "RelativeToolTip": "bpl.cpp",
-              "ViewState": "AQIAAHYCAAAAAAAAAAAIwJMCAAAFAAAA",
+              "ViewState": "AQIAAFgCAAAAAAAAAAAIwHQCAAAJAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-08-01T14:20:54.843Z",
               "EditorCaption": ""
@@ -82,11 +90,37 @@
         },
         {
           "DockedWidth": 191,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 1,
+              "Title": "uuid.hxx",
+              "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid\\uuid.hxx",
+              "RelativeDocumentMoniker": "libstud\\uuid\\uuid.hxx",
+              "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid\\uuid.hxx",
+              "RelativeToolTip": "libstud\\uuid\\uuid.hxx",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAgAAAAJAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-08-02T03:50:44.913Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "uuid.hxx",
+              "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid.hxx",
+              "RelativeDocumentMoniker": "libstud\\uuid.hxx",
+              "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\libstud\\uuid.hxx",
+              "RelativeToolTip": "libstud\\uuid.hxx",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAIAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-08-02T03:49:46.255Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "parse_ini_file.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\parse_ini_file.h",
               "RelativeDocumentMoniker": "parse_ini_file.h",
@@ -99,7 +133,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "code_templates.cpp",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp",
               "RelativeDocumentMoniker": "code_templates.cpp",
@@ -112,7 +146,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "asserts_examples.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\autotelica_core\\util\\asserts_examples.h",
               "RelativeDocumentMoniker": "..\\..\\autotelica_core\\util\\asserts_examples.h",
@@ -124,20 +158,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "bpl.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.h",
               "RelativeDocumentMoniker": "bpl.h",
               "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.h",
               "RelativeToolTip": "bpl.h",
-              "ViewState": "AQIAAGcAAAAAAAAAAAAIwJEAAAAAAAAA",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAEAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2024-08-01T12:36:51.13Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "asserts.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\autotelica_core\\util\\asserts.h",
               "RelativeDocumentMoniker": "..\\..\\autotelica_core\\util\\asserts.h",

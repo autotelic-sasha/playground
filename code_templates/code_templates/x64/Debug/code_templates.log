@@ -1,2 +1,238 @@
-﻿  code_templates.cpp
-  code_templates.vcxproj -> C:\dev\autotelica\playground\code_templates\x64\Debug\code_templates.exe
+﻿  bpl.cpp
+C:\dev\autotelica\playground\code_templates\bpl.cpp(23,26): error C2977: 'autotelica::string_util::string_map_nc': too many template arguments
+  C:\dev\autotelica\autotelica_core\util\string_util.h(457,3):
+  see declaration of 'autotelica::string_util::string_map_nc'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(42,37): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(49,27): error C2677: binary '[': no global operator found which takes type 'const std::string' (or there is no acceptable conversion)
+C:\dev\autotelica\playground\code_templates\bpl.cpp(54,28): error C2737: 'it': const object must be initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(55,20): error C3536: 'it': cannot be used before it is initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(57,21): error C2662: 'bool autotelica::`anonymous-namespace'::named_values::is_lowercase(const std::string &)': cannot convert 'this' pointer from 'const autotelica::`anonymous-namespace'::named_values' to 'autotelica::`anonymous-namespace'::named_values &'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(57,21):
+  Conversion loses qualifiers
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(24,18):
+  see declaration of 'autotelica::`anonymous-namespace'::named_values::is_lowercase'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(57,21):
+  while trying to match the argument list '(const std::string)'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(59,21): error C2662: 'bool autotelica::`anonymous-namespace'::named_values::is_uppercase(const std::string &)': cannot convert 'this' pointer from 'const autotelica::`anonymous-namespace'::named_values' to 'autotelica::`anonymous-namespace'::named_values &'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(59,21):
+  Conversion loses qualifiers
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(32,18):
+  see declaration of 'autotelica::`anonymous-namespace'::named_values::is_uppercase'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(59,21):
+  while trying to match the argument list '(const std::string)'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(79,51): error C2065: 't': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(118,24): error C2065: 'instance': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(122,41): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(128,28): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(132,35): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26): error C2440: 'initializing': cannot convert from 'const _Ty' to 'long'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26): error C2440:         with
+C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26): error C2440:         [
+C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26): error C2440:             _Ty=autotelica::`anonymous-namespace'::argument
+C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26): error C2440:         ]
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(143,26):
+  No user-defined-conversion operator available that can perform this conversion, or the operator cannot be called
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(145,36): error C2653: 'uuid': is not a class or namespace name
+C:\dev\autotelica\playground\code_templates\bpl.cpp(145,42): error C3861: 'generate': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(242,17): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(242,13): error C2593: 'operator =' is ambiguous
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xstring(3247,32):
+  could be 'std::basic_string<char,std::char_traits<char>,std::allocator<char>> &std::basic_string<char,std::char_traits<char>,std::allocator<char>>::operator =(const _Elem)'
+          with
+          [
+              _Elem=char
+          ]
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xstring(3239,32):
+  or       'std::basic_string<char,std::char_traits<char>,std::allocator<char>> &std::basic_string<char,std::char_traits<char>,std::allocator<char>>::operator =(const _Elem *const )'
+          with
+          [
+              _Elem=char
+          ]
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xstring(3139,32):
+  or       'std::basic_string<char,std::char_traits<char>,std::allocator<char>> &std::basic_string<char,std::char_traits<char>,std::allocator<char>>::operator =(std::initializer_list<_Elem>)'
+          with
+          [
+              _Elem=char
+          ]
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xstring(3018,32):
+  or       'std::basic_string<char,std::char_traits<char>,std::allocator<char>> &std::basic_string<char,std::char_traits<char>,std::allocator<char>>::operator =(std::basic_string<char,std::char_traits<char>,std::allocator<char>> &&) noexcept'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(242,13):
+  while trying to match the argument list '(std::string, unknown-type)'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(263,21): error C2760: syntax error: '}' was unexpected here; expected ';'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(264,18): error C2059: syntax error: ';'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(270,21): error C3536: 'advance_after_arg': cannot be used before it is initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(270,21): error C2064: term does not evaluate to a function taking 0 arguments
+C:\dev\autotelica\playground\code_templates\bpl.cpp(273,28): error C3861: 'get_floating_argument': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(276,21): error C2064: term does not evaluate to a function taking 0 arguments
+C:\dev\autotelica\playground\code_templates\bpl.cpp(279,33): error C3861: 'get_string_argument': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(282,21): error C2064: term does not evaluate to a function taking 0 arguments
+C:\dev\autotelica\playground\code_templates\bpl.cpp(285,33): error C3861: 'get_name_argument': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(288,21): error C2064: term does not evaluate to a function taking 0 arguments
+C:\dev\autotelica\playground\code_templates\bpl.cpp(301,19): warning C4553: '==': result of expression not used; did you intend '='?
+C:\dev\autotelica\playground\code_templates\bpl.cpp(309,21): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(312,48): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(316,25): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(328,31): error C3861: 'trim': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(329,21): warning C4553: '==': result of expression not used; did you intend '='?
+C:\dev\autotelica\playground\code_templates\bpl.cpp(345,21): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(351,25): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(370,34): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(376,25): error C3861: 'match': identifier not found
+C:\dev\autotelica\playground\code_templates\bpl.cpp(391,60): error C2039: 'text': is not a member of 'std::basic_ios<char,std::char_traits<char>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\ios(175,71):
+  see declaration of 'std::basic_ios<char,std::char_traits<char>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(391,60): error C2065: 'text': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14): error C2664: 'std::basic_istream<char,std::char_traits<char>> &std::basic_istream<char,std::char_traits<char>>::read(_Elem *,std::streamsize)': cannot convert argument 1 from 'const _Elem *' to '_Elem *'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14): error C2664:         with
+C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14): error C2664:         [
+C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14): error C2664:             _Elem=char
+C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14): error C2664:         ]
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(394,31):
+  Conversion loses qualifiers
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\istream(509,39):
+  see declaration of 'std::basic_istream<char,std::char_traits<char>>::read'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(394,14):
+  while trying to match the argument list '(const _Elem *, const uintmax_t)'
+          with
+          [
+              _Elem=char
+          ]
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(398,60): error C2039: 'text': is not a member of 'std::basic_ios<char,std::char_traits<char>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\ios(175,71):
+  see declaration of 'std::basic_ios<char,std::char_traits<char>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(398,60): error C2065: 'text': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(418,60): error C2039: 'text': is not a member of 'std::basic_ios<char,std::char_traits<char>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\ios(175,71):
+  see declaration of 'std::basic_ios<char,std::char_traits<char>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(418,60): error C2065: 'text': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(427,51): error C2065: 'lines': undeclared identifier
+C:\dev\autotelica\playground\code_templates\bpl.cpp(461,46): error C2248: 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>::GenericValue': cannot access private member declared in class 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\dev\autotelica\playground\code_templates\rapidjson\document.h(701,5):
+  see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>::GenericValue'
+  C:\dev\autotelica\playground\code_templates\rapidjson\document.h(668,7):
+  see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17): warning C4003: not enough arguments for function-like macro invocation 'AF_ASSERT'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17): error C2059: syntax error: ')'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17): error C2143: syntax error: missing ';' before '{'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17): error C2143: syntax error: missing ')' before ','
+C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17): error C2672: 'autotelica::diagnostic_messages::messages::error_ex': no matching overloaded function found
+  C:\dev\autotelica\autotelica_core\util\diagnostic_messages.h(413,25):
+  could be 'void autotelica::diagnostic_messages::messages::error_ex(const char *const ,const char *const ,int,const char *,Targs...)'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(466,17):
+  	'void autotelica::diagnostic_messages::messages::error_ex(const char *const ,const char *const ,int,const char *,Targs...)': expects 5 arguments - 0 provided
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(492,55): error C2039: 'GetObject': is not a member of 'rapidjson::GenericObject<false,rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>>'
+  C:\dev\autotelica\playground\code_templates\rapidjson\document.h(2952,7):
+  see declaration of 'rapidjson::GenericObject<false,rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49): error C2672: 'begin': no matching overloaded function found
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1834,27):
+  could be '_Ty *std::begin(_Ty (&)[_Size]) noexcept'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	'_Ty *std::begin(_Ty (&)[_Size]) noexcept': could not deduce template argument for '_Ty (&)[_Size]' from 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1816,30):
+  or       'unknown-type std::begin(const _Container &) noexcept(<expr>)'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	Failed to specialize function template 'unknown-type std::begin(const _Container &) noexcept(<expr>)'
+  		C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  		With the following template arguments:
+  			C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  			'_Container=rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1817,23):
+  		'begin': is not a member of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\dev\autotelica\playground\code_templates\rapidjson\document.h(668,7):
+  		see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1810,30):
+  or       'unknown-type std::begin(_Container &) noexcept(<expr>)'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	Failed to specialize function template 'unknown-type std::begin(_Container &) noexcept(<expr>)'
+  		C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  		With the following template arguments:
+  			C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  			'_Container=rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1811,23):
+  		'begin': is not a member of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\dev\autotelica\playground\code_templates\rapidjson\document.h(668,7):
+  		see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\initializer_list(54,35):
+  or       'const _Elem *std::begin(std::initializer_list<_Elem>) noexcept'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	'const _Elem *std::begin(std::initializer_list<_Elem>) noexcept': could not deduce template argument for 'std::initializer_list<_Elem>' from 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49): error C2672: 'end': no matching overloaded function found
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1839,27):
+  could be '_Ty *std::end(_Ty (&)[_Size]) noexcept'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	'_Ty *std::end(_Ty (&)[_Size]) noexcept': could not deduce template argument for '_Ty (&)[_Size]' from 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1828,30):
+  or       'unknown-type std::end(const _Container &) noexcept(<expr>)'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	Failed to specialize function template 'unknown-type std::end(const _Container &) noexcept(<expr>)'
+  		C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  		With the following template arguments:
+  			C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  			'_Container=rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1829,23):
+  		'end': is not a member of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\dev\autotelica\playground\code_templates\rapidjson\document.h(668,7):
+  		see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1822,30):
+  or       'unknown-type std::end(_Container &) noexcept(<expr>)'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	Failed to specialize function template 'unknown-type std::end(_Container &) noexcept(<expr>)'
+  		C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  		With the following template arguments:
+  			C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  			'_Container=rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\xutility(1823,23):
+  		'end': is not a member of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  		C:\dev\autotelica\playground\code_templates\rapidjson\document.h(668,7):
+  		see declaration of 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\include\initializer_list(59,35):
+  or       'const _Elem *std::end(std::initializer_list<_Elem>) noexcept'
+  	C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49):
+  	'const _Elem *std::end(std::initializer_list<_Elem>) noexcept': could not deduce template argument for 'std::initializer_list<_Elem>' from 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49): error C3536: '<begin>$L0': cannot be used before it is initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(499,49): error C3536: '<end>$L0': cannot be used before it is initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(499,63): error C2100: you cannot dereference an operand of type 'int'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(501,32): error C2737: 'jso': const object must be initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(503,25): error C3536: 'jso': cannot be used before it is initialized
+C:\dev\autotelica\playground\code_templates\bpl.cpp(504,35): error C2664: 'std::string autotelica::`anonymous-namespace'::get_json_string(const rapidjson::Value &,const char *const )': cannot convert argument 1 from 'const int' to 'const rapidjson::Value &'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(504,51):
+  Reason: cannot convert from 'const int' to 'const rapidjson::Value'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(504,51):
+  Constructor for class 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>' is declared 'explicit'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(446,21):
+  see declaration of 'autotelica::`anonymous-namespace'::get_json_string'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(504,35):
+  while trying to match the argument list '(const int, const char *const )'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(506,25): error C2664: 'void autotelica::`anonymous-namespace'::parse_json_named_values(const std::string &,const rapidjson::Value &,autotelica::`anonymous-namespace'::named_values &)': cannot convert argument 2 from 'const char' to 'const rapidjson::Value &'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(506,78):
+  Reason: cannot convert from 'const char' to 'const rapidjson::Value'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(506,78):
+  Constructor for class 'rapidjson::GenericValue<rapidjson::UTF8<char>,rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>>' is declared 'explicit'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(454,14):
+  see declaration of 'autotelica::`anonymous-namespace'::parse_json_named_values'
+  C:\dev\autotelica\playground\code_templates\bpl.cpp(506,25):
+  while trying to match the argument list '(std::string, const char, autotelica::`anonymous-namespace'::named_values)'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(525,53): error C2039: 'sting': is not a member of 'std'
+  C:\dev\autotelica\playground\code_templates\libstud\uuid\uuid.ixx(251,11):
+  see declaration of 'std'
+  
+C:\dev\autotelica\playground\code_templates\bpl.cpp(525,53): error C2061: syntax error: identifier 'sting'
+C:\dev\autotelica\playground\code_templates\bpl.cpp(553,19): error C1075: '{': no matching token found
+  code_templates.cpp
+  Generating Code...

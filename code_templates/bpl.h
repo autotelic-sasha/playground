@@ -1,5 +1,4 @@
 #pragma once
-#include "string_util.h"
 // bpl is a minimalist code generation framework.
 // It's opinionated and insists on being simple. Real simple. 
 // It can be extended in ways that will make it complicated, sure, anything can.
