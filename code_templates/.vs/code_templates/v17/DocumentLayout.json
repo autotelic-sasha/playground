@@ -3,23 +3,23 @@
   "WorkspaceRootPath": "C:\\dev\\autotelica\\playground\\code_templates\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:bpl.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\bpl.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:bpl.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\parse_ini_file.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:parse_ini_file.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:bpl.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:code_templates.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\dev\\autotelica\\autotelica_core\\util\\string_util.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:code_templates.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|C:\\dev\\autotelica\\playground\\code_templates\\parse_ini_file.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{56000AA3-C860-479E-9375-BAD84BDD889E}|code_templates.vcxproj|solutionrelative:parse_ini_file.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\dev\\autotelica\\autotelica_core\\util\\asserts_examples.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
@@ -38,7 +38,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 193,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
@@ -48,9 +48,10 @@
               "RelativeDocumentMoniker": "..\\..\\autotelica_core\\util\\string_util.h",
               "ToolTip": "C:\\dev\\autotelica\\autotelica_core\\util\\string_util.h",
               "RelativeToolTip": "..\\..\\autotelica_core\\util\\string_util.h",
-              "ViewState": "AQIAAK8BAAAAAAAAAAAAAMgBAAAVAAAA",
+              "ViewState": "AQIAAAMBAAAAAAAAAAAhwBwBAAAQAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2024-08-01T13:44:46.693Z"
+              "WhenOpened": "2024-08-01T13:44:46.693Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -66,25 +67,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "code_templates.cpp",
-              "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp",
-              "RelativeDocumentMoniker": "code_templates.cpp",
-              "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp",
-              "RelativeToolTip": "code_templates.cpp",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABwAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2024-08-01T12:33:57.467Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "bpl.cpp",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp",
               "RelativeDocumentMoniker": "bpl.cpp",
               "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.cpp",
               "RelativeToolTip": "bpl.cpp",
-              "ViewState": "AQIAAIEBAAAAAAAAAAD4v6kBAAANAAAA",
+              "ViewState": "AQIAAHYCAAAAAAAAAAAIwJMCAAAFAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-08-01T14:20:54.843Z",
               "EditorCaption": ""
@@ -93,11 +82,11 @@
         },
         {
           "DockedWidth": 191,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "parse_ini_file.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\parse_ini_file.h",
               "RelativeDocumentMoniker": "parse_ini_file.h",
@@ -106,6 +95,19 @@
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAAQAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2024-08-01T23:04:23.785Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "code_templates.cpp",
+              "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp",
+              "RelativeDocumentMoniker": "code_templates.cpp",
+              "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\code_templates.cpp",
+              "RelativeToolTip": "code_templates.cpp",
+              "ViewState": "AQIAABIAAAAAAAAAAAAAACEAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2024-08-01T12:33:57.467Z",
               "EditorCaption": ""
             },
             {
@@ -122,13 +124,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "bpl.h",
               "DocumentMoniker": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.h",
               "RelativeDocumentMoniker": "bpl.h",
               "ToolTip": "C:\\dev\\autotelica\\playground\\code_templates\\bpl.h",
               "RelativeToolTip": "bpl.h",
-              "ViewState": "AQIAAE8AAAAAAAAAAAAIwGoAAAAhAAAA",
+              "ViewState": "AQIAAGcAAAAAAAAAAAAIwJEAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2024-08-01T12:36:51.13Z",
               "EditorCaption": ""

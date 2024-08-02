@@ -78,6 +78,7 @@
 //              }
 //          ]
 //      }
+//      Hint: if you don't need named sections, you can just use "named_values" block at the top level.
 // 
 //      now the names get mapped like this:
 //          blah -> blahblah
@@ -130,9 +131,18 @@ namespace autotelica {
         std::shared_ptr<bpl_impl> _impl;
     public:
         bpl(
-            std::string source_path_,
-            std::string target_path_,
-            std::map<std::string, std::string> kvm_) {
-        }
+            std::string const& source_path_,
+            std::string const& target_path_,
+            std::string const& config_path_,
+            bool strict_ = false);
+        
+        bpl(
+            std::string const& source_path_,
+            std::string const& target_path_,
+            bool strict_ = false,
+            std::string const& extensions_to_ignore_ = "",
+            std::string const& files_to_ignore_ = "",
+            std::map<std::string, std::string> const& kvm_ = {});
+
     };
 }
