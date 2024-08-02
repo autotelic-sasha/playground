@@ -26,5 +26,8 @@
     <ClInclude Include="bpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="parse_ini_file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

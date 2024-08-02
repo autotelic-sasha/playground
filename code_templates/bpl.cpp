@@ -1,11 +1,12 @@
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #include "bpl.h"
 #include <experimental/filesystem>
-#include "autotelica_core/util/string_util.h"
-#include "autotelica_core/util/asserts.h"
 #include <vector>
 #include <functional>
 #include <sstream>
+#include <istream>
+#include "autotelica_core/util/string_util.h"
+#include "autotelica_core/util/asserts.h"
 // libstud generates UUIDs, it came from here: https://github.com/libstud/libstud-uuid
 // thanks Boris Kolpackov, wherever you are
 #include <libstud/uuid.hxx>
@@ -380,6 +381,50 @@ namespace autotelica {
                 c = name[++dot];
             }
             return out.str();
+        }
+
+
+        // files and stuff
+        std::string read_file(path_t const& path){
+            std::ifstream f(path, std::ios::in | std::ios::text);
+            const auto sz = filesystem_n::file_size(path);
+            std::string result(sz, '\0');
+            f.read(result.data(), sz);
+            return result;
+        }
+        const char* const tag_extensions_to_ignore = "extensions_to_ignore";
+        const char* const tag_files_to_ignore = "files_to_ignore";
+        bool parse_ini_file(
+                path_t const& path,
+                named_values& values,
+                std::string& extensions_to_ignore, 
+                std::string& files_to_ignore) {
+            using string_util;
+            std::string section;
+            std::string line;
+            std::ifstream f(path, std::ios::in | std::ios::text);
+            // every line is a comment, a section start, or a value
+            while (std::getline(f, line)) {
+                line = trim(line);
+                if (line.empty()) continue;
+                if (line[0] == ';') continue; // ignore comments
+                if (line[0] == '[') {//section
+                    AF_ASSERT(line.back() == ']', "Missing ']' when parsing ini file.");
+                    section = "";
+                    section = line.substr(1, lines.size()-2);
+                    continue;
+                }
+                const auto eq = line.find('=');
+                AF_ASSERT(eq != std::string::npos, "Missing '='  when parsing ini file.");
+                auto const name = trim(line.substr(0, eq));
+                if (name == tag_extensions_to_ignore && extensions_to_ignore.empty())
+                    extensions_to_ignore = line.substr(eq + 1);
+                else if (name == tag_files_to_ignore && extensions_to_ignore.empty())
+                    files_to_ignore = line.substr(eq + 1);
+                else
+                    values.add(name, line.substr(eq + 1));
+            }
+            return true;
         }
 
     }

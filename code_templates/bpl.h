@@ -36,14 +36,89 @@
 //			- you can escape replacement by a single '\' before the double braces (e.g. \{{don't touch this}})
 // 
 //		6. There is a small number of functions that can be used to generate special things. 
-//			They cannot be used in maps, you just specify that they should be used in the source files, but their arguments can come from the map.
+//			They are hardcoded, to add one you gotta write some c++.
+//          They cannot be used in maps, you just specify that they should be used in the source files, but their arguments can come from the map.
 //          They cannot be used in file and directory name substitution; the syntax becomes too complicated.
 //			Their syntax is name(arg0, arg1, ... , arg5), the name is not case sensitive.
 //          They only allow up to five arguments, and arguments can be an integer, a double, a string (quoted), or a name from the map (case rules work the same)
 //			Available functions:
 //			- GUID(int) - this is because Visual Studio uses guids to link its internal files and configurations. 
 //			  The argument is the id of the guid, GUID(0) is always the same GUID during a single run of the template generation, so is GUID(2) etc.
-//		
+//
+// Where do the values for replacements come from?
+//      When running this from a command line, supply a path to a file containing them. 
+//      It can be either a json or ini file.
+//
+//      The class that does all the work will take a map<string, string> as a constructor argument too, 
+//      so you can use that if you are extending the funcionality for your own neffarious purposes.
+// 
+//      The names can be scoped (it's handy if your templates become big), but only to one level. 
+//      You do this by creating "sections", a block with a name that becomes first part of all the names
+//      defined in that section before a dot ... 
+//      Far easier to see an example:
+// 
+//      The JSON should look like this:
+// 
+//      {
+//          "sections" : [
+//              {
+//                  "name" : "", 
+//                  "named_values": [
+//                      { "name" : "blah", "value" : "blahblah" },
+//                      { "name" : "ping", "value" : "pong" },
+//                      { "name" : "ok", "value" : "enough" }
+//                  ]
+//              },
+//              {
+//                  "name" : "meaningfull", 
+//                  "named_values": [
+//                      { "name" : "boom", "value" : "bang" },
+//                      { "name" : "ping", "value" : "pongpong" }
+//                  ]
+//              }
+//          ]
+//      }
+// 
+//      now the names get mapped like this:
+//          blah -> blahblah
+//          ping -> pong
+//          ok -> enough
+//          meaningfull.boom -> bang
+//          meaningfull.ping -> pongpong
+//      		
+//      The equivalent ini file looks like this:
+//      
+//      ; Comment about the meaning of it all
+//      blah = blahblah
+//      ping = pong
+//      ok = enough
+//      [meaningfull]
+//      ; Some other thoughts about it all
+//      boom = bang
+//      ping = pongpong
+// 
+// What else?
+// 
+// 1. You can specify file extensions or file names to ignore.
+//      These are simply copied, possibly with name changes, but the content is not parsed. 
+//      Super handy when you have binary files, like Excel sheets or whatnot, in your templates.
+//      You can do this either on the command line or in the input files, just add values like:
+// 
+//          "extensions_to_ignore" : "xls,exe,so",
+//          "files_to_ignore" : "large_cpp.cpp, large_header.h"
+//          (in json)
+//
+//      or
+// 
+//          extensions_to_ignore = xls,exe,so
+//          files_to_ignore = large_cpp.cpp, large_header.h
+//          (in ini)
+//  
+//      or similarly on the command line
+//      
+//  2. If a same parameter appears both on a command line and in a config file, command line takes presedence.    
+//
+
 #include <map>
 #include <string>
 #include <memory>
