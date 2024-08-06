@@ -1,67 +1,125 @@
 // code_templates.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-#include <iostream>
-#include <experimental/filesystem>
-#include "autotelica_core/util/string_util.h"
-#include <map>
+#include "bpl.h"
 
-using path_t = std::experimental::filesystem::path;
-namespace filesystem_n = std::experimental::filesystem;
+#include "autotelica_core/util/cl_parsing.h"
+#include "autotelica_core/util/asserts.h"
 
-class mintl {
-    std::map<std::string, std::string> _kvm;
-    std::string _source_path_str;
-    std::string _target_path_str;
-public:
-    mintl(
-        std::string source_path_str_,
-        std::string target_path_str_,
-        std::map<std::string, std::string> kvm_){
-    }
-};
+using namespace autotelica;
+using namespace autotelica::cl_parsing;
 
-
-void check_paths(path_t const& source_folder, path_t const& target_folder) {
-    if (autotelica::string_util::to_lower(target_folder.string()).find(autotelica::string_util::to_lower(source_folder.string())) != std::string::npos)
-        throw std::runtime_error("Target path cannot be contained within source path.");
-}
-path_t make_new_path(path_t const& source_path, path_t const& source_folder, path_t const& target_folder) {
-    path_t new_path(
-        autotelica::string_util::replace(source_path.string(), source_folder.string(), target_folder.string()));
-    return new_path;
-}
-void create_target(path_t const& source_path, path_t const& target_path) {
-    if (filesystem_n::is_directory(source_path))
-        filesystem_n::create_directories(target_path);
-    else
-        filesystem_n::copy(source_path, target_path);
-}
-
-int main()
+int main(int argc, const char* argv[])
 {
-    auto const source = path_t("C:\\dev\\playing\\share_libraries_template\\shared_library_template").make_preferred();
-    auto const target = path_t("C:\\dev\\playing\\share_libraries_template\\out").make_preferred();
-    //if (filesystem_n::exists(target))
-    //    throw std::runtime_error("Target directory already exists.");
+	
+	std::shared_ptr<bpl> _bpl;
 
-    //filesystem_n::create_directories(target);
-    check_paths(source, target);
-    using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
-    for (const auto& entry : recursive_directory_iterator(source)) {
-        try {
-            std::cout << "=======================" << std::endl;
-            std::cout << "READING:" << entry << std::endl;
-            auto new_path = make_new_path(entry, source, target);
-            create_target(entry, new_path);
-            std::cout << "CREATED:" << new_path << std::endl;
-        }
-        catch (std::exception const& e) {
-            std::cout << "ERROR: " << e.what() << std::endl;
-        }
-    }
-    
-    std::cout << "Hello World!\n";
+	auto generate = [&](std::vector<std::string> const&) { _bpl->generate(); };
+	auto generate_config = [&](std::vector<std::string> const&) { _bpl->generate_config_files(); };
+
+	cl_commands commands("Autotelica simple code template generation.");
+
+	commands
+		.register_command(
+			"Source path",
+			"Path to the source template.",
+			{ "s", "source", "source_path" },
+			1)
+		.register_command(
+			"Target path",
+			"Path to the folder where template will be instantiated.",
+			{ "t", "target", "target_path" },
+			1)
+		.register_command(
+			"Config file path",
+			"Path to the configuration file.",
+			{ "c", "config", "config_path" },
+			1)
+		.register_command(
+			"Strict",
+			"Strict running mode.",
+			{ "strict" },
+			0)
+		.register_command(
+			"Extensions to ignore",
+			"List of file extensions for files that should not parsed, must be quoted (e.g. \"*.xls, *.exe\").",
+			{ "e", "igore_extensions", "extensions_to_ignore"},
+			1)
+		.register_command(
+			"Files to ignore",
+			"Files of folder names of files that should not parsed, must be quoted (e.g. \"sheets, bin\").",
+			{ "f", "igore_files", "files_to_ignore"},
+			1)
+		.register_command(
+			"Generate code",
+			"Generate code out of the supplied template.",
+			{ "generate" },
+			0,
+			generate)
+		.register_command(
+			"Generate configuration file",
+			"Generate configuration file with no values populated.",
+			{ "generate_config" },
+			0,
+			generate_config);
+
+	commands.parse_command_line(argc, argv);
+
+	if (commands.executors().empty()) {
+		commands.help();
+		return 0;
+	}
+
+	std::string source_path;
+	std::string target_path;
+	std::string config_path;
+	bool strict = false;
+	std::string extensions_to_ignore;
+	std::string files_to_ignore;
+
+	if (commands.has("source_path"))
+		source_path = commands.arguments("source_path")[0];
+	if (commands.has("target_path"))
+		target_path = commands.arguments("target_path")[0];
+	if (commands.has("config_path"))
+		config_path = commands.arguments("config_path")[0];
+	strict = commands.has("strict");
+	if (commands.has("extensions_to_ignore"))
+		extensions_to_ignore = commands.arguments("extensions_to_ignore")[0];
+	if (commands.has("files_to_ignore"))
+		files_to_ignore = commands.arguments("files_to_ignore")[0];
+
+	AF_ASSERT(commands.has("generate") || commands.has("generate_config"),
+		"Nothing for the application to do, you should supply either 'generate' or 'generate_config' as arguments.");
+
+	_bpl = std::shared_ptr<bpl>(new bpl(
+		source_path,
+		target_path,
+		config_path,
+		strict,
+		extensions_to_ignore,
+		files_to_ignore
+	));
+
+	if (commands.has("generate")) {
+		AF_ASSERT(!commands.has("generate_config"),
+			"It's really hard to generate configuration and code at the same time, just choose one of them please.");
+		AF_ASSERT(!source_path.empty(),
+			"Can't really generate code without the template, source path must be supplied.");
+		AF_ASSERT(!target_path.empty(),
+			"Without target path, don't know where to generate code, target path must be supplied.");
+	}
+	else if (commands.has("generate_config")) {
+		AF_ASSERT(!source_path.empty(),
+			"Can't really generate configurations without the template, source path must be supplied.");
+		AF_ASSERT(target_path.empty(),
+			"Target path has no purpose when generating configurations.");
+		AF_ASSERT(!config_path.empty(),
+			"Can't really generate configurations without the template, source path must be supplied.");
+	}
+
+	commands.execute();
+
 }
 
 

@@ -6,31 +6,57 @@
 #include <sstream>
 #include <istream>
 #include <algorithm>
+#include <random>
 #include "autotelica_core/util/string_util.h"
 #include "autotelica_core/util/asserts.h"
-// libstud generates UUIDs, it came from here: https://github.com/libstud/libstud-uuid
-// thanks Boris Kolpackov, wherever you are
-#include "libstud/uuid.hxx"
+
 #include "rapidjson/document.h"
 
 using path_t = std::experimental::filesystem::path;
 namespace filesystem_n = std::experimental::filesystem;
-
+using namespace autotelica::string_util;
 
 namespace autotelica {
     namespace {
+        unsigned char random_char() {
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 255);
+            return static_cast<unsigned char>(dis(gen));
+        }
+
+        std::string generate_hex(size_t len) {
+            std::stringstream ss;
+            for (size_t i = 0; i < len; i++) {
+                auto rc = random_char();
+                std::stringstream hexstream;
+                hexstream << std::hex << int(rc);
+                auto hex = hexstream.str();
+                ss << (hex.length() < 2 ? '0' + hex : hex);
+            }
+            return ss.str();
+        }
+        std::string simple_uuid() {
+            // simple, not really guaranteed to be universal uuids, but good enough for visual studio
+            std::stringstream ss;
+            ss << generate_hex(8) << "-" <<
+                generate_hex(4) << "-" <<
+                generate_hex(4) << "-" <<
+                generate_hex(4) << "-" <<
+                generate_hex(12);
+            return ss.str();
+        }
+
         class named_values {
-            string_util::string_map_nc<std::string, std::string> _values;
-            bool is_lowercase(std::string const& name) {
-                using namespace string_util;
+            string_map_nc<std::string> _values;
+            bool is_lowercase(std::string const& name) const {
                 for (auto const c : name) {
                     if (fast_to_lower(c) != c)
                         return false;
                 }
                 return true;
             }
-            bool is_uppercase(std::string const& name) {
-                using namespace string_util;
+            bool is_uppercase(std::string const& name) const {
                 for (auto const c : name) {
                     if (fast_to_upper(c) != c)
                         return false;
@@ -42,14 +68,12 @@ namespace autotelica {
                 return _values.find(trim(name)) != _values.end();
             }
             void add(std::string const& name, std::string const& value) {
-                using namespace string_util;
                 auto const nm = trim(name);
                 AF_ASSERT(!exists(name),
                     "Duplicate entry in the key-value table: % (keys are not case sensitive)", name);
                 _values[nm] = trim(value);
             }
             std::string get(std::string const& name) const {
-                using namespace string_util;
                 auto const nm = trim(name);
                 auto const it = _values.find(nm);
                 if(it == _values.end())
@@ -76,7 +100,7 @@ namespace autotelica {
         public:
             argument(long i):_type(argument_t::integer), _integer(i){}
             argument(double f) :_type(argument_t::floating), _floating(f) {}
-            argument(std::string const& s) :_type(t), _text(s) {}
+            argument(std::string const& s) :_type(argument_t::text), _text(s) {}
 
             long integer() const {
                 AF_ASSERT(_type == argument_t::integer, "Argument is of wrong type, expected integer.");
@@ -112,10 +136,10 @@ namespace autotelica {
             virtual std::string const& name() const = 0;
         };
         class functions {
-            using registry_t = string_util::string_map_nc<std::function<std::shared_ptr<function>()>>;
-            static registry_t registry() {
+            using registry_t = string_map_nc<std::function<std::shared_ptr<function>()>>;
+            static registry_t& registry() {
                 static registry_t _instance;
-                return instance;
+                return _instance;
             }
         public:
             static bool exists(std::string const& name) {
@@ -126,6 +150,7 @@ namespace autotelica {
                 std::function<std::shared_ptr<function>()> const& constructor) {
                 AF_ASSERT(!exists(name), "Function % is already registered.", name);
                 registry()[trim(name)] = constructor;
+                return true;
             }
             static std::shared_ptr<function> create(std::string const& name) {
                 if (!exists(name)) return nullptr;
@@ -137,15 +162,20 @@ namespace autotelica {
                 static std::map<long, std::string> _instance;
                 return _instance;
             }
+            static std::string const& sname() {
+                static std::string _name{ "GUID" };
+                return _name;
+            }
         public:
             std::string evaluate(named_values const& values) const override {
                 AF_ASSERT(_arguments.size() == 1, "Function GUID takes exactly one argument.");
-                long idx = _arguments[0];
-                if (guids().find(idx) == guids().end())
-                    guids()[idx] = uuid::generate().string();
+                long idx = _arguments[0].integer();
+                if (guids().find(idx) == guids().end()) {
+                    guids()[idx] = simple_uuid();
+                }
                 return guids()[idx];
             }
-            std::string const& name() const override { return "GUID"; }
+            std::string const& name() const override { return GUID::sname(); }
         };
         static bool register_guid_f = functions::register_function("GUID", 
             []() { return std::shared_ptr<function>(new GUID()); });
@@ -258,8 +288,9 @@ namespace autotelica {
             auto advance_after_arg = [&]() {
                     c = code[local_dot];
                     if (c == ',') {
+                        ++local_dot;
                         skip_whitespace(code, local_dot);
-                        c = code[local_dot]
+                        c = code[local_dot];
                     }
                 };
             while (c != 0 && c != '}' && c != ')') {
@@ -270,19 +301,19 @@ namespace autotelica {
                     advance_after_arg();
                     continue;
                 }
-                double f = get_floating_argument(code, local_dot, found);
+                double f = get_floating_arg(code, local_dot, found);
                 if (found) {
                     func->add_argument(f);
                     advance_after_arg();
                     continue;
                 }
-                std::string s = get_string_argument(code, local_dot, found);
+                std::string s = get_string_arg(code, local_dot, found);
                 if (found) {
                     func->add_argument(s);
                     advance_after_arg();
                     continue;
                 }
-                std::string n = get_name_argument(code, local_dot, found, values);
+                std::string n = get_name_arg(code, local_dot, found, values);
                 if (found) {
                     func->add_argument(n);
                     advance_after_arg();
@@ -298,7 +329,7 @@ namespace autotelica {
                 std::string const& code, size_t& dot, 
                 bool strict, std::string const& terminator, 
                 named_values const& values, bool& found) {
-            found == false;
+            found = false;
             size_t local_dot = dot;
             skip_whitespace(code, local_dot);
             // there is only two ways the collection of strings for a name stops:
@@ -306,14 +337,14 @@ namespace autotelica {
             //   - we reach an open bracket (meaning, this is a function call)
             std::string name;
             char c = code[local_dot];
-            while (!match(code, local_dot, terminator)) {
+            while (!lookahead(code, local_dot, terminator)) {
                 if (c == '(') {
                     // is this a function call?
                     auto f = functions::create(trim(name));
                     if (f) {
                         ++local_dot;//skip the bracket
                         add_arguments(code, local_dot, f, values);
-                        AF_ASSERT(match(code, local_dot, terminator),
+                        AF_ASSERT(lookahead(code, local_dot, terminator),
                             "Trailing characters after function % is invoked.", f->name());
                         dot = local_dot;
                         found = true;
@@ -326,7 +357,7 @@ namespace autotelica {
             
             // if we are here, it's just a name
             if (values.exists(trim(name))) {
-                dot == local_dot;
+                dot = local_dot;
                 found = true;
                 return values.get(name);
             }
@@ -342,13 +373,13 @@ namespace autotelica {
             std::stringstream out;
             char c = name[dot];
             while (c) {
-                if (match(name, dot, "__")) {
+                if (lookahead(name, dot, "__")) {
                     dot += 2;
                     bool found = false;
                     auto value = evaluate_name_or_function(name, dot, strict, "__", values, found);
                     if (found) {
                         out << value;
-                        AF_ASSERT(match(name, dot, "__"), "Non-terminated replacement.");
+                        AF_ASSERT(lookahead(name, dot, "__"), "Non-terminated replacement.");
                         dot += 2;
                         continue;
                     }
@@ -359,21 +390,21 @@ namespace autotelica {
             return out.str();
         }
         std::string process_content(
-            std::string const& content,
-            bool const strict,
-            named_values const& values) {
+                std::string const& content,
+                bool const strict,
+                named_values const& values) {
             size_t dot{ 0 };
             std::stringstream out;
             char c = content[dot];
             bool escaping = false;
             while (c) {
-                if (!escaping && match(content, dot, "{{")) {
+                if (!escaping && lookahead(content, dot, "{{")) {
                     dot += 2;
                     bool found = false;
                     auto value = evaluate_name_or_function(content, dot, strict, "}}", values, found);
                     if (found) {
                         out << value;
-                        AF_ASSERT(match(content, dot, "}}"), "Non-terminated replacement.");
+                        AF_ASSERT(lookahead(content, dot, "}}"), "Non-terminated replacement.");
                         dot += 2;
                         continue;
                     }
@@ -384,18 +415,52 @@ namespace autotelica {
             }
             return out.str();
         }
+        void list_required_names(std::string const& content, string_map_nc<string_set_nc>& sections) {
+            size_t dot{ 0 };
+            std::stringstream out;
+            char c = content[dot];
+            bool escaping = false;
+            while (c) {
+                if (!escaping && lookahead(content, dot, "{{")) {
+                    dot += 2;
+                    std::string name;
+                    c = content[dot++];
 
+                    while (c) {
+                        if (escaping) {
+                            escaping = false;
+                            name += c;
+                        }
+                        else if (c == '\\') {
+                            escaping = true;
+                        }
+                        else if (lookahead(content, dot, "}}")) {
+                            auto i = name.find('.');
+                            if (i == std::string::npos) 
+                                sections[""].insert(trim(name));
+
+                            sections[trim(name.substr(0, i))].insert(trim(name.substr(i)));
+                            dot += 2;
+                            break;
+                        }
+                        c = content[dot++];
+                    }
+                }
+                escaping = (c == '\\');
+                c = content[++dot];
+            }
+        }
 
         // files and stuff
         std::string read_file(path_t const& path){
-            std::ifstream f(path, std::ios::in | std::ios::text);
+            std::ifstream f(path);
             const auto sz = filesystem_n::file_size(path);
             std::string result(sz, '\0');
-            f.read(result.data(), sz);
+            f.read(&(result[0]), sz);
             return result;
         }
         void write_file(path_t const& path, std::string const& s) {
-            std::ofstream f(path, std::ios::in | std::ios::text);
+            std::ofstream f(path);
             f << s;
         }
 
@@ -412,10 +477,9 @@ namespace autotelica {
                 named_values& values,
                 std::string& extensions_to_ignore, 
                 std::string& files_to_ignore) {
-            using namespace string_util;
             std::string section;
             std::string line;
-            std::ifstream f(path, std::ios::in | std::ios::text);
+            std::ifstream f(path);
             // every line is a comment, a section start, or a value
             while (std::getline(f, line)) {
                 line = trim(line);
@@ -424,16 +488,16 @@ namespace autotelica {
                 if (line[0] == '[') {//section
                     AF_ASSERT(line.back() == ']', "Missing ']' when parsing ini file.");
                     section = "";
-                    section = trim(line.substr(1, lines.size()-2));
+                    section = trim(line.substr(1, line.size()-2));
                     continue;
                 }
                 const auto eq = line.find('=');
                 AF_ASSERT(eq != std::string::npos, "Missing '='  when parsing ini file.");
                 auto const name = trim(line.substr(0, eq));
                 if (section.empty() && name == tag_extensions_to_ignore)
-                    extensions_to_ignore = line.substr(eq + 1);
+                    extensions_to_ignore = trim(line.substr(eq + 1));
                 else if (section.empty() && name == tag_files_to_ignore)
-                    files_to_ignore = line.substr(eq + 1);
+                    files_to_ignore = trim(line.substr(eq + 1));
                 else {
                     if(section.empty())
                         values.add(name, line.substr(eq + 1));
@@ -443,10 +507,66 @@ namespace autotelica {
             }
             return true;
         }
+        std::string create_template_ini(
+            string_map_nc<string_set_nc> const& sections,
+            std::string const& extensions_to_ignore_,
+            std::string const& files_to_ignore_) {
+            std::stringstream out;
+            out << tag_extensions_to_ignore << " =  " << extensions_to_ignore_ << std::endl;
+            out << tag_files_to_ignore << " =  " << files_to_ignore_ << std::endl;
+            for (auto e : sections) {
+                if (!e.first.empty()) {
+                    out << "[" << e.first << "]" << std::endl;
+                }
+                for (auto const name : e.second) {
+                    out << name << " = " << std::endl;
+                }
+            }
+            return out.str();
+        }
+        std::string create_template_json(
+            string_map_nc<string_set_nc> const& sections, 
+            std::string const& extensions_to_ignore_,
+            std::string const& files_to_ignore_
+            ) {
+            std::stringstream out;
+            out << "{" << std::endl;
+
+            out << "\t\"" << tag_extensions_to_ignore << "\" : \""<< extensions_to_ignore_ << "\"," << std::endl;
+            out << "\t\"" << tag_files_to_ignore << "\" : \""<< files_to_ignore_ << "\"," << std::endl;
+
+            out << "\t\"sections\":[" << std::endl;
+
+            size_t szs = sections.size();
+            size_t is = 0;
+            for (auto e : sections) {
+                ++is;
+                out << "\t{" << std::endl;
+                out << "\t\t\"name\":\"" << e.first << "\"," << std::endl;
+                out << "\t\t{" << std::endl;
+                out << "\t\t\t\"named_values\" : [" << std::endl;
+
+                size_t sz = e.second.size();
+                size_t i = 0;
+                for (auto const name : e.second) {
+                    ++i;
+                    out << "\"name\":\"" << name << "\":\"\"";
+                    if (is < sz)
+                        out << ",";
+                    out << std::endl;
+                }
+                out << "\t\t\t]}" << std::endl;
+                if (is < szs)
+                    out << ",";
+            }
+            out << "\t]" << std::endl;
+            out << "}" << std::endl;
+            return out.str();
+        }
+
         std::string get_json_string(
             rapidjson::Value const& o,
             const char* const tag
-
         ) {
             AF_ASSERT(o[tag].IsString(), "% value must be a string.", tag);
             return o[tag].GetString();
@@ -456,14 +576,12 @@ namespace autotelica {
             rapidjson::Value const& v,
             named_values& values
         ) {
-            using namespace string_util;
             AF_ASSERT(v.IsArray(), "% block must be an array.", tag_named_values);
-            for (auto const nv : v.GetArray()) {
+            for (auto const& nv : v.GetArray()) {
                 AF_ASSERT(nv.IsObject(), "% array members must be object.", tag_named_values);
                 auto const nvo = nv.GetObject();
                 AF_ASSERT(nvo.HasMember(tag_name) && nvo.HasMember(tag_value), 
                     "% objects must contain names and values.", tag_named_values);
-                AF_ASSERT()
                 std::string name = get_json_string(nvo,tag_name);
                 std::string value = get_json_string(nvo, tag_value);
                 if (section.empty())
@@ -477,7 +595,6 @@ namespace autotelica {
                 named_values& values,
                 std::string& extensions_to_ignore,
                 std::string& files_to_ignore) {
-            using namespace string_util;
             std::string content = read_file(path);
             rapidjson::Document d;
             d.ParseInsitu(&content[0]);
@@ -489,14 +606,14 @@ namespace autotelica {
                 extensions_to_ignore = get_json_string(top, tag_extensions_to_ignore);
             }
             if (top.HasMember(tag_files_to_ignore)) {
-                files_to_ignore = get_json_string(top.GetObject(), tag_files_to_ignore);
+                files_to_ignore = get_json_string(top, tag_files_to_ignore);
             }
             if (top.HasMember(tag_named_values)) {
                 parse_json_named_values("", top[tag_named_values], values);
             }
             if (top.HasMember(tag_sections)) {
                 AF_ASSERT(top[tag_sections].IsArray(), "% block must be an array.", tag_sections);
-                for (auto const js_section : top[tag_sections]) {
+                for (auto const& js_section : top[tag_sections].GetArray()) {
                     AF_ASSERT(js_section.IsObject(), "% members must be objects.", tag_sections);
                     auto const jso = js_section.GetObject();
                     std::string section;
@@ -516,13 +633,14 @@ namespace autotelica {
         // we keep both string and path representation, for speed
         path_t _source_path;
         path_t _target_path;
+        path_t _config_path;
         bool _strict;
         // ignoring only refers to content of files, names are still parsed
         std::string _extensions_to_ignore;
         std::string _files_to_ignore;
         std::vector<std::string> _paths_to_ignore;
 
-        bool starts_with(std::string const& s, std::sting const& prefix) {
+        bool starts_with(std::string const& s, std::string const& prefix) {
             for (size_t i = 0; i < prefix.size(); ++i)
                 if (s[i] != prefix[i])
                     return false;
@@ -533,24 +651,23 @@ namespace autotelica {
                 _paths_to_ignore.push_back(p);
         }
         bool ignored(path_t const& target_path) {
-            using namespace string_util;
             if (_extensions_to_ignore.empty() &&
                 _files_to_ignore.empty())
                 return false;
             auto const path_s = to_lower(target_path.string());
-            auto const extension = to_lower(target_path.extension());
+            auto const extension = to_lower(target_path.extension().string());
             if (_extensions_to_ignore.find(extension) != std::string::npos) {
                 cache_path_to_ignore(path_s);
                 return true;
             }
-            auto const fname = to_lower(target_path.filename());
+            auto const fname = to_lower(target_path.filename().string());
             if (_files_to_ignore.find(fname) != std::string::npos) {
                 cache_path_to_ignore(path_s);
                 return true;
             }
             
             for (auto p : _paths_to_ignore) {
-                if(starts_with(path_s, p)
+                if(starts_with(path_s, p))
                     return true;
             }
             return false;
@@ -563,7 +680,7 @@ namespace autotelica {
             auto const source_f = source_folder.string();
             auto const target_f = target_folder.string();
             
-            auto target_p = string_util::replace(source_p, source_f, target_f);
+            auto target_p = replace(source_p, source_f, target_f);
             AF_ASSERT(source_p != target_p,
                 "Source folder doesn't seem to be present in the path % (source folder is: %)", source_p, source_f);
             target_p = process_filename(target_p, _strict, _values);
@@ -586,20 +703,26 @@ namespace autotelica {
                 std::string const& source_path_,
                 std::string const& target_path_,
                 std::string const& config_path_,
-                bool strict_ = false) {
+                bool strict_ = false,
+                std::string const& extensions_to_ignore_ = "",
+                std::string const& files_to_ignore_ = "") {
             _strict = strict_;
             _source_path = path_t(source_path_).make_preferred();
             _target_path = path_t(target_path_).make_preferred();
+            _config_path = path_t(config_path_).make_preferred();
             AF_ASSERT(filesystem_n::exists(_source_path),
                 "Source folder % does not exist.", source_path_);
-
-            AF_ASSERT(to_lower(_target_path.string()).find(to_lower(_source_path.string())) == std::string::npos,
-                "Target path cannot be a sub-directory of the source path.");
-
-            if (!parse_json_config_file(
-                config_path, _values, _extensions_to_ignore, _files_to_ignore)) {
-                parse_ini_config_file(config_path, _values, _extensions_to_ignore, _files_to_ignore);
+            
+            if (filesystem_n::exists(_config_path)) {
+                if (!parse_json_config_file(
+                    config_path_, _values, _extensions_to_ignore, _files_to_ignore)) {
+                    parse_ini_config_file(config_path_, _values, _extensions_to_ignore, _files_to_ignore);
+                }
             }
+            if (!extensions_to_ignore_.empty())
+                _extensions_to_ignore = extensions_to_ignore_;
+            if (!files_to_ignore_.empty())
+                _files_to_ignore = files_to_ignore_;
         }
             
         bpl_impl(
@@ -610,10 +733,9 @@ namespace autotelica {
                 std::string const& files_to_ignore_ = "",
                 std::map<std::string, std::string> const& kvm_ = {}) {
 
-            using namespace string_util;
             _strict = strict_;
-            _extensions_to_ignore = extensions_to_ignore;
-            _files_to_ignore = files_to_ignore;
+            _extensions_to_ignore = extensions_to_ignore_;
+            _files_to_ignore = files_to_ignore_;
 
             _source_path = path_t(source_path_).make_preferred();
             _target_path = path_t(target_path_).make_preferred();
@@ -633,7 +755,7 @@ namespace autotelica {
             for (const auto& p : recursive_directory_iterator(_source_path)) {
                 try {
                     auto target_path = make_target_path(p.path(), _source_path, _target_path);
-                    copy_target(p.path(), new_path)
+                    copy_target(p.path(), target_path);
                 }
                 catch (std::exception& e) {
                     AF_ERROR("Error while processing % : %", p.path().string(), e.what());
@@ -644,6 +766,25 @@ namespace autotelica {
             }
         }
 
+        void generate_config_files() {
+            string_map_nc<string_set_nc> sections;
+            using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
+            for (const auto& p : recursive_directory_iterator(_source_path)) {
+                if (filesystem_n::is_directory(p))
+                    continue;
+                auto const content = read_file(p);
+                list_required_names(content, sections);
+            }
+
+            if (_config_path.string().find(".json") == _config_path.string().length() - 4) {
+                std::string json = create_template_json(sections, _extensions_to_ignore, _files_to_ignore);
+                write_file(_config_path, json);
+            }
+            else {
+                std::string ini = create_template_ini(sections, _extensions_to_ignore, _files_to_ignore);
+                write_file(_config_path, ini);
+            }
+        }
     };
 
 
@@ -651,12 +792,16 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             std::string const& config_path_,
-            bool strict_) :
+            bool strict_,
+            std::string const& extensions_to_ignore_,
+            std::string const& files_to_ignore_) :
         _impl(new bpl_impl(
             source_path_, 
             target_path_, 
             config_path_, 
-            strict_)) {
+            strict_,
+            extensions_to_ignore_,
+            files_to_ignore_)) {
     }
 
     bpl::bpl(
@@ -674,4 +819,12 @@ namespace autotelica {
             files_to_ignore_,
             kvm_)) {
     }
+
+    void bpl::generate() {
+        _impl->generate();
+    }
+    void bpl::generate_config_files() {
+        _impl->generate_config_files();
+    }
+
 }

@@ -133,7 +133,9 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             std::string const& config_path_,
-            bool strict_ = false);
+            bool strict_ = false,
+            std::string const& extensions_to_ignore_ = "",
+            std::string const& files_to_ignore_ = "");
         
         bpl(
             std::string const& source_path_,
@@ -142,6 +144,9 @@ namespace autotelica {
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "",
             std::map<std::string, std::string> const& kvm_ = {});
+
+        void generate();
+        void generate_config_files();
 
     };
 }
