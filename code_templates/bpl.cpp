@@ -336,8 +336,12 @@ namespace autotelica {
             //   - we reach a terminator
             //   - we reach an open bracket (meaning, this is a function call)
             std::string name;
-            char c = code[local_dot];
-            while (!lookahead(code, local_dot, terminator)) {
+            char c = code[local_dot++];
+            while (c){
+                if (lookahead(code, local_dot, terminator)) {
+                    name += c;
+                    break;
+                }
                 if (c == '(') {
                     // is this a function call?
                     auto f = functions::create(trim(name));
@@ -356,7 +360,7 @@ namespace autotelica {
             }
             
             // if we are here, it's just a name
-            if (values.exists(trim(name))) {
+            if (values.exists(name)) {
                 dot = local_dot;
                 found = true;
                 return values.get(name);
@@ -381,11 +385,16 @@ namespace autotelica {
                         out << value;
                         AF_ASSERT(lookahead(name, dot, "__"), "Non-terminated replacement.");
                         dot += 2;
+                        c = name[dot];
                         continue;
+                    }
+                    else {
+                        dot -= 2;
                     }
                 }
                 out << c;
-                c = name[++dot];
+                if(c)// c==0 is end of string
+                    c = name[++dot];
             }
             return out.str();
         }
@@ -423,27 +432,18 @@ namespace autotelica {
             while (c) {
                 if (!escaping && lookahead(content, dot, "{{")) {
                     dot += 2;
-                    std::string name;
-                    c = content[dot++];
-
-                    while (c) {
-                        if (escaping) {
-                            escaping = false;
-                            name += c;
-                        }
-                        else if (c == '\\') {
-                            escaping = true;
-                        }
-                        else if (lookahead(content, dot, "}}")) {
-                            auto i = name.find('.');
-                            if (i == std::string::npos) 
-                                sections[""].insert(trim(name));
-
+                    size_t end_of_name = dot;
+                    while (content[end_of_name++] && !lookahead(content, end_of_name, "}}"))
+                        ;
+                    AF_ASSERT(c, "Missing closing name braces.");
+                    auto name = content.substr(dot, end_of_name - dot);
+                    dot = end_of_name + 2;
+                    if (name.find('(') == std::string::npos) { // function calls are not included here
+                        auto i = name.find('.');
+                        if (i == std::string::npos)
+                            sections[""].insert(trim(name));
+                        else
                             sections[trim(name.substr(0, i))].insert(trim(name.substr(i)));
-                            dot += 2;
-                            break;
-                        }
-                        c = content[dot++];
                     }
                 }
                 escaping = (c == '\\');
@@ -680,7 +680,7 @@ namespace autotelica {
             auto const source_f = source_folder.string();
             auto const target_f = target_folder.string();
             
-            auto target_p = replace(source_p, source_f, target_f);
+            auto target_p = replace(replace(replace(source_p, source_f, target_f), "\\\\","\\"), "//", "/");
             AF_ASSERT(source_p != target_p,
                 "Source folder doesn't seem to be present in the path % (source folder is: %)", source_p, source_f);
             target_p = process_filename(target_p, _strict, _values);

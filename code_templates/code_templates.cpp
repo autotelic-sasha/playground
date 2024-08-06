@@ -16,8 +16,9 @@ int main(int argc, const char* argv[])
 	const char* debug_argv[] = {
 		"code_templates",
 			"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
+			"-t", "C:/dev/autotelica/playground/test_templates_target/",
 			"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
-			"-generate_config" };
+			"-generate" };
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
 	try {
@@ -134,7 +135,7 @@ int main(int argc, const char* argv[])
 		commands.execute();
 	}
 	catch (std::exception& e) {
-		std::cout "An error occured:\n\t" << e.what() << std::endl;
+		std::cout << "An error occured:\n\t" << e.what() << std::endl;
 		return 1;
 	}
 	catch (...) {
