@@ -12,6 +12,7 @@
 #include "autotelica_core/util/include/asserts.h"
 
 #include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
 
 using path_t = std::experimental::filesystem::path;
 namespace filesystem_n = std::experimental::filesystem;
@@ -593,19 +594,18 @@ namespace autotelica {
                 ++is;
                 out << "\t{" << std::endl;
                 out << "\t\t\"name\":\"" << e.first << "\"," << std::endl;
-                out << "\t\t{" << std::endl;
                 out << "\t\t\t\"named_values\" : [" << std::endl;
 
                 size_t sz = e.second.size();
                 size_t i = 0;
                 for (auto const name : e.second) {
                     ++i;
-                    out << "\"name\":\"" << name << "\":\"\"";
+                    out << "\t\t\t\t{\"name\":\"" << name << "\",\"value\":\"\"}";
                     if (is < sz)
                         out << ",";
                     out << std::endl;
                 }
-                out << "\t\t\t]}" << std::endl;
+                out << "\t\t\t]\n\t}" << std::endl;
                 if (is < szs)
                     out << ",";
             }
@@ -648,8 +648,11 @@ namespace autotelica {
             std::string content = read_file(path);
             rapidjson::Document d;
             d.ParseInsitu(&content[0]);
-            if (d.HasParseError())
+            if (d.HasParseError()) {
+                auto error = rapidjson::GetParseError_En(d.GetParseError());
+                AF_ERROR("Failed to parse json [at %]: %", d.GetErrorOffset(), error);
                 return false;
+            }
             AF_ASSERT(d.IsObject(), "Top level JSON must be an object.");
             auto const top = d.GetObject();
             if (top.HasMember(tag_extensions_to_ignore)) {
@@ -779,9 +782,10 @@ namespace autotelica {
                 "Source folder % does not exist.", source_path_);
             
             if (filesystem_n::exists(_config_path)) {
-                if (!parse_json_config_file(
-                    config_path_, _values, _extensions_to_ignore, _files_to_ignore)) {
-                    
+                if (wildcard_match(_config_path.string(), "*.json")) {
+                    parse_json_config_file(config_path_, _values, _extensions_to_ignore, _files_to_ignore);
+                }
+                else{
                     parse_ini_config_file(config_path_, _values, _extensions_to_ignore, _files_to_ignore);
                 }
             }
