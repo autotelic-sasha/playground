@@ -35,7 +35,7 @@
 //			- you can escape replacement by putting it in double braces (e.g. {{{{don't touch this}}}} evaluates to {{don't touch this}})
 //          - there's no messing with escaping, like if you want to do it, you need it open and closed with four braces
 // 
-//		6. There is a small number of functions that can be used to generate special things. 
+//		6. There is a (very) small number of functions that can be used to generate special things. 
 //			They are hardcoded, to add one you gotta write some c++.
 //          They cannot be used in maps, you just specify that they should be used in the source files, but their arguments can come from the map.
 //          They cannot be used in file and directory name substitution; the syntax becomes too complicated.
@@ -45,6 +45,15 @@
 //			- GUID(int) - this is because Visual Studio uses guids to link its internal files and configurations. 
 //			  The argument is the id of the guid, GUID(0) is always the same GUID during a single run of the template generation, so is GUID(2) etc.
 //
+//      7. For the times when you want to clone a git repo into a subfolder of a project, there is a special file name: __GITCLONE__. 
+//          The file should contain a link to a repository on a single line, and nothing else. 
+//          For example: https://github.com/autotelic-sasha/autotelica_core.git 
+// 
+//          Then, during the template instantiation, the repo will be cloned into the directory containining the file. 
+//          This works by simple substitution, git clone REPO_NAME_FROM_FILE PATH_TO_FOLDER_WHERE_FILE_IS .
+//          Obviously, you can hack it by adding git parameters to the file, e.g. --brach bname https://github.com/autotelic-sasha/autotelica_core.git .
+// 
+// 
 // Where do the values for replacements come from?
 //      When running this from a command line, supply a path to a file containing them. 
 //      It can be either a json or ini file.

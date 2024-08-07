@@ -7,8 +7,9 @@
 #include <istream>
 #include <algorithm>
 #include <random>
-#include "autotelica_core/util/string_util.h"
-#include "autotelica_core/util/asserts.h"
+#include <cstdlib>
+#include "autotelica_core/util/include/string_util.h"
+#include "autotelica_core/util/include/asserts.h"
 
 #include "rapidjson/document.h"
 
@@ -485,6 +486,34 @@ namespace autotelica {
             f << s;
         }
 
+        class special_files {
+            static void get_from_github(path_t const& gitclone_file, path_t const& target_file) {
+                auto content = trim(read_file(gitclone_file));
+                AF_ASSERT(!content.empty() && content.find('\n') == std::string::npos,
+                    "Gitclone file must contain one line and one line only.");
+                
+                auto target_folder = target_file.parent_path().make_preferred().string();
+                auto command = af_format_string("git clone % %", content, target_folder);
+
+                AF_WARNING("Cloning git repository with command '%'.\nCHECK that it worked, it's really hard to check it programatically, sorry.", command);
+                system(command.c_str());
+            }
+            static constexpr const char * const _gitclone = "__GITCLONE__";
+        public:
+            static bool is_special(path_t const& the_file) {
+                static string_set_nc _specials{ _gitclone };
+                auto const fname = the_file.filename().string();
+                return (_specials.find(fname) != _specials.end());
+            }
+            static bool handle_if_special(path_t const& the_file, path_t const& target_file) {
+                auto filename = the_file.filename().string();
+                if (equal_nc(filename, _gitclone)) {
+                    get_from_github(the_file, target_file);
+                    return true;
+                }
+                return false;
+            }
+        };
         // config files
         const char* const tag_extensions_to_ignore = "extensions_to_ignore";
         const char* const tag_files_to_ignore = "files_to_ignore";
@@ -705,7 +734,15 @@ namespace autotelica {
             auto target_p = replace(replace(replace(source_p, source_f, target_f), "\\\\","\\"), "//", "/");
             AF_ASSERT(source_p != target_p,
                 "Source folder doesn't seem to be present in the path % (source folder is: %)", source_p, source_f);
-            target_p = process_filename(target_p, _strict, _values);
+
+            if(!special_files::is_special(source_path))
+                target_p = process_filename(target_p, _strict, _values);
+            else {
+                auto const target_root_s = process_filename(
+                    path_t(target_p).parent_path().make_preferred().string(),
+                    _strict, _values);
+                target_p = path_t(target_root_s).append(source_path.filename()).string();
+            }
             return path_t(target_p);
         }
         void copy_target(path_t const& source_path, path_t const& target_path) {
@@ -716,6 +753,8 @@ namespace autotelica {
             else if(ignored(target_path))
                 filesystem_n::copy(source_path, target_path);
             else {
+                if (special_files::handle_if_special(source_path, target_path))
+                    return;
                 auto const content = read_file(source_path);
                 auto const new_content = process_content(content, _strict, _values);
                 write_file(target_path, new_content);

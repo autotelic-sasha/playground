@@ -1,10 +1,11 @@
 // code_templates.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include <iostream>
+
 #include "bpl.h"
 
-#include "autotelica_core/util/cl_parsing.h"
-#include "autotelica_core/util/asserts.h"
+#include "autotelica_core/util/include/cl_parsing.h"
+#include "autotelica_core/util/include/asserts.h"
 
 using namespace autotelica;
 using namespace autotelica::cl_parsing;
