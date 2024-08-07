@@ -840,13 +840,13 @@ namespace autotelica {
             string_map_nc<string_set_nc> sections;
             using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
             for (const auto& p : recursive_directory_iterator(_source_path)) {
-                if (filesystem_n::is_directory(p))
+                if (ignored(p) || filesystem_n::is_directory(p))
                     continue;
                 auto const content = read_file(p);
                 list_required_names(content, sections);
             }
 
-            if (_config_path.string().find(".json") == _config_path.string().length() - 4) {
+            if (wildcard_match(_config_path.string(), "*.json")) {
                 std::string json = create_template_json(sections, _extensions_to_ignore, _files_to_ignore);
                 write_file(_config_path, json);
             }

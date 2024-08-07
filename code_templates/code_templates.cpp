@@ -17,13 +17,19 @@ int main(int argc, const char* argv[])
 
 #define DEBUGGING_ARGS 	
 #ifdef DEBUGGING_ARGS
+	//const char* debug_argv[] = {
+	//	"code_templates",
+	//		"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
+	//		"-t", "C:/dev/autotelica/playground/test_templates_target/",
+	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
+	//		"-force",
+	//		"-generate" };
 	const char* debug_argv[] = {
 		"code_templates",
 			"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
-			"-t", "C:/dev/autotelica/playground/test_templates_target/",
-			"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
-			"-force",
-			"-generate" };
+			"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.json",
+			"-ignore_files", "autotelica_core",
+			"-generate_config" };
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
 	try {
@@ -63,12 +69,12 @@ int main(int argc, const char* argv[])
 			.register_command(
 				"Extensions to ignore",
 				"List of file extensions for files that should not parsed, must be quoted (e.g. \"*.xls, *.exe\").",
-				{ "e", "igore_extensions", "extensions_to_ignore" },
+				{ "e", "ignore_extensions", "extensions_to_ignore" },
 				1)
 			.register_command(
 				"Files to ignore",
 				"Files of folder names of files that should not parsed, must be quoted (e.g. \"sheets, bin\").",
-				{ "f", "igore_files", "files_to_ignore" },
+				{ "f", "ignore_files", "files_to_ignore" },
 				1)
 			.register_command(
 				"Generate code",
