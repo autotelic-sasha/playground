@@ -415,6 +415,7 @@ namespace autotelica {
                         out << value;
                         AF_ASSERT(lookahead(content, dot, "}}"), "Non-terminated replacement.");
                         dot += 2;
+                        c = content[dot];
                         continue;
                     }
                 }
