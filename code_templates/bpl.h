@@ -32,7 +32,8 @@
 //				(there is a strict mode of running that makes this an error, if you really want to)
 //			- whitespace surrounding names in the braces is eaten
 //			- nesting is not allowed (e.g. you can't do silly things like {{name1{{name2}}name3}}, it's rude to expect people to be able to read that)
-//			- you can escape replacement by a single '\' before the double braces (e.g. \{{don't touch this}})
+//			- you can escape replacement by putting it in double braces (e.g. {{{{don't touch this}}}} evaluates to {{don't touch this}})
+//          - there's no messing with escaping, like if you want to do it, you need it open and closed with four braces
 // 
 //		6. There is a small number of functions that can be used to generate special things. 
 //			They are hardcoded, to add one you gotta write some c++.
@@ -117,7 +118,7 @@
 //      or similarly on the command line
 //      
 //  2. If a same parameter appears both on a command line and in a config file, command line takes presedence.    
-//
+//  3. You can force it to overwrite existing projects by using force. (it's a parameter).
 
 #include <map>
 #include <string>
@@ -134,6 +135,7 @@ namespace autotelica {
             std::string const& target_path_,
             std::string const& config_path_,
             bool strict_ = false,
+            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "");
         
@@ -141,6 +143,7 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             bool strict_ = false,
+            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "",
             std::map<std::string, std::string> const& kvm_ = {});

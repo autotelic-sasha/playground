@@ -11,6 +11,9 @@ using namespace autotelica::cl_parsing;
 
 int main(int argc, const char* argv[])
 {
+
+	AF_ASSERTS_SHORT_FORM();
+
 #define DEBUGGING_ARGS 	
 #ifdef DEBUGGING_ARGS
 	const char* debug_argv[] = {
@@ -18,6 +21,7 @@ int main(int argc, const char* argv[])
 			"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
 			"-t", "C:/dev/autotelica/playground/test_templates_target/",
 			"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
+			"-force",
 			"-generate" };
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
@@ -49,6 +53,11 @@ int main(int argc, const char* argv[])
 				"Strict",
 				"Strict running mode.",
 				{ "strict" },
+				0)
+			.register_command(
+				"Force",
+				"Overwrite files and folders if they already exist.",
+				{ "force" },
 				0)
 			.register_command(
 				"Extensions to ignore",
@@ -88,6 +97,7 @@ int main(int argc, const char* argv[])
 		std::string target_path;
 		std::string config_path;
 		bool strict = false;
+		bool force = false;
 		std::string extensions_to_ignore;
 		std::string files_to_ignore;
 
@@ -98,6 +108,7 @@ int main(int argc, const char* argv[])
 		if (commands.has("config_path"))
 			config_path = commands.arguments("config_path")[0];
 		strict = commands.has("strict");
+		force = commands.has("force");
 		if (commands.has("extensions_to_ignore"))
 			extensions_to_ignore = commands.arguments("extensions_to_ignore")[0];
 		if (commands.has("files_to_ignore"))
@@ -111,6 +122,7 @@ int main(int argc, const char* argv[])
 			target_path,
 			config_path,
 			strict,
+			force,
 			extensions_to_ignore,
 			files_to_ignore
 		));
@@ -133,14 +145,16 @@ int main(int argc, const char* argv[])
 		}
 
 		commands.execute();
-	}
-	catch (std::exception& e) {
-		std::cout << "An error occured:\n\t" << e.what() << std::endl;
-		return 1;
+		if (commands.has("generate")) {
+			std::cout << "Done creating project in folder " << target_path << std::endl;
+		}
+		else {
+			std::cout << "Done creating " << config_path << std::endl;
+		}
 	}
 	catch (...) {
-		std::cout << "Unknown error occured." << std::endl;
-		return 1;
+		std::cout << "An error occured." << std::endl;
+		return -1;
 	}
 }
 

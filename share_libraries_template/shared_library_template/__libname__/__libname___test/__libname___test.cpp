@@ -1,5 +1,5 @@
 #include <iostream>
-#include "exported.h"
+#include "{{libname}}_api.h"
 
 int main()
 {

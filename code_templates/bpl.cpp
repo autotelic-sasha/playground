@@ -391,6 +391,23 @@ namespace autotelica {
             }
             return out.str();
         }
+        std::string get_escaped(
+            std::string const& content,
+            size_t& dot
+        ) {
+            char c = content[++dot];
+            std::string ret;
+            ret += c;
+            while (c) {
+                if (lookahead(content, dot, "}}}}")) {
+                    dot += 4;
+                    ret += "}}";
+                    break;
+                }
+            }
+            AF_ASSERT(c, "Missing closing braces.");
+            return ret;
+        }
         std::string process_content(
                 std::string const& content,
                 bool const strict,
@@ -398,26 +415,33 @@ namespace autotelica {
             size_t dot{ 0 };
             std::stringstream out;
             char c = content[dot];
-            bool escaping = false;
             while (c) {
-                if (!escaping && lookahead(content, dot, "{{")) {
+                if (lookahead(content, dot, "{{")) {
                     dot += 2;
-                    bool found = false;
-                    auto value = evaluate_name_or_function(content, dot, strict, "}}", values, found);
-                    if (found) {
-                        out << value;
-                        AF_ASSERT(lookahead(content, dot, "}}"), "Non-terminated replacement.");
+                    if (lookahead(content, dot, "{{")) {
                         dot += 2;
-                        c = content[dot];
-                        continue;
+                        out << get_escaped(content, dot); 
+                        c = content[++dot];
                     }
                     else {
-                        dot-=2;
+                        bool found = false;
+                        auto value = evaluate_name_or_function(content, dot, strict, "}}", values, found);
+                        if (found) {
+                            out << value;
+                            AF_ASSERT(lookahead(content, dot, "}}"), "Non-terminated replacement.");
+                            dot += 2;
+                            c = content[dot];
+                            continue;
+                        }
+                        else {
+                            dot -= 2;
+                        }
                     }
                 }
-                out << c;
-                escaping = (c == '\\');
-                c = content[++dot];
+                if (c) {
+                    out << c;
+                    c = content[++dot];
+                }
             }
             return out.str();
         }
@@ -632,6 +656,7 @@ namespace autotelica {
         path_t _target_path;
         path_t _config_path;
         bool _strict;
+        bool _force;
         // ignoring only refers to content of files, names are still parsed
         std::string _extensions_to_ignore;
         std::string _files_to_ignore;
@@ -684,6 +709,8 @@ namespace autotelica {
             return path_t(target_p);
         }
         void copy_target(path_t const& source_path, path_t const& target_path) {
+            AF_ASSERT(_force || !filesystem_n::exists(target_path),
+                "% already exists.", target_path.string());
             if (filesystem_n::is_directory(source_path))
                 filesystem_n::create_directories(target_path);
             else if(ignored(target_path))
@@ -701,9 +728,11 @@ namespace autotelica {
                 std::string const& target_path_,
                 std::string const& config_path_,
                 bool strict_ = false,
+                bool force_ = false,
                 std::string const& extensions_to_ignore_ = "",
                 std::string const& files_to_ignore_ = "") {
             _strict = strict_;
+            _force = force_;
             _source_path = path_t(source_path_).make_preferred();
             _target_path = path_t(target_path_).make_preferred();
             _config_path = path_t(config_path_).make_preferred();
@@ -726,11 +755,12 @@ namespace autotelica {
                 std::string const& source_path_,
                 std::string const& target_path_,
                 bool strict_ = false, 
-                std::string const& extensions_to_ignore_ = "",
+            bool force_ = false,
+            std::string const& extensions_to_ignore_ = "",
                 std::string const& files_to_ignore_ = "",
                 std::map<std::string, std::string> const& kvm_ = {}) {
-
             _strict = strict_;
+            _force = force_;
             _extensions_to_ignore = extensions_to_ignore_;
             _files_to_ignore = files_to_ignore_;
 
@@ -755,10 +785,13 @@ namespace autotelica {
                     copy_target(p.path(), target_path);
                 }
                 catch (std::exception& e) {
-                    AF_ERROR("Error while processing % : %", p.path().string(), e.what());
+                    if(wildcard_match(e.what(), "[*] ERROR: *"))
+                        AF_ERROR("Error while processing %.", p.path().string());
+                    else
+                        AF_ERROR("Error while processing % :\n %", p.path().string(), e.what());
                 }
                 catch (...) {
-                    AF_ERROR("Unknown error while processing % ", p.path().string());
+                    AF_ERROR("Unknown error while processing %.", p.path().string());
                 }
             }
         }
@@ -790,6 +823,7 @@ namespace autotelica {
             std::string const& target_path_,
             std::string const& config_path_,
             bool strict_,
+            bool force_,
             std::string const& extensions_to_ignore_,
             std::string const& files_to_ignore_) :
         _impl(new bpl_impl(
@@ -797,6 +831,7 @@ namespace autotelica {
             target_path_, 
             config_path_, 
             strict_,
+            force_,
             extensions_to_ignore_,
             files_to_ignore_)) {
     }
@@ -805,6 +840,7 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             bool strict_,
+            bool force_,
             std::string const& extensions_to_ignore_,
             std::string const& files_to_ignore_,
             std::map<std::string, std::string> const& kvm_) :
@@ -812,6 +848,7 @@ namespace autotelica {
             source_path_,
             target_path_,
             strict_,
+            force_,
             extensions_to_ignore_,
             files_to_ignore_,
             kvm_)) {
@@ -823,5 +860,4 @@ namespace autotelica {
     void bpl::generate_config_files() {
         _impl->generate_config_files();
     }
-
 }
