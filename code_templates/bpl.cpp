@@ -525,8 +525,8 @@ namespace autotelica {
         bool parse_ini_config_file(
                 path_t const& path,
                 named_values& values,
-                std::string& extensions_to_ignore, 
-                std::string& files_to_ignore) {
+                std::vector<std::string>& extensions_to_ignore, 
+                std::vector<std::string>& files_to_ignore) {
             std::string section;
             std::string line;
             std::ifstream f(path);
@@ -545,9 +545,9 @@ namespace autotelica {
                 AF_ASSERT(eq != std::string::npos, "Missing '='  when parsing ini file.");
                 auto const name = trim(line.substr(0, eq));
                 if (section.empty() && name == tag_extensions_to_ignore)
-                    extensions_to_ignore = trim(line.substr(eq + 1));
+                    csv_to_vector(to_lower(line.substr(eq + 1)), extensions_to_ignore);
                 else if (section.empty() && name == tag_files_to_ignore)
-                    files_to_ignore = trim(line.substr(eq + 1));
+                    csv_to_vector(to_lower(line.substr(eq + 1)), files_to_ignore);
                 else {
                     if(section.empty())
                         values.add(name, line.substr(eq + 1));
@@ -559,11 +559,11 @@ namespace autotelica {
         }
         std::string create_template_ini(
             string_map_nc<string_set_nc> const& sections,
-            std::string const& extensions_to_ignore_,
-            std::string const& files_to_ignore_) {
+            std::vector<std::string> const& extensions_to_ignore_,
+            std::vector<std::string> const& files_to_ignore_) {
             std::stringstream out;
-            out << tag_extensions_to_ignore << " =  " << extensions_to_ignore_ << std::endl;
-            out << tag_files_to_ignore << " =  " << files_to_ignore_ << std::endl;
+            out << tag_extensions_to_ignore << " =  " << to_csv(extensions_to_ignore_) << std::endl;
+            out << tag_files_to_ignore << " =  " << to_csv(files_to_ignore_) << std::endl;
             for (auto e : sections) {
                 if (!e.first.empty()) {
                     out << "[" << e.first << "]" << std::endl;
@@ -576,14 +576,14 @@ namespace autotelica {
         }
         std::string create_template_json(
             string_map_nc<string_set_nc> const& sections, 
-            std::string const& extensions_to_ignore_,
-            std::string const& files_to_ignore_
+            std::vector<std::string> const& extensions_to_ignore_,
+            std::vector<std::string> const& files_to_ignore_
             ) {
             std::stringstream out;
             out << "{" << std::endl;
 
-            out << "\t\"" << tag_extensions_to_ignore << "\" : \""<< extensions_to_ignore_ << "\"," << std::endl;
-            out << "\t\"" << tag_files_to_ignore << "\" : \""<< files_to_ignore_ << "\"," << std::endl;
+            out << "\t\"" << tag_extensions_to_ignore << "\" : \""<< to_csv(extensions_to_ignore_) << "\"," << std::endl;
+            out << "\t\"" << tag_files_to_ignore << "\" : \""<< to_csv(files_to_ignore_) << "\"," << std::endl;
 
             out << "\t\"sections\":[" << std::endl;
 
@@ -643,8 +643,8 @@ namespace autotelica {
         bool parse_json_config_file(
                 path_t const& path,
                 named_values& values,
-                std::string& extensions_to_ignore,
-                std::string& files_to_ignore) {
+                std::vector<std::string>& extensions_to_ignore,
+                std::vector<std::string>& files_to_ignore) {
             std::string content = read_file(path);
             rapidjson::Document d;
             d.ParseInsitu(&content[0]);
@@ -653,10 +653,10 @@ namespace autotelica {
             AF_ASSERT(d.IsObject(), "Top level JSON must be an object.");
             auto const top = d.GetObject();
             if (top.HasMember(tag_extensions_to_ignore)) {
-                extensions_to_ignore = get_json_string(top, tag_extensions_to_ignore);
+                csv_to_vector(to_lower(get_json_string(top, tag_extensions_to_ignore)), extensions_to_ignore);
             }
             if (top.HasMember(tag_files_to_ignore)) {
-                files_to_ignore = get_json_string(top, tag_files_to_ignore);
+                csv_to_vector(to_lower(get_json_string(top, tag_files_to_ignore)), files_to_ignore);
             }
             if (top.HasMember(tag_named_values)) {
                 parse_json_named_values("", top[tag_named_values], values);
@@ -687,8 +687,8 @@ namespace autotelica {
         bool _strict;
         bool _force;
         // ignoring only refers to content of files, names are still parsed
-        std::string _extensions_to_ignore;
-        std::string _files_to_ignore;
+        std::vector<std::string> _extensions_to_ignore;
+        std::vector<std::string> _files_to_ignore;
         std::vector<std::string> _paths_to_ignore;
 
         bool starts_with(std::string const& s, std::string const& prefix) {
@@ -707,12 +707,12 @@ namespace autotelica {
                 return false;
             auto const path_s = to_lower(target_path.string());
             auto const extension = to_lower(target_path.extension().string());
-            if (_extensions_to_ignore.find(extension) != std::string::npos) {
+            if (std::find(_extensions_to_ignore.begin(), _extensions_to_ignore.end(), extension) != _extensions_to_ignore.end()) {
                 cache_path_to_ignore(path_s);
                 return true;
             }
             auto const fname = to_lower(target_path.filename().string());
-            if (_files_to_ignore.find(fname) != std::string::npos) {
+            if (std::find(_files_to_ignore.begin(), _files_to_ignore.end(), fname) != _files_to_ignore.end()) {
                 cache_path_to_ignore(path_s);
                 return true;
             }
@@ -781,27 +781,28 @@ namespace autotelica {
             if (filesystem_n::exists(_config_path)) {
                 if (!parse_json_config_file(
                     config_path_, _values, _extensions_to_ignore, _files_to_ignore)) {
+                    
                     parse_ini_config_file(config_path_, _values, _extensions_to_ignore, _files_to_ignore);
                 }
             }
             if (!extensions_to_ignore_.empty())
-                _extensions_to_ignore = extensions_to_ignore_;
+                csv_to_vector(to_lower(extensions_to_ignore_), _extensions_to_ignore);
             if (!files_to_ignore_.empty())
-                _files_to_ignore = files_to_ignore_;
+                csv_to_vector(to_lower(files_to_ignore_), _files_to_ignore);
         }
             
         bpl_impl(
                 std::string const& source_path_,
                 std::string const& target_path_,
                 bool strict_ = false, 
-            bool force_ = false,
-            std::string const& extensions_to_ignore_ = "",
+                bool force_ = false,
+                std::string const& extensions_to_ignore_ = "",
                 std::string const& files_to_ignore_ = "",
                 std::map<std::string, std::string> const& kvm_ = {}) {
             _strict = strict_;
             _force = force_;
-            _extensions_to_ignore = extensions_to_ignore_;
-            _files_to_ignore = files_to_ignore_;
+            csv_to_vector(to_lower(extensions_to_ignore_), _extensions_to_ignore);
+            csv_to_vector(to_lower(files_to_ignore_), _files_to_ignore);
 
             _source_path = path_t(source_path_).make_preferred();
             _target_path = path_t(target_path_).make_preferred();
