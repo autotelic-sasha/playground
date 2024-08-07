@@ -18,21 +18,14 @@ using namespace autotelica::string_util;
 
 namespace autotelica {
     namespace {
-        unsigned char random_char() {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_int_distribution<> dis(0, 255);
-            return static_cast<unsigned char>(dis(gen));
-        }
-
         std::string generate_hex(size_t len) {
             std::stringstream ss;
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 15);
+
             for (size_t i = 0; i < len; i++) {
-                auto rc = random_char();
-                std::stringstream hexstream;
-                hexstream << std::hex << int(rc);
-                auto hex = hexstream.str();
-                ss << (hex.length() < 2 ? '0' + hex : hex);
+                ss << std::hex << dis(gen);
             }
             return ss.str();
         }
@@ -44,7 +37,7 @@ namespace autotelica {
                 generate_hex(4) << "-" <<
                 generate_hex(4) << "-" <<
                 generate_hex(12);
-            return ss.str();
+            return to_upper(ss.str());
         }
 
         class named_values {
@@ -158,7 +151,7 @@ namespace autotelica {
             }
         };
         class GUID : public function {
-            static std::map<long, std::string> guids() {
+            static std::map<long, std::string>& guids() {
                 static std::map<long, std::string> _instance;
                 return _instance;
             }
@@ -346,7 +339,7 @@ namespace autotelica {
                     // is this a function call?
                     auto f = functions::create(trim(name));
                     if (f) {
-                        ++local_dot;//skip the bracket
+                        local_dot;//skip the bracket
                         add_arguments(code, local_dot, f, values);
                         AF_ASSERT(lookahead(code, local_dot, terminator),
                             "Trailing characters after function % is invoked.", f->name());
@@ -417,6 +410,9 @@ namespace autotelica {
                         dot += 2;
                         c = content[dot];
                         continue;
+                    }
+                    else {
+                        dot-=2;
                     }
                 }
                 out << c;

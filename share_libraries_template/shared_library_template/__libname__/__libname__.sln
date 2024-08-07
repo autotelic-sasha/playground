@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{{{GUID(1)}}}") = "{{libname}}", "{{libname}}.vcxproj", "{{{GUID(0)}}}"
 EndProject
-Project("{{{GUID(1)}}}") = "{{libname}}_test", "{{libname}}_test\{{libname}}_test.vcxproj", "{{{GUID(2)}}}"
+Project("{{{GUID(1)}}}") = "{{libname}}_test", "{{libname}}_test\\{{libname}}_test.vcxproj", "{{{GUID(2)}}}"
 	ProjectSection(ProjectDependencies) = postProject
 		{{{GUID(0)}}} = {{{GUID(0)}}}
 	EndProjectSection
