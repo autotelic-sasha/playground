@@ -450,7 +450,7 @@ namespace autotelica {
         std::string const& content,
         size_t& dot
     ) {
-        char c = content[++dot];
+        char c = content[dot];
         std::string ret;
         ret += c;
         while (c) {
@@ -459,6 +459,8 @@ namespace autotelica {
                 ret += "}}";
                 break;
             }
+            ret += c;
+            c = content[++dot];
         }
         AF_ASSERT(c, "Missing closing braces.");
         return ret;
@@ -474,7 +476,7 @@ namespace autotelica {
             if (lookahead(content, dot, "{{")) {
                 dot += 2;
                 if (lookahead(content, dot, "{{")) {
-                    dot += 2;
+                    ++dot;
                     out << get_escaped(content, dot);
                     c = content[dot];
                 }
@@ -754,14 +756,7 @@ namespace autotelica {
                 _paths_to_ignore.push_back(p);
         }
         bool ignored(path_t const& target_path) {
-            if (_extensions_to_ignore.empty() &&
-                _files_to_ignore.empty())
-                return false;
             auto const path_s = to_lower(target_path.string());
-            if (special_files::is_special(target_path)) {
-                cache_path_to_ignore(path_s);
-                return true;
-            }
             auto extension = to_lower(target_path.extension().string());
             if (!extension.empty()) {
                 if (std::find(_extensions_to_ignore.begin(), _extensions_to_ignore.end(), extension) != _extensions_to_ignore.end()) {
@@ -794,8 +789,9 @@ namespace autotelica {
                 cache_path_to_ignore(path_s);
                 return true;
             }
+            auto const pname = to_lower(target_path.string());
             for (auto const& pattern : _files_to_ignore) {
-                if (wildcard_match(fname, pattern)) {
+                if (wildcard_match(pname, pattern)) {
                     cache_path_to_ignore(path_s);
                     return true;
                 }
@@ -832,15 +828,22 @@ namespace autotelica {
         void copy_target(path_t const& source_path, path_t const& target_path) {
             AF_ASSERT(_force || !filesystem_n::exists(target_path),
                 "% already exists.", target_path.string());
-            if (filesystem_n::is_directory(source_path))
+            if (filesystem_n::is_directory(source_path)) {
                 filesystem_n::create_directories(target_path);
-            else if (ignored(target_path))
+                AF_MESSAGE("Creating directory %.", target_path.string());
+            }
+            else if (special_files::handle_if_special(source_path, target_path)) {
+                return;
+            }
+            else if (ignored(source_path)) {
                 filesystem_n::copy(source_path, target_path);
+                AF_MESSAGE("Creating file %.", target_path.string());
+            }
             else {
-                if (special_files::handle_if_special(source_path, target_path))
-                    return;
                 auto const content = read_file(source_path);
+                AF_MESSAGE("Parsing file %.", target_path.string());
                 auto const new_content = process_content(content, _strict, _values);
+                AF_MESSAGE("Creating file %.", target_path.string());
                 write_file(target_path, new_content);
             }
         }
@@ -926,7 +929,7 @@ namespace autotelica {
             using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
             for (const auto& p : recursive_directory_iterator(_source_path)) {
                 list_required_names_for_filename(p.path().string(), sections);
-                if (ignored(p) || filesystem_n::is_directory(p))
+                if (special_files::is_special(p) || ignored(p) || filesystem_n::is_directory(p))
                     continue;
                 auto const content = read_file(p);
                 list_required_names(content, sections);
@@ -951,14 +954,16 @@ namespace autotelica {
             for (const auto& p : recursive_directory_iterator(_source_path)) {
                 string_map_nc<string_set_nc> sections;
                 list_required_names_for_filename(p.path().string(), sections);
-                if (!(ignored(p) || filesystem_n::is_directory(p))) {
+                if (!(special_files::is_special(p) || ignored(p) || filesystem_n::is_directory(p))){
                     auto const content = read_file(p);
                     list_required_names(content, sections, false);
                 }
                 auto short_path = replace(p.path().string(), _source_path.string(), "");
                 std::cout << short_path << std::endl;
-                if (!filesystem_n::is_directory(p) && ignored(p))
+                
+                if (!filesystem_n::is_directory(p) && (ignored(p) || special_files::is_special(p)))
                     std::cout << "\t* The content of the file was excluded from parsing." << std::endl;
+
                 if (sections.empty()) {
                     std::cout << "\tNo replacements specified in this path." << std::endl;
                 }

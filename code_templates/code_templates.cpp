@@ -32,12 +32,13 @@ int main(int argc, const char* argv[])
 	//		"-generate_config" };
 	const char* debug_argv[] = {
 		"code_templates",
-			"-s", "C:/dev/autotelica/playground/code_templates/examples/template",
+			"-s", "C:/dev/autotelica/playground/code_templates/examples/template/",
+			"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
 			"-c", "C:/dev/autotelica/playground/code_templates/examples/example_config.ini",
 			//"-ignore_files", "non_parsed___project__files",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
-			"-generate_config" };
+			"-generate" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
@@ -170,19 +171,19 @@ int main(int argc, const char* argv[])
 			AF_ASSERT(!source_path.empty(),
 				"Can't really describe things without the template, source path must be supplied.");
 			AF_ASSERT(target_path.empty(),
-				"Target path has no purpose when generating configurations.");
+				"Target path has no purpose when descirbing templates.");
 		}
 
 		commands.execute();
 
 		if (commands.has("generate")) {
-			std::cout << "Done creating project in folder " << target_path << std::endl;
+			std::cout << "\n\nDone creating project in folder " << target_path << std::endl;
 		}
 		else if (commands.has("generate_config")) {
-			std::cout << "Done creating " << config_path << std::endl;
+			std::cout << "\n\nDone creating " << config_path << std::endl;
 		}
 		else {
-			std::cout << "\nDone describing " << source_path << std::endl;
+			std::cout << "\n\nDone describing " << source_path << std::endl;
 		}
 	}
 	catch (...) {
