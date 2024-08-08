@@ -36,7 +36,7 @@ int main(int argc, const char* argv[])
 			"-c", "C:/dev/autotelica/playground/code_templates/examples/example_config.ini",
 			//"-ignore_files", "non_parsed___project__files",
 			"-ignore_files", "*non_parsed*",
-			"-ignore_extensions", "xlxs,xls,dll,exe",
+			"-ignore_extensions", "xls*,dll,exe",
 			"-generate_config" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
