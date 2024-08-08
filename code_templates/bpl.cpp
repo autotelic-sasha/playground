@@ -21,6 +21,9 @@ using namespace autotelica::std_pretty_printing;
 
 namespace autotelica {
     // files and stuff
+    // We don't parse binary files, so something simple for reading and writing.
+    // Also, we don't expect text files to be so big to cause problems 
+    // when loading them to memory for parsing. 
     std::string read_file(path_t const& path) {
         std::ifstream f(path);
         const auto sz = filesystem_n::file_size(path);
@@ -33,7 +36,13 @@ namespace autotelica {
         f << s;
     }
 
+    // Special files are like functions for special actions. 
+    // At the time of writing this comment, __GITCLONE__ is the only example, 
+    // it fetches a content of a github repo while creating a project. 
+    // In time, I expect we'll have something that copies folders from elsewhere,
+    // maybe some other files from the internet, and who knows what else.
     class special_files {
+        // get a repo from github, the address is the only line in the file.
         static void get_from_github(path_t const& gitclone_file, path_t const& target_file) {
             auto content = trim(read_file(gitclone_file));
             AF_ASSERT(!content.empty() && content.find('\n') == std::string::npos,
@@ -45,49 +54,45 @@ namespace autotelica {
             AF_WARNING("Cloning git repository with command '%'.\nCHECK that it worked, it's really hard to check it programatically, sorry.", command);
             system(command.c_str());
         }
-        static constexpr const char* const _gitclone = "__GITCLONE__";
 
-        static string_set_nc const& _specials() {
-            static string_set_nc _specials{ _gitclone };
+        // 'specials' is a registry that maps special file names to functions that handle them
+        using specials_t = string_map_nc<std::function<void(path_t const&, path_t const&)>>;
+        static specials_t const& _specials() {
+            static specials_t _specials{ {"__GITCLONE__", get_from_github} };
             return _specials;
         }
     public:
+        // check if a file is special
         static bool is_special(path_t const& the_file) {
             auto const fname = the_file.filename().string();
             return (_specials().find(fname) != _specials().end());
         }
+        // check is a name refers to a special file
+        // it is not completely perfect, but it is only used for creating descriptions
+        // simplicity matters more here
         static bool is_special(std::string const& name) {
             if (_specials().find(name) != _specials().end())
                 return true;
             return (_specials().find("__" + name + "__") != _specials().end());
         }
 
+        // deal with special files, if they are special
         static bool handle_if_special(path_t const& the_file, path_t const& target_file) {
             auto filename = the_file.filename().string();
-            if (equal_nc(filename, _gitclone)) {
-                get_from_github(the_file, target_file);
+            auto const fname = the_file.filename().string();
+            auto const& it = _specials().find(fname);
+            if (it != _specials().end()) {
+                it->second(the_file, target_file);
                 return true;
             }
             return false;
         }
     };
-    // named values, used to pass stuff around
+    // named values
+    // This is a container for the simple replacement values. 
+    // It implements the bpl semantics for handling the case of replacemens.
     class named_values {
         string_map_nc<std::string> _values;
-        bool is_lowercase(std::string const& name) const {
-            for (auto const c : name) {
-                if (fast_to_lower(c) != c)
-                    return false;
-            }
-            return true;
-        }
-        bool is_uppercase(std::string const& name) const {
-            for (auto const c : name) {
-                if (fast_to_upper(c) != c)
-                    return false;
-            }
-            return true;
-        }
     public:
         bool exists(std::string const& name) const {
             return _values.find(trim(name)) != _values.end();
@@ -110,29 +115,29 @@ namespace autotelica {
             return it->second;
         }
     };
-    // funcitions
-    std::string generate_hex(size_t len) {
+    // functions
+    // simple, not really guaranteed to be universal uuids, but good enough for visual studio
+    // using them to create GUIDs in projects
+    std::string simple_uuid() {
         std::stringstream ss;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, 15);
-
-        for (size_t i = 0; i < len; i++) {
-            ss << std::hex << dis(gen);
-        }
-        return ss.str();
-    }
-    std::string simple_uuid() {
-        // simple, not really guaranteed to be universal uuids, but good enough for visual studio
-        std::stringstream ss;
-        ss << generate_hex(8) << "-" <<
-            generate_hex(4) << "-" <<
-            generate_hex(4) << "-" <<
-            generate_hex(4) << "-" <<
-            generate_hex(12);
+        auto generate_hex = [&](size_t digits, bool last = false) {
+            for (size_t i = 0; i < digits; i++)
+                ss << std::hex << dis(gen);
+            if (!last) ss << "-";
+        };
+        generate_hex(8);
+        generate_hex(4);
+        generate_hex(4);
+        generate_hex(4);
+        generate_hex(12, true);
         return to_upper(ss.str());
     }
 
+    // Implementation of functions.
+    // Arguments can only be one of three types
     enum class argument_t {
         integer,
         floating,
@@ -163,6 +168,9 @@ namespace autotelica {
             return _text;
         }
     };
+    // base class for functions
+    // just some arguments, added as we parse, and a function to evaluate it
+    // oh, also one to report it's name, nice for checking, documenting and all that
     class function {
     protected:
         std::vector<argument> _arguments;
@@ -183,7 +191,13 @@ namespace autotelica {
         virtual std::string evaluate(named_values const& values) const = 0;
         virtual std::string const& name() const = 0;
     };
+    // a registry of all available functions
+    // to add a new function, implement a class derived from 'function'
+    // then register it through static initialisation with 'functions'
     class functions {
+        // at the core of it is a non-case sensitive mapping
+        // of function names to factory functions that create function objects (LOL, but it is all functional :D)
+        // ok, ok ... in the lingo: 'functions' is an abstract factory of 'function' objects
         using registry_t = string_map_nc<std::function<std::shared_ptr<function>()>>;
         static registry_t& registry() {
             static registry_t _instance;
@@ -205,12 +219,20 @@ namespace autotelica {
             return registry()[trim(name)]();
         }
     };
+    // function GUID
+    // Creates GUIDs. (or close enough)
+    // Takes a single integer argument which is used as an identifier for a GUID
+    // During a single run GUID(x) always returns the same guid for the same x. 
+    // NOT TRUE between runs. 
     class GUID : public function {
+        // there is a static storage for generated guids
+        // because we need to be able to repeat them
+        // visual studio uses them as handles, so they get repeated
         static std::map<long, std::string>& guids() {
             static std::map<long, std::string> _instance;
             return _instance;
         }
-        static std::string const& sname() {
+        static std::string const& sname() { // C++ 14 doesn't have static data members, oh well
             static std::string _name{ "GUID" };
             return _name;
         }
@@ -218,17 +240,20 @@ namespace autotelica {
         std::string evaluate(named_values const& values) const override {
             AF_ASSERT(_arguments.size() == 1, "Function GUID takes exactly one argument.");
             long idx = _arguments[0].integer();
-            if (guids().find(idx) == guids().end()) {
+            if (guids().find(idx) == guids().end()) 
                 guids()[idx] = simple_uuid();
-            }
             return guids()[idx];
         }
         std::string const& name() const override { return GUID::sname(); }
     };
-    static bool register_guid_f = functions::register_function("GUID",
+    // this is where function GUID is registered. 
+    static bool register_guid_f = functions::register_function(
+        "GUID",
         []() { return std::shared_ptr<function>(new GUID()); });
 
+    //
     // parsing stuff
+    //
     inline void skip_whitespace(std::string const code, size_t& dot) {
         while (dot < code.size() && std::isspace(code[dot]))
             ++dot;
@@ -242,6 +267,14 @@ namespace autotelica {
         }
         return true;
     }
+
+    // parsing functions
+    // All recursive decent functions are required to be nice:
+    //      clean up any trailing whitespace
+    //      move the dot to the next token that is to be read
+    // That way they can all start reading from the dot.
+
+    // function argument parsing, one for each type
     long get_integer_arg(std::string const code, size_t& dot, bool& found) {
         // get integer
         // if one is there, otherwise don't
@@ -268,6 +301,11 @@ namespace autotelica {
         }
         return d;
     }
+
+    // there is a subtlety to text arguments
+    // they can be either some random strings, in which case they must be quoted
+    // or they can be names from the replacement mapping, in which case they are not quoted
+    //      and they get evaluated to their replacement values immediately
     std::string get_string_arg(std::string const code, size_t& dot, bool& found) {
         found = false;
         size_t local_dot = dot;
@@ -325,6 +363,7 @@ namespace autotelica {
         found = true;
         return s;
     }
+    // parsing the list of all arguments for a function
     void add_arguments(
         std::string const code, size_t& dot,
         std::shared_ptr<function> func, named_values const& values) {
@@ -373,6 +412,8 @@ namespace autotelica {
         ++local_dot;
         dot = local_dot;
     }
+
+    // parse and immediately evaluate a replaceable name or a function
     std::string evaluate_name_or_function(
         std::string const& code, size_t& dot,
         bool strict, std::string const& terminator,
@@ -417,6 +458,11 @@ namespace autotelica {
             AF_ERROR("Unhandled replacement at character: %", dot);
         return "";
     }
+
+    //
+    // Processing inputs
+    //
+    // Filenames are easier to process, because there is no escaping
     std::string process_filename(
         std::string const& name,
         bool const strict,
@@ -446,6 +492,8 @@ namespace autotelica {
         }
         return out.str();
     }
+
+    // File content allows for escaping symbols, and functions, makes it a little more complicated
     std::string get_escaped(
         std::string const& content,
         size_t& dot
@@ -475,8 +523,8 @@ namespace autotelica {
         while (c) {
             if (lookahead(content, dot, "{{")) {
                 dot += 2;
-                if (lookahead(content, dot, "{{")) {
-                    ++dot;
+                if (lookahead(content, dot, "{{")) { // {{{{ means we are escaping things
+                    ++dot; 
                     out << get_escaped(content, dot);
                     c = content[dot];
                 }
@@ -502,16 +550,23 @@ namespace autotelica {
         }
         return out.str();
     }
+
+    // 
+    // Listing required data from inputs
+    // 
+    // This is helpful to document templates, examine them, and generate blank configuration files.
+    // Because of escaping in content, the logic is slightly different for file names and content.
+    // In the end it makes it more readable to have two separate functions, even though thery are very similar.
     void list_required_names_for_filename(std::string const& path, string_map_nc<string_set_nc>& sections) {
         size_t dot{ 0 };
         char c = path[dot];
         while (c) {
-            if (lookahead(path, dot, "__")) {
+            if (lookahead(path, dot, "__")) {// is it a name?
                 dot += 2;
-                if (path[dot] == '_') {
-                    dot -= 2;
+                if (path[dot] == '_') {// is it a name with additional '_' around it?
+                    dot -= 2;// false alarm, roll back
                 }
-                else {
+                else {// yesss, it's a name, get it
                     size_t end_of_name = dot;
                     while (path[end_of_name++] && !lookahead(path, end_of_name, "__"))
                         ;
@@ -519,7 +574,7 @@ namespace autotelica {
                     auto name = path.substr(dot, end_of_name - dot);
                     dot = end_of_name + 2;
                     if (!special_files::is_special(name)) {
-                        auto i = name.find('.');
+                        auto i = name.find('.');// deal with sections
                         if (i == std::string::npos)
                             sections[""].insert(trim(name));
                         else
@@ -527,7 +582,7 @@ namespace autotelica {
                     }
                 }
             }
-            if (!path[dot])
+            if (!path[dot])// all this rolling back an forth ... did we run out of text?
                 break;
             c = path[++dot];
         }
@@ -539,15 +594,15 @@ namespace autotelica {
         size_t dot{ 0 };
         char c = content[dot];
         while (c) {
-            if (lookahead(content, dot, "{{")) {
+            if (lookahead(content, dot, "{{")) {// is it a name?
                 dot += 2;
-                if (lookahead(content, dot, "{{")) {
+                if (lookahead(content, dot, "{{")) {// ... or is it escaped?
                     dot += 2;
                 }
-                else if (content[dot] == '{') {
-                    dot -= 2;
+                else if (content[dot] == '{') {// is a name that is surrounded by braces?
+                    dot -= 2; // roll back, false alarm
                 }
-                else {
+                else { // yess ... it's a name! get it
                     size_t end_of_name = dot;
                     while (content[end_of_name++] && !lookahead(content, end_of_name, "}}"))
                         ;
@@ -555,7 +610,7 @@ namespace autotelica {
                     auto name = content.substr(dot, end_of_name - dot);
                     dot = end_of_name + 2;
                     if (!ignore_functions || name.find('(') == std::string::npos) { // function calls are not included here
-                        auto i = name.find('.');
+                        auto i = name.find('.');// deal with sections nicely
                         if (i == std::string::npos)
                             sections[""].insert(trim(name));
                         else
@@ -732,6 +787,9 @@ namespace autotelica {
         return true;
     }
 
+    // 
+    // Implementation of all the functionality is in bpl_impl
+    // 
     class bpl_impl {
         named_values _values;
         // we keep both string and path representation, for speed
@@ -739,85 +797,84 @@ namespace autotelica {
         path_t _target_path;
         path_t _config_path;
         bool _strict;
-        bool _force;
         // ignoring only refers to content of files, names are still parsed
         std::vector<std::string> _extensions_to_ignore;
         std::vector<std::string> _files_to_ignore;
         std::vector<std::string> _paths_to_ignore;
 
-        bool starts_with(std::string const& s, std::string const& prefix) {
-            for (size_t i = 0; i < prefix.size(); ++i)
-                if (s[i] != prefix[i])
-                    return false;
-            return true;
+        inline bool has(std::vector<std::string> const& v, std::string const& s) {
+            // just to make lots of lines shorter
+            return (std::find(v.begin(), v.end(), s) != v.end())
         }
+        // we cache paths to ignore, so that we can ignore files
+        // in ignored folders
         void cache_path_to_ignore(std::string const& p) {
-            if (std::find(_paths_to_ignore.begin(), _paths_to_ignore.end(), p) == _paths_to_ignore.end())
+            if (!has(_paths_to_ignore, p))
                 _paths_to_ignore.push_back(p);
         }
         bool ignored(path_t const& target_path) {
             auto const path_s = to_lower(target_path.string());
-            auto extension = to_lower(target_path.extension().string());
-            if (!extension.empty()) {
-                if (std::find(_extensions_to_ignore.begin(), _extensions_to_ignore.end(), extension) != _extensions_to_ignore.end()) {
-                    cache_path_to_ignore(path_s);
+            // is it under a directory that is already being ignored?
+            for (auto p : _paths_to_ignore) {
+                if (starts_with(path_s, p))
                     return true;
-                }
+            }
+            // is it ignored by extension?
+            auto extension = to_lower(target_path.extension().string());
+            if (!extension.empty() && !_extensions_to_ignore.empty()) {
+                // wildcard matching works with equality too
                 for (auto const& pattern : _extensions_to_ignore) {
                     if (wildcard_match(extension, pattern)) {
                         cache_path_to_ignore(path_s);
                         return true;
                     }
+                    // in case people specified extensions to ignore including dots at the start
+                    if (extension[0] == '.') {
+                        auto const shorter = extension.substr(1);
+                        if (wildcard_match(shorter, pattern)) {
+                            cache_path_to_ignore(path_s);
+                            return true;
+                        }
+                    }
                 }
-                auto shorter = extension.substr(1);
-                if (extension[0] == '.') {
-                    if (std::find(_extensions_to_ignore.begin(), _extensions_to_ignore.end(), shorter) != _extensions_to_ignore.end()) {
+            }
+            // is it ignored by filename?
+            if (!_files_to_ignore.empty()) {
+                // we want to be portable, so normalise file separators
+                auto const norm_path = replace(to_lower(target_path.string()), "\\", "/");
+                for (auto const& pattern : _files_to_ignore) {
+                    auto const norm_pattern = replace(pattern, "\\", "/");
+                    if (wildcard_match(norm_path, norm_pattern)) {
                         cache_path_to_ignore(path_s);
                         return true;
                     }
                 }
-                for (auto const& pattern : _extensions_to_ignore) {
-                    if (wildcard_match(shorter, pattern)) {
-                        cache_path_to_ignore(path_s);
-                        return true;
-                    }
-                }
-
             }
-            auto const fname = to_lower(target_path.filename().string());
-            if (std::find(_files_to_ignore.begin(), _files_to_ignore.end(), fname) != _files_to_ignore.end()) {
-                cache_path_to_ignore(path_s);
-                return true;
-            }
-            auto const pname = to_lower(target_path.string());
-            for (auto const& pattern : _files_to_ignore) {
-                if (wildcard_match(pname, pattern)) {
-                    cache_path_to_ignore(path_s);
-                    return true;
-                }
-            }
-
-            for (auto p : _paths_to_ignore) {
-                if (starts_with(path_s, p))
-                    return true;
-            }
+            // well, we tried what we could
             return false;
         }
+        // constructing the target path from source path is a busy work
         path_t make_target_path(
             path_t const& source_path,
             path_t const& source_folder,
             path_t const& target_folder) {
+            
+            // we do some string manipulation here, make things strings
             auto const source_p = source_path.string();
             auto const source_f = source_folder.string();
             auto const target_f = target_folder.string();
 
+            // first we drop the source folder prefix from the path and replace it with target one
+            // if we introduces and double separators while doing that, we tidy that up too
             auto target_p = replace(replace(replace(source_p, source_f, target_f), "\\\\", "\\"), "//", "/");
+            
             AF_ASSERT(source_p != target_p,
                 "Source folder doesn't seem to be present in the path % (source folder is: %)", source_p, source_f);
 
+            // then we handle replacements in file names
             if (!special_files::is_special(source_path))
                 target_p = process_filename(target_p, _strict, _values);
-            else {
+            else { // for special files, we don't want to tackle the filename, just the path to it
                 auto const target_root_s = process_filename(
                     path_t(target_p).parent_path().make_preferred().string(),
                     _strict, _values);
@@ -825,21 +882,29 @@ namespace autotelica {
             }
             return path_t(target_p);
         }
-        void copy_target(path_t const& source_path, path_t const& target_path) {
-            AF_ASSERT(_force || !filesystem_n::exists(target_path),
-                "% already exists.", target_path.string());
+        
+        // this is the main working function
+        // here we create files and folders in the target
+        void create_target(path_t const& source_path, path_t const& target_path) {
+            // better safe than sorry
+            AF_ASSERT(!filesystem_n::exists(target_path), "% already exists.", target_path.string());
+            
+            // directories are just created
             if (filesystem_n::is_directory(source_path)) {
                 filesystem_n::create_directories(target_path);
                 AF_MESSAGE("Creating directory %.", target_path.string());
             }
             else if (special_files::handle_if_special(source_path, target_path)) {
+                // special files have their own handlers
                 return;
             }
             else if (ignored(source_path)) {
+                // ignored files are just copied
                 filesystem_n::copy(source_path, target_path);
                 AF_MESSAGE("Creating file %.", target_path.string());
             }
             else {
+                // for everything else, we parse the content too
                 auto const content = read_file(source_path);
                 AF_MESSAGE("Parsing file %.", target_path.string());
                 auto const new_content = process_content(content, _strict, _values);
@@ -854,11 +919,10 @@ namespace autotelica {
             std::string const& target_path_,
             std::string const& config_path_,
             bool strict_ = false,
-            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "") {
+            
             _strict = strict_;
-            _force = force_;
             _source_path = path_t(source_path_).make_preferred();
             _target_path = path_t(target_path_).make_preferred();
             _config_path = path_t(config_path_).make_preferred();
@@ -883,12 +947,11 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             bool strict_ = false,
-            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "",
             std::map<std::string, std::string> const& kvm_ = {}) {
+            
             _strict = strict_;
-            _force = force_;
             csv_to_vector(to_lower(extensions_to_ignore_), _extensions_to_ignore);
             csv_to_vector(to_lower(files_to_ignore_), _files_to_ignore);
 
@@ -905,14 +968,17 @@ namespace autotelica {
 
         }
 
+        // generating projects
+        // for every file or folder, process the path, create a target
         void generate() {
             using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
             for (const auto& p : recursive_directory_iterator(_source_path)) {
                 try {
                     auto target_path = make_target_path(p.path(), _source_path, _target_path);
-                    copy_target(p.path(), target_path);
+                    create_target(p.path(), target_path);
                 }
                 catch (std::exception& e) {
+                    // this is all just to avoid duplicating error messages, AF_ERROR prints them already
                     if (wildcard_match(e.what(), "[*] ERROR: *"))
                         AF_ERROR("Error while processing %.", p.path().string());
                     else
@@ -924,6 +990,8 @@ namespace autotelica {
             }
         }
 
+        // generating blank configuration files
+        // then you just populate them with values,it's nice
         void generate_config_files() {
             string_map_nc<string_set_nc> sections;
             using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
@@ -944,7 +1012,12 @@ namespace autotelica {
                 write_file(_config_path, ini);
             }
         }
+
+        // got a new template to deal with? 
+        // or one that you wrote but forgot all about?
+        // use 'describe' to get information about it.
         void describe() {
+            // it's long but boring, adding comments would make it both longer and boringer
             string_map_nc<string_set_nc> to_define;
             std::vector<std::string> functions;
             std::vector<std::string> special_files;
@@ -1013,12 +1086,12 @@ namespace autotelica {
         }
     };
 
+    // external interface
     bpl::bpl(
             std::string const& source_path_,
             std::string const& target_path_,
             std::string const& config_path_,
             bool strict_,
-            bool force_,
             std::string const& extensions_to_ignore_,
             std::string const& files_to_ignore_) :
         _impl(new bpl_impl(
@@ -1026,7 +1099,6 @@ namespace autotelica {
             target_path_, 
             config_path_, 
             strict_,
-            force_,
             extensions_to_ignore_,
             files_to_ignore_)) {
     }
@@ -1035,7 +1107,6 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             bool strict_,
-            bool force_,
             std::string const& extensions_to_ignore_,
             std::string const& files_to_ignore_,
             std::map<std::string, std::string> const& kvm_) :
@@ -1043,7 +1114,6 @@ namespace autotelica {
             source_path_,
             target_path_,
             strict_,
-            force_,
             extensions_to_ignore_,
             files_to_ignore_,
             kvm_)) {

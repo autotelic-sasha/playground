@@ -126,12 +126,13 @@
 //  
 //      or similarly on the command line.
 
-//    Hint: files_to_ignore also works with wildcards (e.g. *part\of\path*), and even without them, if 
-//          if a directory matches one of the listed names, everything in that directory is also 
-//          not parsed. (names of files and directories are always parsed though)
+//    Hints: files_to_ignore and extensions to ignore also work with wildcards (e.g. *part\of\path*)
+//
+//           if a directory matches one of the listed names, everything in that directory is also 
+//           not parsed. 
+//           (names of files and directories are always parsed though)
 //      
 //  2. If a same parameter appears both on a command line and in a config file, command line takes presedence.    
-//  3. You can force it to overwrite existing projects by using force. (it's a parameter).
 
 #include <map>
 #include <string>
@@ -148,7 +149,6 @@ namespace autotelica {
             std::string const& target_path_,
             std::string const& config_path_,
             bool strict_ = false,
-            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "");
         
@@ -156,7 +156,6 @@ namespace autotelica {
             std::string const& source_path_,
             std::string const& target_path_,
             bool strict_ = false,
-            bool force_ = false,
             std::string const& extensions_to_ignore_ = "",
             std::string const& files_to_ignore_ = "",
             std::map<std::string, std::string> const& kvm_ = {});

@@ -22,7 +22,6 @@ int main(int argc, const char* argv[])
 	//		"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
 	//		"-t", "C:/dev/autotelica/playground/test_templates_target/",
 	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
-	//		"-force",
 	//		"-generate" };
 	//const char* debug_argv[] = {
 	//	"code_templates",
@@ -73,11 +72,6 @@ int main(int argc, const char* argv[])
 				{ "strict" },
 				0)
 			.register_command(
-				"Force",
-				"Overwrite files and folders if they already exist.",
-				{ "force" },
-				0)
-			.register_command(
 				"Extensions to ignore",
 				"List of file extensions for files that should not parsed, must be quoted (e.g. \"*.xls, *.exe\").",
 				{ "e", "ignore_extensions", "extensions_to_ignore" },
@@ -121,7 +115,6 @@ int main(int argc, const char* argv[])
 		std::string target_path;
 		std::string config_path;
 		bool strict = false;
-		bool force = false;
 		std::string extensions_to_ignore;
 		std::string files_to_ignore;
 
@@ -132,7 +125,6 @@ int main(int argc, const char* argv[])
 		if (commands.has("config_path"))
 			config_path = commands.arguments("config_path")[0];
 		strict = commands.has("strict");
-		force = commands.has("force");
 		if (commands.has("extensions_to_ignore"))
 			extensions_to_ignore = commands.arguments("extensions_to_ignore")[0];
 		if (commands.has("files_to_ignore"))
@@ -146,7 +138,6 @@ int main(int argc, const char* argv[])
 			target_path,
 			config_path,
 			strict,
-			force,
 			extensions_to_ignore,
 			files_to_ignore
 		));
@@ -187,7 +178,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 	catch (...) {
-		std::cout << "An error occured." << std::endl;
+		std::cout << "\n\nAn error occured." << std::endl;
 		return -1;
 	}
 }
