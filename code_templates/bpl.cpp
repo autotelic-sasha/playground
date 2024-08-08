@@ -423,7 +423,7 @@ namespace autotelica {
                     if (lookahead(content, dot, "{{")) {
                         dot += 2;
                         out << get_escaped(content, dot); 
-                        c = content[++dot];
+                        c = content[dot];
                     }
                     else {
                         bool found = false;
@@ -447,29 +447,65 @@ namespace autotelica {
             }
             return out.str();
         }
-        void list_required_names(std::string const& content, string_map_nc<string_set_nc>& sections) {
+        void list_required_names_for_filename(std::string const& path, string_map_nc<string_set_nc>& sections) {
             size_t dot{ 0 };
-            std::stringstream out;
-            char c = content[dot];
-            bool escaping = false;
+            char c = path[dot];
             while (c) {
-                if (!escaping && lookahead(content, dot, "{{")) {
+                if (lookahead(path, dot, "__")) {
                     dot += 2;
-                    size_t end_of_name = dot;
-                    while (content[end_of_name++] && !lookahead(content, end_of_name, "}}"))
-                        ;
-                    AF_ASSERT(c, "Missing closing name braces.");
-                    auto name = content.substr(dot, end_of_name - dot);
-                    dot = end_of_name + 2;
-                    if (name.find('(') == std::string::npos) { // function calls are not included here
+                    if (path[dot] == '_') {
+                        dot -= 2;
+                    }
+                    else {
+                        size_t end_of_name = dot;
+                        while (path[end_of_name++] && !lookahead(path, end_of_name, "__"))
+                            ;
+                        AF_ASSERT(path[end_of_name], "Missing closing name underscores.");
+                        auto name = path.substr(dot, end_of_name - dot);
+                        dot = end_of_name + 2;
                         auto i = name.find('.');
                         if (i == std::string::npos)
                             sections[""].insert(trim(name));
                         else
-                            sections[trim(name.substr(0, i))].insert(trim(name.substr(i)));
+                            sections[trim(name.substr(0, i))].insert(trim(name.substr(i+1)));
+                    }
+                    if(!path[dot])
+                        break;
+                }
+                c = path[++dot];
+            }
+        }
+        void list_required_names(
+                std::string const& content, 
+                string_map_nc<string_set_nc>& sections, 
+                bool ignore_functions = true) {
+            size_t dot{ 0 };
+            char c = content[dot];
+            while (c) {
+                if (lookahead(content, dot, "{{")) {
+                    dot += 2;
+                    if (lookahead(content, dot, "{{")) {
+                        dot += 2;
+                    }
+                    else if (content[dot] == '{') {
+                        dot -= 2;
+                    }
+                    else {
+                        size_t end_of_name = dot;
+                        while (content[end_of_name++] && !lookahead(content, end_of_name, "}}"))
+                            ;
+                        AF_ASSERT(content[end_of_name], "Missing closing name braces.");
+                        auto name = content.substr(dot, end_of_name - dot);
+                        dot = end_of_name + 2;
+                        if (!ignore_functions || name.find('(') == std::string::npos) { // function calls are not included here
+                            auto i = name.find('.');
+                            if (i == std::string::npos)
+                                sections[""].insert(trim(name));
+                            else
+                                sections[trim(name.substr(0, i))].insert(trim(name.substr(i + 1)));
+                        }
                     }
                 }
-                escaping = (c == '\\');
                 c = content[++dot];
             }
         }
@@ -601,13 +637,14 @@ namespace autotelica {
                 for (auto const name : e.second) {
                     ++i;
                     out << "\t\t\t\t{\"name\":\"" << name << "\",\"value\":\"\"}";
-                    if (is < sz)
+                    if (i < sz)
                         out << ",";
                     out << std::endl;
                 }
-                out << "\t\t\t]\n\t}" << std::endl;
+                out << "\t\t\t]\n\t}";
                 if (is < szs)
                     out << ",";
+                out << std::endl;
             }
             out << "\t]" << std::endl;
             out << "}" << std::endl;
@@ -718,6 +755,12 @@ namespace autotelica {
             if (std::find(_files_to_ignore.begin(), _files_to_ignore.end(), fname) != _files_to_ignore.end()) {
                 cache_path_to_ignore(path_s);
                 return true;
+            }
+            for (auto const& pattern : _files_to_ignore) {
+                if(wildcard_match(fname, pattern)) {
+                    cache_path_to_ignore(path_s);
+                    return true;
+                }
             }
             
             for (auto p : _paths_to_ignore) {
@@ -844,7 +887,8 @@ namespace autotelica {
             string_map_nc<string_set_nc> sections;
             using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
             for (const auto& p : recursive_directory_iterator(_source_path)) {
-                if (ignored(p) || filesystem_n::is_directory(p))
+                list_required_names_for_filename(p.path().string(), sections);
+                if(ignored(p) || filesystem_n::is_directory(p))
                     continue;
                 auto const content = read_file(p);
                 list_required_names(content, sections);
@@ -859,6 +903,31 @@ namespace autotelica {
                 write_file(_config_path, ini);
             }
         }
+        void describe() {
+            using recursive_directory_iterator = filesystem_n::recursive_directory_iterator;
+            for (const auto& p : recursive_directory_iterator(_source_path)) {
+                string_map_nc<string_set_nc> sections;
+                list_required_names_for_filename(p.path().string(), sections);
+                if (!(ignored(p) || filesystem_n::is_directory(p))) {
+                    auto const content = read_file(p);
+                    list_required_names(content, sections, false);
+                }
+                if (!sections.empty()) {
+                    std::cout << p.path().string() << std::endl;
+                    for (auto const& e : sections) {
+                        for (auto const& name : e.second) {
+                            std::cout << "\t";
+                            if (!e.first.empty())
+                                std::cout << e.first << ".";
+                            std::cout << name << std::endl;
+                        }
+                    }
+                }
+            }
+
+        }
+
+
     };
 
 
@@ -903,5 +972,8 @@ namespace autotelica {
     }
     void bpl::generate_config_files() {
         _impl->generate_config_files();
+    }
+    void bpl::describe() {
+        _impl->describe();
     }
 }

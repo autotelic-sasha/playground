@@ -24,12 +24,21 @@ int main(int argc, const char* argv[])
 	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
 	//		"-force",
 	//		"-generate" };
+	//const char* debug_argv[] = {
+	//	"code_templates",
+	//		"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
+	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.json",
+	//		"-ignore_files", "autotelica_core",
+	//		"-generate_config" };
 	const char* debug_argv[] = {
 		"code_templates",
-			"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
-			"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.json",
-			"-ignore_files", "autotelica_core",
+			"-s", "C:/dev/autotelica/playground/code_templates/examples/template",
+			"-c", "C:/dev/autotelica/playground/code_templates/examples/example_config.ini",
+			//"-ignore_files", "non_parsed___project__files",
+			"-ignore_files", "*non_parsed*",
+			"-ignore_extensions", "xlxs,xls,dll,exe",
 			"-generate_config" };
+
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
 	try {
@@ -37,6 +46,7 @@ int main(int argc, const char* argv[])
 
 		auto generate = [&](std::vector<std::string> const&) { _bpl->generate(); };
 		auto generate_config = [&](std::vector<std::string> const&) { _bpl->generate_config_files(); };
+		auto describe = [&](std::vector<std::string> const&) { _bpl->describe(); };
 
 		cl_commands commands("Autotelica simple code template generation.");
 
@@ -87,7 +97,13 @@ int main(int argc, const char* argv[])
 				"Generate configuration file with no values populated.",
 				{ "generate_config" },
 				0,
-				generate_config);
+				generate_config)
+		.register_command(
+			"Describe template",
+			"Print the list of all the names and functions used per file in template.",
+			{ "describe" },
+			0,
+			describe);
 
 #ifdef DEBUGGING_ARGS
 		commands.parse_command_line(debug_argc, debug_argv);
@@ -121,8 +137,8 @@ int main(int argc, const char* argv[])
 		if (commands.has("files_to_ignore"))
 			files_to_ignore = commands.arguments("files_to_ignore")[0];
 
-		AF_ASSERT(commands.has("generate") || commands.has("generate_config"),
-			"Nothing for the application to do, you should supply either 'generate' or 'generate_config' as arguments.");
+		AF_ASSERT(commands.has("generate") || commands.has("generate_config") || commands.has("describe"),
+			"Nothing for the application to do, you should supply either 'generate', 'generate_config' or 'describe. as arguments.");
 
 		_bpl = std::shared_ptr<bpl>(new bpl(
 			source_path,
@@ -135,7 +151,7 @@ int main(int argc, const char* argv[])
 		));
 
 		if (commands.has("generate")) {
-			AF_ASSERT(!commands.has("generate_config"),
+			AF_ASSERT(!commands.has("generate_config") && !commands.has("describe"),
 				"It's really hard to generate configuration and code at the same time, just choose one of them please.");
 			AF_ASSERT(!source_path.empty(),
 				"Can't really generate code without the template, source path must be supplied.");
@@ -150,13 +166,23 @@ int main(int argc, const char* argv[])
 			AF_ASSERT(!config_path.empty(),
 				"Can't really generate configurations without the template, source path must be supplied.");
 		}
+		else if (commands.has("describe")) {
+			AF_ASSERT(!source_path.empty(),
+				"Can't really describe things without the template, source path must be supplied.");
+			AF_ASSERT(target_path.empty(),
+				"Target path has no purpose when generating configurations.");
+		}
 
 		commands.execute();
+
 		if (commands.has("generate")) {
 			std::cout << "Done creating project in folder " << target_path << std::endl;
 		}
-		else {
+		else if (commands.has("generate_config")) {
 			std::cout << "Done creating " << config_path << std::endl;
+		}
+		else {
+			std::cout << "\nDone describing " << source_path << std::endl;
 		}
 	}
 	catch (...) {

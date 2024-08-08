@@ -124,7 +124,11 @@
 //          files_to_ignore = large_cpp.cpp, large_header.h
 //          (in ini)
 //  
-//      or similarly on the command line
+//      or similarly on the command line.
+
+//    Hint: files_to_ignore also works with wildcards (e.g. *part\of\path*), and even without them, if 
+//          if a directory matches one of the listed names, everything in that directory is also 
+//          not parsed. (names of files and directories are always parsed though)
 //      
 //  2. If a same parameter appears both on a command line and in a config file, command line takes presedence.    
 //  3. You can force it to overwrite existing projects by using force. (it's a parameter).
@@ -159,6 +163,7 @@ namespace autotelica {
 
         void generate();
         void generate_config_files();
+        void describe();
 
     };
 }

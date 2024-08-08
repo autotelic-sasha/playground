@@ -1,0 +1,13 @@
+This file has strings to replace. Like {{strings.to_replace}}.
+{{string.to_also_replace}}, too. and a {{{braced_one}}}.
+
+It also has some escaped braces {{{{this should be untouched}}}}.
+
+There is also guids here:
+
+first one: {{GUID(0)}}
+second one: {{GUID(2)}}
+same as the first one: {{GUID(0)}}
+same as the second one: {{GUID(2)}}
+And some more {{GUID(123)}},{{{GUID(125)}}}
+{ {GUID(124)} }, spaces don't work, this line should remain unchanged.
