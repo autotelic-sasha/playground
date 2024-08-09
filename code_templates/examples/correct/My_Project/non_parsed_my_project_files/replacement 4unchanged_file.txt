@@ -1,2 +1,0 @@
-This file has some {{bracketed}} strings
-Even some that are used elsewhere, like {{project.name}}
