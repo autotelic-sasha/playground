@@ -1,0 +1,57 @@
+{
+    "configurations": [
+        {
+            "name": "C/C++: build and debug {{appname}}",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/{{appname}}/debug/{{appname}}_d",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/{{appname}}/debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ debug build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: release build and run {{appname}}" ,
+            "type":"cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/{{appname}}/release/{{appname}}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/{{appname}}/release",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ release build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }        
+    ],
+    "version": "2.0.0"
+}

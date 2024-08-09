@@ -21,13 +21,13 @@ int main(int argc, const char* argv[])
 #ifdef DEBUGGING_ARGS
 	const char* debug_argv[] = {
 		"bpl",
-			"-s", "C:/dev/autotelica/playground/code_templates/examples/template/",
-			"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
-			"-c", "C:/dev/autotelica/playground/code_templates/examples/test_config.ini",
+			"-s", "C:/dev/autotelica/playground/console_app_template/",
+			"-t", "C:/dev/autotelica/playground/test_templates_target/",
+			"-c", "C:/dev/autotelica/playground/test_templates_target/bpl_config.ini",
 			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
-			"-describe" };
+			"-generate" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
@@ -148,10 +148,8 @@ int main(int argc, const char* argv[])
 		else if (commands.has("generate_config")) {
 			AF_ASSERT(!source_path.empty(),
 				"Can't really generate configurations without the template, source path must be supplied.");
-			AF_ASSERT(target_path.empty(),
-				"Target path has no purpose when generating configurations.");
 			AF_ASSERT(!config_path.empty(),
-				"Can't really generate configurations without the template, source path must be supplied.");
+				"Configuration output path has to be supplied to generate configuration file.");
 		}
 		else if (commands.has("describe")) {
 			AF_ASSERT(!source_path.empty(),

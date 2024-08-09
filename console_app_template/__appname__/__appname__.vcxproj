@@ -71,13 +71,13 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(ProjectDir)windows_build\$(Platform)\apps\</OutDir>
+    <OutDir>$(ProjectDir)windows_build\{{appname}}\apps\</OutDir>
     <TargetName>$(ProjectName)_d</TargetName>
-    <IntDir>$(ProjectDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)windows_build\{{appname}}\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(ProjectDir)windows_build\$(Platform)\apps\</OutDir>
-    <IntDir>$(ProjectDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <OutDir>$(ProjectDir)windows_build\{{appname}}\apps\</OutDir>
+    <IntDir>$(ProjectDir)windows_build\{{appname}}\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -118,10 +118,9 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\$(Platform)\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\$(Platform)\apps\$(TargetName).exe $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(ProjectName)\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -139,10 +138,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\$(Platform)\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\$(Platform)\apps\$(TargetName).exe $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(ProjectName)\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -13,7 +13,7 @@ TARGET_BASE_NAME := {{appname}}
 # To build shared libraries, set this to yes.
 TARGET_IS_LIBRARY := no
 # Base name of the base shared library being tested, if this is a dll test project.
-BASE_SO_BASE_NAME := {{appname}}
+BASE_SO_BASE_NAME := 
 # Additional macro definitions for the build (NDEBUG for release and DEBUG for debug are always defined anyway).
 RELEASE_MACRO_DEFINITIONS := 
 DEBUG_MACRO_DEFINITIONS := $(RELEASE_MACRO_DEFINITIONS)
