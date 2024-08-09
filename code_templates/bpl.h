@@ -160,8 +160,16 @@ namespace autotelica {
             std::string const& files_to_ignore_ = "",
             std::map<std::string, std::string> const& kvm_ = {});
 
+        // generating projects from templates
         void generate();
+
+        // generating blank configuration files
+        // then you just populate them with values,it's nice
         void generate_config_files();
+
+        // got a new template to deal with? 
+        // or one that you wrote but forgot all about?
+        // use 'describe' to get information about it on screen.
         void describe();
 
     };

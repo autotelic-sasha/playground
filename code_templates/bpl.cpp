@@ -416,7 +416,7 @@ namespace autotelica {
     // parse and immediately evaluate a replaceable name or a function
     std::string evaluate_name_or_function(
         std::string const& code, size_t& dot,
-        bool strict, std::string const& terminator,
+        std::string const& terminator,
         named_values const& values, bool& found) {
         found = false;
         size_t local_dot = dot;
@@ -454,8 +454,7 @@ namespace autotelica {
             found = true;
             return values.get(name);
         }
-        if (strict)
-            AF_ERROR("Unhandled replacement at character: %", dot);
+
         return "";
     }
 
@@ -474,7 +473,7 @@ namespace autotelica {
             if (lookahead(name, dot, "__")) {
                 dot += 2;
                 bool found = false;
-                auto value = evaluate_name_or_function(name, dot, strict, "__", values, found);
+                auto value = evaluate_name_or_function(name, dot, "__", values, found);
                 if (found) {
                     out << value;
                     AF_ASSERT(lookahead(name, dot, "__"), "Non-terminated replacement.");
@@ -483,6 +482,13 @@ namespace autotelica {
                     continue;
                 }
                 else {
+                    if (strict) {
+                        // there is a very confusing (for the parser) use case, additional '_' around the name
+                        // that's actually on, and non-strict parsing deals with it just fine
+                        // but strict checking needs to be given a chance
+                        if(name[dot] != '_')
+                            AF_ERROR("Unhandled replacement (%) at character: %", name, dot);
+                    }
                     dot -= 2;
                 }
             }
@@ -530,7 +536,7 @@ namespace autotelica {
                 }
                 else {
                     bool found = false;
-                    auto value = evaluate_name_or_function(content, dot, strict, "}}", values, found);
+                    auto value = evaluate_name_or_function(content, dot, "}}", values, found);
                     if (found) {
                         out << value;
                         AF_ASSERT(lookahead(content, dot, "}}"), "Non-terminated replacement.");
@@ -539,6 +545,14 @@ namespace autotelica {
                         continue;
                     }
                     else {
+                        if (strict) {
+                            // there is a very confusing (for the parser) use case, additional '{' around the name
+                            // that's actually on, and non-strict parsing deals with it just fine
+                            // but strict checking needs to be given a chance
+                            if (content[dot] != '{')
+                                AF_ERROR("Unhandled replacement at character: %", dot);
+                        }
+
                         dot -= 2;
                     }
                 }
@@ -576,9 +590,9 @@ namespace autotelica {
                     if (!special_files::is_special(name)) {
                         auto i = name.find('.');// deal with sections
                         if (i == std::string::npos)
-                            sections[""].insert(trim(name));
+                            sections[""].insert(to_lower(trim(name)));
                         else
-                            sections[trim(name.substr(0, i))].insert(trim(name.substr(i + 1)));
+                            sections[to_lower(trim(name.substr(0, i)))].insert(to_lower(trim(name.substr(i + 1))));
                     }
                 }
             }
@@ -612,9 +626,9 @@ namespace autotelica {
                     if (!ignore_functions || name.find('(') == std::string::npos) { // function calls are not included here
                         auto i = name.find('.');// deal with sections nicely
                         if (i == std::string::npos)
-                            sections[""].insert(trim(name));
+                            sections[""].insert(to_lower(trim(name)));
                         else
-                            sections[trim(name.substr(0, i))].insert(trim(name.substr(i + 1)));
+                            sections[to_lower(trim(name.substr(0, i)))].insert(to_lower(trim(name.substr(i + 1))));
                     }
                 }
             }
@@ -804,7 +818,7 @@ namespace autotelica {
 
         inline bool has(std::vector<std::string> const& v, std::string const& s) {
             // just to make lots of lines shorter
-            return (std::find(v.begin(), v.end(), s) != v.end())
+            return (std::find(v.begin(), v.end(), s) != v.end());
         }
         // we cache paths to ignore, so that we can ignore files
         // in ignored folders

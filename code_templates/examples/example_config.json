@@ -1,0 +1,45 @@
+{
+	"extensions_to_ignore" : "xls*,dll,exe",
+	"files_to_ignore" : "*non_parsed*",
+	"sections":[
+	{
+		"name":"",
+			"named_values" : [
+				{"name":"braced_one","value":""},
+				{"name":"newname","value":""},
+				{"name":"project","value":""}
+			]
+	},
+	{
+		"name":"another_section",
+			"named_values" : [
+				{"name":"too","value":""}
+			]
+	},
+	{
+		"name":"project",
+			"named_values" : [
+				{"name":"name","value":""}
+			]
+	},
+	{
+		"name":"string",
+			"named_values" : [
+				{"name":"to_also_replace","value":""}
+			]
+	},
+	{
+		"name":"strings",
+			"named_values" : [
+				{"name":"to_also_replace","value":""},
+				{"name":"to_replace","value":""}
+			]
+	},
+	{
+		"name":"sub",
+			"named_values" : [
+				{"name":"name1","value":""}
+			]
+	}
+	]
+}

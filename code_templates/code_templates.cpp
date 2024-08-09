@@ -15,33 +15,25 @@ int main(int argc, const char* argv[])
 
 	AF_ASSERTS_SHORT_FORM();
 
+	// define DEBUGGING_ARGS when debugging, then you can define
+	// debug versions of argv and argc to use, makes debugging a whole lot easier
 #define DEBUGGING_ARGS 	
 #ifdef DEBUGGING_ARGS
-	//const char* debug_argv[] = {
-	//	"code_templates",
-	//		"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
-	//		"-t", "C:/dev/autotelica/playground/test_templates_target/",
-	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.ini",
-	//		"-generate" };
-	//const char* debug_argv[] = {
-	//	"code_templates",
-	//		"-s", "C:/dev/autotelica/playground/share_libraries_template/shared_library_template",
-	//		"-c", "C:/dev/autotelica/playground/test_templates_target/shared_library_template_config.json",
-	//		"-ignore_files", "autotelica_core",
-	//		"-generate_config" };
 	const char* debug_argv[] = {
 		"code_templates",
 			"-s", "C:/dev/autotelica/playground/code_templates/examples/template/",
-			"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
+			//"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
 			"-c", "C:/dev/autotelica/playground/code_templates/examples/example_config.ini",
-			//"-ignore_files", "non_parsed___project__files",
+			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
-			"-generate" };
+			"-generate_config" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
 	try {
+
+		// setting up the command line parser
 		std::shared_ptr<bpl> _bpl;
 
 		auto generate = [&](std::vector<std::string> const&) { _bpl->generate(); };
@@ -100,17 +92,20 @@ int main(int argc, const char* argv[])
 			0,
 			describe);
 
+		// parsing the command line
 #ifdef DEBUGGING_ARGS
 		commands.parse_command_line(debug_argc, debug_argv);
 #else
 		commands.parse_command_line(argc, argv);
 #endif
 
+		// if there's nothing to do, show help
 		if (commands.executors().empty()) {
 			commands.help();
 			return 0;
 		}
 
+		// get the arguments into something we can work with
 		std::string source_path;
 		std::string target_path;
 		std::string config_path;

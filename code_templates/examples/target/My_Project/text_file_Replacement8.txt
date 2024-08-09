@@ -1,0 +1,13 @@
+This file has strings to replace. Like replacement7.
+repla{cement}5, too. and a {replacement1}.
+
+It also has some escaped braces {{this should be untouched}}.
+
+There is also guids here:
+
+first one: 9ADC2802-F292-3F6A-F4A4-6D99ED0E9145
+second one: 7554DE51-E954-1958-4B4B-9DEDFDD19BF1
+same as the first one: 9ADC2802-F292-3F6A-F4A4-6D99ED0E9145
+same as the second one: 7554DE51-E954-1958-4B4B-9DEDFDD19BF1
+And some more 645EF113-2C9B-8CBE-05A4-4E7C9F63094F,{314B96AC-37A1-001A-6E7C-32D842F1D72B}
+{ {GUID(124)} }, spaces don't work, this line should remain unchanged.
