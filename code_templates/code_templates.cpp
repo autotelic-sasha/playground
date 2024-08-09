@@ -27,7 +27,7 @@ int main(int argc, const char* argv[])
 			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
-			"-generate" };
+			"-describe" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
@@ -156,8 +156,6 @@ int main(int argc, const char* argv[])
 		else if (commands.has("describe")) {
 			AF_ASSERT(!source_path.empty(),
 				"Can't really describe things without the template, source path must be supplied.");
-			AF_ASSERT(target_path.empty(),
-				"Target path has no purpose when descirbing templates.");
 		}
 
 		commands.execute();
