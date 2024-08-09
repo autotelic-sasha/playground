@@ -23,7 +23,8 @@ int main(int argc, const char* argv[])
 		"bpl",
 			"-s", "C:/dev/autotelica/playground/console_app_template/",
 			"-t", "C:/dev/autotelica/playground/test_templates_target/",
-			"-c", "C:/dev/autotelica/playground/test_templates_target/bpl_config.ini",
+			//"-c", "C:/dev/autotelica/playground/test_templates_target/bpl_config.ini",
+			"-named_values", "appname=bpl2, libname=something",
 			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
@@ -74,6 +75,11 @@ int main(int argc, const char* argv[])
 				{ "f", "ignore_files", "files_to_ignore" },
 				1)
 			.register_command(
+				"Named values",
+				"Named values to populate the template, separated by commas (e.g. name1=value1,name2=value2).",
+				{ "named_values" },
+				1)
+			.register_command(
 				"Generate code",
 				"Generate code out of the supplied template.",
 				{ "generate" },
@@ -112,6 +118,7 @@ int main(int argc, const char* argv[])
 		bool strict = false;
 		std::string extensions_to_ignore;
 		std::string files_to_ignore;
+		std::string named_values;
 
 		if (commands.has("source_path"))
 			source_path = commands.arguments("source_path")[0];
@@ -124,18 +131,35 @@ int main(int argc, const char* argv[])
 			extensions_to_ignore = commands.arguments("extensions_to_ignore")[0];
 		if (commands.has("files_to_ignore"))
 			files_to_ignore = commands.arguments("files_to_ignore")[0];
+		if (commands.has("named_values"))
+			named_values = commands.arguments("named_values")[0];
 
+		AF_ASSERT(named_values.empty() || config_path.empty(),
+			"You cannot supply both the configuration file and named values on the command line, choose one.");
 		AF_ASSERT(commands.has("generate") || commands.has("generate_config") || commands.has("describe"),
 			"Nothing for the application to do, you should supply either 'generate', 'generate_config' or 'describe. as arguments.");
 
-		_bpl = std::shared_ptr<bpl>(new bpl(
-			source_path,
-			target_path,
-			config_path,
-			strict,
-			extensions_to_ignore,
-			files_to_ignore
-		));
+		if (named_values.empty()) {
+			_bpl = std::shared_ptr<bpl>(new bpl(
+				source_path,
+				target_path,
+				config_path,
+				strict,
+				extensions_to_ignore,
+				files_to_ignore
+			));
+		}
+		else {
+			_bpl = std::shared_ptr<bpl>(new bpl(
+				source_path,
+				target_path,
+				strict,
+				extensions_to_ignore,
+				files_to_ignore,
+				named_values
+			));
+
+		}
 
 		if (commands.has("generate")) {
 			AF_ASSERT(!commands.has("generate_config") && !commands.has("describe"),

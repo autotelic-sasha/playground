@@ -648,7 +648,53 @@ namespace autotelica {
     const char* const tag_name = "name";
     const char* const tag_named_values = "named_values";
     const char* const tag_value = "value";
-
+    void parse_string_config(
+        std::string const& config,
+        named_values& values) {
+        if (config.empty())
+            return;
+        const char comma = ',';
+        const char quote = '\"';
+        const char equals = '=';
+        size_t i = 0;
+        while(i<config.size() && config[i] == quote)
+            ++i;
+        size_t last = config.size() - 1;
+        while(last && config[last] == quote)
+            --last;
+        bool parsing_name = true;
+        std::string name;
+        std::string value;
+        char c = 0;
+        while (i <= last) {
+            c = config[i];
+            switch (c) {
+            case comma: {
+                AF_ASSERT(!name.empty(), "Empty names are not allowed");
+                AF_ASSERT(!parsing_name, "The syntax of names parameter is incorrect.");
+                values.add(name, value);
+                parsing_name = true;
+                name = "";
+                value = "";
+                }
+                break;
+            case equals: {
+                AF_ASSERT(parsing_name, "The syntax of names parameter is incorrect.");
+                parsing_name = false;
+                }
+                break;
+            default:
+                if (parsing_name)
+                    name += c;
+                else
+                    value += c;
+                break;
+            }
+            ++i;
+        }
+        if(!name.empty())
+            values.add(name, value);
+    }
     bool parse_ini_config_file(
         path_t const& path,
         named_values& values,
@@ -987,6 +1033,28 @@ namespace autotelica {
 
         }
 
+        bpl_impl(
+            std::string const& source_path_,
+            std::string const& target_path_,
+            bool strict_ = false,
+            std::string const& extensions_to_ignore_ = "",
+            std::string const& files_to_ignore_ = "",
+            std::string const& named_values_s = "") {
+
+            _strict = strict_;
+            csv_to_vector(to_lower(extensions_to_ignore_), _extensions_to_ignore);
+            csv_to_vector(to_lower(files_to_ignore_), _files_to_ignore);
+
+            _source_path = path_t(source_path_).make_preferred();
+            _target_path = path_t(target_path_).make_preferred();
+            AF_ASSERT(filesystem_n::exists(_source_path),
+                "Source folder % does not exist.", source_path_);
+
+            AF_ASSERT(to_lower(_target_path.string()).find(to_lower(_source_path.string())) == std::string::npos,
+                "Target path cannot be a sub-directory of the source path.");
+
+            parse_string_config(named_values_s, _values);
+        }
         // generating projects
         // for every file or folder, process the path, create a target
         void generate() {
@@ -1137,6 +1205,24 @@ namespace autotelica {
             files_to_ignore_,
             kvm_)) {
     }
+
+
+    bpl::bpl(
+        std::string const& source_path_,
+        std::string const& target_path_,
+        bool strict_,
+        std::string const& extensions_to_ignore_,
+        std::string const& files_to_ignore_,
+        std::string const& named_values_s):
+        _impl(new bpl_impl(
+            source_path_,
+            target_path_,
+            strict_,
+            extensions_to_ignore_,
+            files_to_ignore_,
+            named_values_s)) {
+    }
+
 
     void bpl::generate() {
         _impl->generate();
