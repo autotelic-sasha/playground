@@ -129,11 +129,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bpl_impl.cpp" />
     <ClCompile Include="bpl.cpp" />
-    <ClCompile Include="code_templates.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bpl.h" />
+    <ClInclude Include="bpl_impl.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

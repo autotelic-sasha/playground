@@ -15,15 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="code_templates.cpp">
+    <ClCompile Include="bpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="bpl.cpp">
+    <ClCompile Include="bpl_impl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bpl.h">
+    <ClInclude Include="bpl_impl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
