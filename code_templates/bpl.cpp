@@ -49,10 +49,15 @@ namespace autotelica {
                 "Gitclone file must contain one line and one line only.");
 
             auto target_folder = target_file.parent_path().make_preferred().string();
-            auto command = af_format_string("git clone % %", content, target_folder);
+            auto command = af_format_string("git clone --depth=1 % %", content, target_folder);
 
             AF_WARNING("Cloning git repository with command '%'.\nCHECK that it worked, it's really hard to check it programatically, sorry.", command);
             system(command.c_str());
+            auto const dot_git_folder = target_file.parent_path().append(".git");
+            if (filesystem_n::exists(dot_git_folder)) {
+                auto const new_dot_git_folder = target_file.parent_path().append(".original_dot_git");
+                filesystem_n::rename(dot_git_folder, new_dot_git_folder);
+            }
         }
 
         // 'specials' is a registry that maps special file names to functions that handle them

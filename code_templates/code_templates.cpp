@@ -22,12 +22,12 @@ int main(int argc, const char* argv[])
 	const char* debug_argv[] = {
 		"code_templates",
 			"-s", "C:/dev/autotelica/playground/code_templates/examples/template/",
-			//"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
-			"-c", "C:/dev/autotelica/playground/code_templates/examples/example_config.ini",
+			"-t", "C:/dev/autotelica/playground/code_templates/examples/target/",
+			"-c", "C:/dev/autotelica/playground/code_templates/examples/test_config.ini",
 			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",
-			"-generate_config" };
+			"-generate" };
 
 	int debug_argc = sizeof(debug_argv) / sizeof(const char*);
 #endif
