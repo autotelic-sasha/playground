@@ -52,6 +52,7 @@
 //          Then, during the template instantiation, the repo will be cloned into the directory containining the file. 
 //          This works by simple substitution, git clone REPO_NAME_FROM_FILE PATH_TO_FOLDER_WHERE_FILE_IS .
 //          Obviously, you can hack it by adding git parameters to the file, e.g. --brach bname https://github.com/autotelic-sasha/autotelica_core.git .
+//          NOTE: .git folder gets renamed to .original_dot_git ... you can delete it, ignore it, or rename it to .git if you are github wizard.
 // 
 // 
 // Where do the values for replacements come from?
