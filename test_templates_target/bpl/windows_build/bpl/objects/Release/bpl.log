@@ -1,0 +1,10 @@
+﻿  bpl.cpp
+  bpl_impl.cpp
+  Generating code
+  6 of 2573 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    77 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  bpl.vcxproj -> C:\dev\autotelica\playground\test_templates_target\bpl\windows_build\bpl\apps\bpl.exe
+  C:\dev\autotelica\playground\test_templates_target\bpl\windows_build\bpl\apps\bpl.exe
+  1 File(s) copied

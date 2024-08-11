@@ -60,7 +60,7 @@ SPACE := $(EMPTY) $(EMPTY)
 TIDY_TARGET_NAME := $(subst $(SPACE),_,$(strip $(TARGET_BASE_NAME)))
 
 # Directories
-BUILD    :=  $(CURRENT_PATH)/linux_build
+BUILD    :=  $(CURRENT_PATH)/linux_build/$(TIDY_TARGET_NAME)
 OBJ_DIR  := $(BUILD)/objects
 RELEASE_OBJ_DIR  := $(OBJ_DIR)/release
 DEBUG_OBJ_DIR  := $(OBJ_DIR)/debug
