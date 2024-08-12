@@ -60,13 +60,13 @@ SPACE := $(EMPTY) $(EMPTY)
 TIDY_TARGET_NAME := $(subst $(SPACE),_,$(strip $(TARGET_BASE_NAME)))
 
 # Directories
-BUILD    :=  $(CURRENT_PATH)/linux_build/$(TIDY_TARGET_NAME)
+BUILD    :=  $(CURRENT_PATH)/linux_build
 OBJ_DIR  := $(BUILD)/objects
 RELEASE_OBJ_DIR  := $(OBJ_DIR)/release
 DEBUG_OBJ_DIR  := $(OBJ_DIR)/debug
 PACKAGE_DIR  := $(BUILD)/packages
-RELEASE_PACKAGE_DIR  := $(PACKAGE_DIR)/release
-DEBUG_PACKAGE_DIR  := $(PACKAGE_DIR)/debug
+RELEASE_PACKAGE_DIR  := $(PACKAGE_DIR)/$(TIDY_TARGET_NAME)/release
+DEBUG_PACKAGE_DIR  := $(PACKAGE_DIR)/$(TIDY_TARGET_NAME)/debug
 
 ifeq ($(TARGET_IS_LIBRARY), yes)
 # When building shared libraries, the target names are made to match the usual *nix standards'

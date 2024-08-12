@@ -71,13 +71,13 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(ProjectDir)windows_build\{{appname}}\apps\</OutDir>
+    <OutDir>$(ProjectDir)windows_build\apps\</OutDir>
     <TargetName>$(ProjectName)_d</TargetName>
-    <IntDir>$(ProjectDir)windows_build\{{appname}}\objects\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(ProjectDir)windows_build\{{appname}}\apps\</OutDir>
-    <IntDir>$(ProjectDir)windows_build\{{appname}}\objects\$(Configuration)\</IntDir>
+    <OutDir>$(ProjectDir)windows_build\apps\</OutDir>
+    <IntDir>$(ProjectDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -120,7 +120,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\apps\$(TargetName).exe $(ProjectDir)windows_build\packages\{{appname}}\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,7 +140,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\apps\$(TargetName).exe $(ProjectDir)windows_build\packages\{{appname}}\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

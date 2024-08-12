@@ -71,13 +71,13 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(ProjectDir)windows_build\$(Platform)\apps\</OutDir>
+    <OutDir>$(ProjectDir)windows_build\apps\</OutDir>
     <TargetName>$(ProjectName)_d</TargetName>
-    <IntDir>$(ProjectDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <IntDir>$(ProjectDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(ProjectDir)windows_build\$(Platform)\apps\</OutDir>
-    <IntDir>$(ProjectDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <OutDir>$(ProjectDir)windows_build\apps\</OutDir>
+    <IntDir>$(ProjectDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -118,13 +118,13 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\$(Platform)\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(ProjectDir)..\windows_build\lib\{{libname}}_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\$(Platform)\apps\$(TargetName).exe $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\
-xcopy /Y $(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}_d.dll $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\
-xcopy /Y $(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}_d.pdb $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\apps\$(TargetName).exe $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\
+xcopy /Y $(ProjectDir)..\windows_build\lib\{{libname}}_d.dll $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\
+xcopy /Y $(ProjectDir)..\windows_build\lib\{{libname}}_d.pdb $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -142,13 +142,13 @@ xcopy /Y $(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}_d.pdb $(Proje
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\$(Platform)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\windows_build\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(ProjectDir)..\windows_build\lib\{{libname}}.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\$(Platform)\apps\$(TargetName).exe $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\
-xcopy /Y $(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}.dll $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\
-xcopy /Y $(ProjectDir)..\windows_build\$(Platform)\lib\{{libname}}.pdb $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\apps\$(TargetName).exe $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\
+xcopy /Y $(ProjectDir)..\windows_build\lib\{{libname}}.dll $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\
+xcopy /Y $(ProjectDir)..\windows_build\lib\{{libname}}.pdb $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -72,12 +72,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)_d</TargetName>
-    <OutDir>$(ProjectDir)windows_build\$(Platform)\lib\</OutDir>
-    <IntDir>$(ProjectDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <OutDir>$(ProjectDir)windows_build\lib\</OutDir>
+    <IntDir>$(ProjectDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)windows_build\$(Platform)\lib\</OutDir>
-    <IntDir>$(SolutionDir)windows_build\$(Platform)\objects\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)windows_build\lib\</OutDir>
+    <IntDir>$(SolutionDir)windows_build\objects\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -128,11 +128,11 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir){{libname}}_api.h $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\include\
-xcopy /Y $(ProjectDir){{libname}}_export_macros.h $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\include\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).dll $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).lib $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).pdb $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\</Command>
+      <Command>xcopy /Y $(ProjectDir){{libname}}_api.h $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\include\
+xcopy /Y $(ProjectDir){{libname}}_export_macros.h $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\include\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).dll $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).lib $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).pdb $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -154,11 +154,11 @@ xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).pdb $(ProjectD
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir){{libname}}_api.h $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\include\
-xcopy /Y $(ProjectDir){{libname}}_export_macros.h $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\include\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).dll $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).lib $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\
-xcopy /Y $(ProjectDir)windows_build\$(Platform)\lib\$(TargetName).pdb $(ProjectDir)windows_build\$(Platform)\packages\$(ProjectName)\$(Configuration)\lib\</Command>
+      <Command>xcopy /Y $(ProjectDir){{libname}}_api.h $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\include\
+xcopy /Y $(ProjectDir){{libname}}_export_macros.h $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\include\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).dll $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).lib $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\
+xcopy /Y $(ProjectDir)windows_build\lib\$(TargetName).pdb $(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\lib\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
