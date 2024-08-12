@@ -1,12 +1,9 @@
 #include <iostream>
-#include "{{libname}}_api.h"
+#include "{{libname}}_examples.h"
+#include "autotelica_core/util/include/test_runner_impl.h"
 
-int main()
+int main(int argc, const char* argv[])
 {
-    std::cout << add(2,3) << std::endl;
-    std::cout << mul(2,3) << std::endl;
-    adder a(5, 6);
-    std::cout << a.sum() << std::endl;
-    std::cout << a.sum_product(2) << std::endl;
+	return autotelica::test_runner_impl::main_impl(argc, argv);
 }
 
