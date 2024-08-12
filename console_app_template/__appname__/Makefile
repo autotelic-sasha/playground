@@ -64,7 +64,7 @@ BUILD    :=  $(CURRENT_PATH)/linux_build/$(TIDY_TARGET_NAME)
 OBJ_DIR  := $(BUILD)/objects
 RELEASE_OBJ_DIR  := $(OBJ_DIR)/release
 DEBUG_OBJ_DIR  := $(OBJ_DIR)/debug
-PACKAGE_DIR  := $(BUILD)/packages/$(TIDY_TARGET_NAME)
+PACKAGE_DIR  := $(BUILD)/packages
 RELEASE_PACKAGE_DIR  := $(PACKAGE_DIR)/release
 DEBUG_PACKAGE_DIR  := $(PACKAGE_DIR)/debug
 

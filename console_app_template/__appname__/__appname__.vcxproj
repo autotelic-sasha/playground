@@ -120,7 +120,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(ProjectName)\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,7 +140,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(ProjectName)\$(Configuration)\</Command>
+      <Command>xcopy /Y $(ProjectDir)windows_build\{{appname}}\apps\$(TargetName).exe $(ProjectDir)windows_build\{{appname}}\packages\$(Configuration)\</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

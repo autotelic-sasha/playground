@@ -24,7 +24,7 @@ int main(int argc, const char* argv[])
 			"-s", "C:/dev/autotelica/playground/console_app_template/",
 			"-t", "C:/dev/autotelica/playground/test_templates_target/",
 			//"-c", "C:/dev/autotelica/playground/test_templates_target/bpl_config.ini",
-			"-named_values", "appname=bpl2, libname=something",
+			"-named_values", "\"appname=bpl\"",
 			"-strict",
 			"-ignore_files", "*non_parsed*",
 			"-ignore_extensions", "xls*,dll,exe",

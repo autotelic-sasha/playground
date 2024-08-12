@@ -1,17 +1,20 @@
 #pragma once
 #include "{{libname}}_export_macros.h"
 
-{{LIBNAME}}_EXPORT int add(int i, int j);
+/// This is where you declare functions and classes that are to be exported from the library.
+/// The silly examples will be annoying, you need to remember to delete them, 
+/// but it's nice to see how it all fits together. 
+/// The function and class declared here are implemented in {{libname}}_api.cpp and 
+/// tested in {{libname}}_test.cpp.
+//
+// an example function
+{{LIBNAME}}_EXPORT int {{libname}}_add(int i, int j);
 
-{{LIBNAME}}_EXPORT int subtract(int i, int j);
-
-{{LIBNAME}}_EXPORT int mul(int i, int j);
-
-class {{LIBNAME}}_EXPORT adder {
+// an example class
+class {{LIBNAME}}_EXPORT {{libname}}_adder {
 	int _i{ 0 };
 	int _j{ 0 };
 public:
-	adder(int i_, int j_);
-	int sum() const { return _i + _j; }
-	int sum_product(int k);
+	{{libname}}_adder(int i_, int j_);
+	int sum();
 };
