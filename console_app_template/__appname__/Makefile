@@ -20,7 +20,7 @@ DEBUG_MACRO_DEFINITIONS := $(RELEASE_MACRO_DEFINITIONS)
 # Additional include paths
 INCLUDE_PATHS := -I$(CURRENT_PATH)/../
 # cpp files to exclude from linux builds.
-EXCLUDE_FILES := 
+EXCLUDE_FILES := {{appname}}_test.cpp
 # Linker flags.
 COMMON_LDFLAGS := -L/usr/lib -lstdc++ -lm 
 RELEASE_ONLY_LDFLAGS := 
@@ -78,10 +78,14 @@ DEBUG_TARGET   := $(SO_PREFIX)$(TIDY_TARGET_NAME)_d$(SO_SUFFIX)
 OUT_DIR := $(BUILD)/lib
 RELEASE_PACKAGE_LIB_DIR  := $(RELEASE_PACKAGE_DIR)/lib
 DEBUG_PACKAGE_LIB_DIR  := $(DEBUG_PACKAGE_DIR)/lib
+RELEASE_TEST_TARGET   := 
+DEBUG_TEST_TARGET   := 
 else
 RELEASE_TARGET   := $(TIDY_TARGET_NAME)
 DEBUG_TARGET   := $(TIDY_TARGET_NAME)_d
 OUT_DIR := $(BUILD)/apps
+RELEASE_TEST_TARGET   := $(TIDY_TARGET_NAME)_test
+DEBUG_TEST_TARGET   := $(TIDY_TARGET_NAME)_test_d
 endif
 
 ifneq ($(INCLUDE_FILES_TO_PACKAGE), )
@@ -195,6 +199,8 @@ HEADERS := $(wildcard *.h)
 
 RELEASE_OBJECTS  := $(SRC:%.cpp=$(RELEASE_OBJ_DIR)/%.o)
 DEBUG_OBJECTS  := $(SRC:%.cpp=$(DEBUG_OBJ_DIR)/%_d.o)
+RELEASE_TEST_OBJECTS  := $(SRC:{{appname}}_test.cpp=$(RELEASE_OBJ_DIR)/{{appname}}_test.o)
+DEBUG__TEST_OBJECTS  := $(SRC:{{appname}}_test.cpp=$(DEBUG_OBJ_DIR)/{{appname}}_test_d.o)
 
 ######################
 # Targets start here #
@@ -215,6 +221,22 @@ $(RELEASE_OBJ_DIR)/%.o: %.cpp $(HEADERS)
 $(OUT_DIR)/$(RELEASE_TARGET): $(RELEASE_OBJECTS)
 	@mkdir -p $(@D)
 	$(RELEASE_CXX) $(RELEASE_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS) $(CXX_RELEASE_FLAGS) -o $(OUT_DIR)/$(RELEASE_TARGET) $^ $(CXX_SO_PARAMETERS) $(RELEASE_LDFLAGS)
+
+$(DEBUG_OBJ_DIR)/$(TIDY_TARGET_NAME)_test_d.o: $(TIDY_TARGET_NAME)_test.cpp $(HEADERS)
+	@mkdir -p $(@D)
+	$(DEBUG_CXX) $(DEBUG_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS) $(CXX_DEBUG_FLAGS) $(INCLUDE) -c $< -MMD -o $@
+
+$(OUT_DIR)/$(DEBUG_TEST_TARGET): $(DEBUG_TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(DEBUG_CXX) $(DEBUG_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS) $(CXX_DEBUG_FLAGS) -o $(OUT_DIR)/$(DEBUG_TEST_TARGET) $^ $(CXX_SO_PARAMETERS) $(DEBUG_LDFLAGS)
+
+$(RELEASE_OBJ_DIR)/$(TIDY_TARGET_NAME)_test.o: $(TIDY_TARGET_NAME)_test.cpp $(HEADERS)
+	@mkdir -p $(@D)
+	$(RELEASE_CXX) $(RELEASE_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS)  $(CXX_RELEASE_FLAGS) $(INCLUDE) -c $< -MMD -o $@
+
+$(OUT_DIR)/$(RELEASE_TEST_TARGET): $(RELEASE__TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(RELEASE_CXX) $(RELEASE_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS) $(CXX_RELEASE_FLAGS) -o $(OUT_DIR)/$(RELEASE_TEST_TARGET) $^ $(CXX_SO_PARAMETERS) $(RELEASE_LDFLAGS)
 
 .PHONY: all rebuild_all create_folders debug release clean_all clean_debug clean_release rebuild_debug rebuild_release package_debug package_release package sense
 
@@ -262,18 +284,20 @@ debug_postbuild:
 		eval "cd ${CURRENT_PATH}/; ${TIDY_DEBUG_POST_BUILD_STEP}" ; \
 	fi	
 
-debug: create_debug_folders debug_prebuild $(OUT_DIR)/$(DEBUG_TARGET) debug_postbuild
+debug: create_debug_folders debug_prebuild $(OUT_DIR)/$(DEBUG_TARGET) $(OUT_DIR)/$(DEBUG_TEST_TARGET) debug_postbuild
 
-release: create_release_folders release_prebuild $(OUT_DIR)/$(RELEASE_TARGET) release_postbuild
+release: create_release_folders release_prebuild $(OUT_DIR)/$(RELEASE_TARGET) $(OUT_DIR)/$(RELEASE_TEST_TARGET) release_postbuild
 
 clean_release: 
 	-@rm -rvf $(RELEASE_OBJ_DIR)/*
 	-@rm -rvf $(OUT_DIR)/$(RELEASE_TARGET)
+	-@rm -rvf $(OUT_DIR)/$(RELEASE_TEST_TARGET)
 	-@rm -rvf $(RELEASE_PACKAGE_DIR)/*
 
 clean_debug: 
 	-@rm -rvf $(DEBUG_OBJ_DIR)/*
 	-@rm -rvf $(OUT_DIR)/$(DEBUG_TARGET)
+	-@rm -rvf $(OUT_DIR)/$(DEBUG_TEST_TARGET)
 	-@rm -rvf $(DEBUG_PACKAGE_DIR)/*
 
 clean_all: 
@@ -304,6 +328,7 @@ package_release: rebuild_release
 		fi; \
 	else \
 			cp -rf $(OUT_DIR)/$(RELEASE_TARGET) $(RELEASE_PACKAGE_LIB_DIR)/$(RELEASE_TARGET); \
+			cp -rf $(OUT_DIR)/$(RELEASE_TEST_TARGET) $(RELEASE_PACKAGE_LIB_DIR)/$(RELEASE_TEST_TARGET); \
 	fi
 	@if [ "${INCLUDE_FILES_TO_PACKAGE}" != "" ]; then \
 		cp -rf -t ${RELEASE_PACKAGE_INCLUDE_DIR}/ ${INCLUDE_FILES_TO_PACKAGE}; \
@@ -324,6 +349,7 @@ package_debug: rebuild_debug
 		fi; \
 	else \
 		cp -rf $(OUT_DIR)/$(DEBUG_TARGET) $(DEBUG_PACKAGE_LIB_DIR)/$(DEBUG_TARGET); \
+		cp -rf $(OUT_DIR)/$(DEBUG_TEST_TARGET) $(DEBUG_PACKAGE_LIB_DIR)/$(DEBUG_TEST_TARGET); \
 	fi
 	@if [ "${INCLUDE_FILES_TO_PACKAGE}" != "" ]; then \
 		cp -rf -t ${DEBUG_PACKAGE_INCLUDE_DIR}/ ${INCLUDE_FILES_TO_PACKAGE}; \
