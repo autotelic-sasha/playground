@@ -8,6 +8,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\$(TargetName).exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\</LocalDebuggerWorkingDirectory>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+   <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

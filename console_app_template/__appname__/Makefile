@@ -20,7 +20,10 @@ DEBUG_MACRO_DEFINITIONS := $(RELEASE_MACRO_DEFINITIONS)
 # Additional include paths
 INCLUDE_PATHS := -I$(CURRENT_PATH)/../
 # cpp files to exclude from linux builds.
-EXCLUDE_FILES := {{appname}}_test.cpp
+EXCLUDE_FILES := 
+# cpp files that are only to be built for tests
+TEST_ONLY_FILES := {{appname}}_test.cpp {{appname}}_examples.cpp
+ADDITIONAL_TEST_FILES := 
 # Linker flags.
 COMMON_LDFLAGS := -L/usr/lib -lstdc++ -lm 
 RELEASE_ONLY_LDFLAGS := 
@@ -194,13 +197,15 @@ endif
 ALL_SRC      :=           \
    $(wildcard *.cpp)         
 
-SRC := $(filter-out $(EXCLUDE_FILES),$(ALL_SRC))
+SRC := $(filter-out $(TEST_ONLY_FILES), $(filter-out $(EXCLUDE_FILES),$(ALL_SRC)))
 HEADERS := $(wildcard *.h)
 
 RELEASE_OBJECTS  := $(SRC:%.cpp=$(RELEASE_OBJ_DIR)/%.o)
 DEBUG_OBJECTS  := $(SRC:%.cpp=$(DEBUG_OBJ_DIR)/%_d.o)
-RELEASE_TEST_OBJECTS  := $(SRC:{{appname}}_test.cpp=$(RELEASE_OBJ_DIR)/{{appname}}_test.o)
-DEBUG__TEST_OBJECTS  := $(SRC:{{appname}}_test.cpp=$(DEBUG_OBJ_DIR)/{{appname}}_test_d.o)
+
+TEST_SRC := $(TEST_ONLY_FILES) $(ADDITIONAL_TEST_FILES)
+RELEASE_TEST_OBJECTS  := $(TEST_SRC:%.cpp=$(RELEASE_OBJ_DIR)/%.o)
+DEBUG_TEST_OBJECTS  := $(TEST_SRC:%.cpp=$(DEBUG_OBJ_DIR)/%_d.o)
 
 ######################
 # Targets start here #
@@ -234,7 +239,7 @@ $(RELEASE_OBJ_DIR)/$(TIDY_TARGET_NAME)_test.o: $(TIDY_TARGET_NAME)_test.cpp $(HE
 	@mkdir -p $(@D)
 	$(RELEASE_CXX) $(RELEASE_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS)  $(CXX_RELEASE_FLAGS) $(INCLUDE) -c $< -MMD -o $@
 
-$(OUT_DIR)/$(RELEASE_TEST_TARGET): $(RELEASE__TEST_OBJECTS)
+$(OUT_DIR)/$(RELEASE_TEST_TARGET): $(RELEASE_TEST_OBJECTS)
 	@mkdir -p $(@D)
 	$(RELEASE_CXX) $(RELEASE_MACRO_DEFINITIONS) $(CXX_BASE_FLAGS) $(CXX_RELEASE_FLAGS) -o $(OUT_DIR)/$(RELEASE_TEST_TARGET) $^ $(CXX_SO_PARAMETERS) $(RELEASE_LDFLAGS)
 
@@ -319,6 +324,7 @@ package_release: rebuild_release
 	fi
 	@if [ "${TARGET_IS_LIBRARY}" != "yes" ]; then \
 		cp -rf $(OUT_DIR)/$(RELEASE_TARGET) $(RELEASE_PACKAGE_DIR)/$(RELEASE_TARGET); \
+		cp -rf $(OUT_DIR)/$(RELEASE_TEST_TARGET) $(RELEASE_PACKAGE_DIR)/$(RELEASE_TEST_TARGET); \
 		chmod a+x ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}; \
 		if [ "${RELEASE_LD_LIBRARY_PATH}" != "" ]; then \
 			echo '#!/bin/sh' > ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh ; \
@@ -328,7 +334,6 @@ package_release: rebuild_release
 		fi; \
 	else \
 			cp -rf $(OUT_DIR)/$(RELEASE_TARGET) $(RELEASE_PACKAGE_LIB_DIR)/$(RELEASE_TARGET); \
-			cp -rf $(OUT_DIR)/$(RELEASE_TEST_TARGET) $(RELEASE_PACKAGE_LIB_DIR)/$(RELEASE_TEST_TARGET); \
 	fi
 	@if [ "${INCLUDE_FILES_TO_PACKAGE}" != "" ]; then \
 		cp -rf -t ${RELEASE_PACKAGE_INCLUDE_DIR}/ ${INCLUDE_FILES_TO_PACKAGE}; \
@@ -340,6 +345,7 @@ package_debug: rebuild_debug
 	fi
 	@if [ "${TARGET_IS_LIBRARY}" != "yes" ]; then \
 		cp -rf $(OUT_DIR)/$(DEBUG_TARGET) $(DEBUG_PACKAGE_DIR)/$(DEBUG_TARGET); \
+		cp -rf $(OUT_DIR)/$(DEBUG_TEST_TARGET) $(DEBUG_PACKAGE_DIR)/$(DEBUG_TEST_TARGET); \
 		chmod a+x ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}; \
 		if [ "${DEBUG_LD_LIBRARY_PATH}" != "" ]; then \
 			echo '#!/bin/sh' > ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh ; \
@@ -349,7 +355,6 @@ package_debug: rebuild_debug
 		fi; \
 	else \
 		cp -rf $(OUT_DIR)/$(DEBUG_TARGET) $(DEBUG_PACKAGE_LIB_DIR)/$(DEBUG_TARGET); \
-		cp -rf $(OUT_DIR)/$(DEBUG_TEST_TARGET) $(DEBUG_PACKAGE_LIB_DIR)/$(DEBUG_TEST_TARGET); \
 	fi
 	@if [ "${INCLUDE_FILES_TO_PACKAGE}" != "" ]; then \
 		cp -rf -t ${DEBUG_PACKAGE_INCLUDE_DIR}/ ${INCLUDE_FILES_TO_PACKAGE}; \

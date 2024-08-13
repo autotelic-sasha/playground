@@ -1,8 +1,6 @@
 
 #include "autotelica_core/util/include/testing_util.h"
 #include "autotelica_core/util/include/diagnostic_messages.h"
-#include "{{appname}}_api.h"
-
 
 namespace {{appname}} {
     template< bool = true> // declaring it as a template is a way to work aroud c++ limitations about declaring things in headers
