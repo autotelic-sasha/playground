@@ -1,4 +1,3 @@
-#include <iostream>
 #include "{{libname}}_examples.h"
 #include "autotelica_core/util/include/test_runner_impl.h"
 
