@@ -268,45 +268,19 @@ af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = 
 	 }
 
 	 // reader part
-	 bool Null() override { 
-		 if (!_this_array_started)
-			 return null();
+	 template<typename... ParamsT>
+	 bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 		 set_current_item();
-		 return _value_handler->Null();
+		 return (_value_handler->*mf)(ps...);
 	 }
-	 bool Bool(bool b) override { 
-		 set_current_item();
-		 return _value_handler->Bool(b);
-	 }
-	 bool Int(int i) override { 
-		 set_current_item();
-		 return _value_handler->Int(i);
-	 }
-	 bool Uint(unsigned i) override {
-		 set_current_item();
-		 return _value_handler->Uint(i);
-	 }
-	 bool Int64(int64_t i) override { 
-		 set_current_item();
-		 return _value_handler->Int64(i);
-	 }
-	 bool Uint64(uint64_t i) override {
-		 set_current_item();
-		 return _value_handler->Uint64(i);
-	 }
-	 bool Double(double d) override { 
-		 set_current_item();
-		 return _value_handler->Double(i);
-	 }
-	 bool RawNumber(const Ch* str, SizeType length, bool copy) override { 
-		 set_current_item();
-		 return _value_handler->RawNumber(str, length, copy);
-	 }
-	 bool String(const Ch* str, SizeType length, bool copy) override { 
-		 set_current_item();
-		 return _value_handler->String(str, length, copy);
-	 }
-	 
+	 bool Bool(bool b) override { return delegate_f(&value_handler_t::Bool, b); }
+	 bool Int(int i) override { return delegate_f(&value_handler_t::Int, i); }
+	 bool Uint(unsigned i) override { return delegate_f(&value_handler_t::Uint, i); }
+	 bool Int64(int64_t i) override { return delegate_f(&value_handler_t::Int64, i); }
+	 bool Uint64(uint64_t i) override { return delegate_f(&value_handler_t::Uint64, i); }
+	 bool Double(double d) override { return delegate_f(&value_handler_t::Double, d); }
+	 bool RawNumber(const Ch* str, SizeType length, bool copy) override { return delegate_f(&value_handler_t::RawNumber, str, length, copy); }
+	 bool String(const Ch* str, SizeType length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
 	 bool StartObject() override {
 		 set_current_item();
 		 _delegate_to_current = true;
@@ -316,15 +290,12 @@ af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = 
 		 AF_ASSERT(_delegate_to_current, "Keys are not expeted in arrays.");
 		 return _value_handler->Key(str, length, copy);
 	 }
-
 	 bool EndObject(SizeType memberCount) override { 
 		 set_current_item();
 		 bool ret = _value_handler->EndObject(memberCount);
 		 _delegate_to_current = _value_handler->is_done();
 		 return ret;
-
 	 }
-	 
 	 bool StartArray() override { 
 		 if (!_this_array_started) {
 			 _this_array_started = true;
@@ -358,32 +329,6 @@ af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = 
 	 }
  };
 
-
- template<typename TargetT, typename WriterT>
- struct af_rjson_handler_sequence_t : public af_rjson_handler_array_t<TargetT,WriterT> {
-
-	 using target_t = TargetT;
-	 using writer_t = WriterT;
-	 using contained_t = target_t::value_type;
-	 using value_handler_t = af_rjson_handler_value_t<ContainedT, WriterT>;
-
-
-	 af_rjson_handler_vector_t(
-			target_t* target_, 
-			 null_setter_f null_setter_ = no_default_setter_f,
-			contained_t const& empty_value_ = contained_t()) :
-		 af_rjson_handler_array_t(target_, null_setter_, empty_value){
-	 }
-
-	 void set_current_item() override {
-		 if (!_delegate_to_current) {
-			 _target->push_back(_default_value);
-			 contained_t& ret(_target->back());
-			 _value_handler->reset(&ret);
-		 }
-	 }
- };
-
  template< typename TargetT, typename WriterT, TypeFilter(is_sequence<TargetT>::value) >
  af_rjson_handler* create_handler(
 		TargetT& target_, 
@@ -393,34 +338,126 @@ af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = 
  }
 
  template<typename TargetT, typename WriterT>
- struct af_rjson_handler_setish_t : public af_rjson_handler_array_t<TargetT, WriterT> {
+ struct af_rjson_handler_setish_t : public af_rjson_handler_value_t<WriterT> {
 
 	 using target_t = TargetT;
 	 using writer_t = WriterT;
 	 using contained_t = target_t::value_type;
 	 using value_handler_t = af_rjson_handler_value_t<ContainedT, WriterT>;
 
-	 contained_t _contained_target;
+	 value_handler_t* _value_handler;
+	 contained_t const _empty_value;
 
-	 af_rjson_handler_setish_t(
-			target_t* target_, 
-			 null_setter_f null_setter_ = no_default_setter_f,
-			contained_t const& empty_value_ = contained_t()) :
-		 af_rjson_handler_array_t(target_, null_setter_, empty_value) {
+	 contained_t _current_value;
+
+	 bool _delegate_to_current;
+	 bool _this_array_started;
+
+
+	 af_rjson_handler_sequence_t(
+		 target_t* target_,
+		 null_setter_f null_setter_ = no_default_setter_f,
+		 contained_t const& empty_value_ = contained_t()) :
+		 _target(target_),
+		 _null_setter(null_setter_),
+		 _value_handler(create_handler<contained_t, writer_t>(nullptr)),
+		 _empty_value(empty_value_),
+		 _current_value(empty_value),
+		 _delegate_to_current(false),
+		 _this_array_started(false),
+		 _done(false) {
+
+		 _value_handler->reset(&_current_value);
 	 }
 
-	 void set_current_item() override {
+	 inline bool null() { done(); return _null_setter(); }
+
+	 inline void set_current_item() {
 		 if (!_delegate_to_current) {
-			 _contained_target = _empty_value;
-			 _value_handler->reset(&_contained_target);
+			 _current_value = _empty_value;
+			 _value_handler->reset(&_current_value);
 		 }
+	 }
+	 inline bool store(bool b) {
+		 if (_value_handler->is_done()) 
+			 _target->insert(_current_value);
+		 return b;
+	 }
+
+
+	 // reader part
+	 template<typename... ParamsT>
+	 bool delegate_f(bool (value_handler_t::*mf)(ParamsT ...), ParamsT... ps) {
+		 set_current_item();
+		 return store((_value_handler->*mf)(ps...));
+	 }
+	 bool Null() override {
+		 if (!_this_array_started)
+			 return null();
+		 return delegate_f(&value_handler_t::Null);
+	 }
+	 bool Bool(bool b) override { return delegate_f(&value_handler_t::Bool, b); }
+	 bool Int(int i) override { return delegate_f(&value_handler_t::Int, i); }
+	 bool Uint(unsigned i) override { return delegate_f(&value_handler_t::Uint, i); }
+	 bool Int64(int64_t i) override { return delegate_f(&value_handler_t::Int64, i); }
+	 bool Uint64(uint64_t i) override { return delegate_f(&value_handler_t::Uint64, i); }
+	 bool Double(double d) override { return delegate_f(&value_handler_t::Double, d); }
+	 bool RawNumber(const Ch* str, SizeType length, bool copy) override { return delegate_f(&value_handler_t::RawNumber, str, length, copy); }
+	 bool String(const Ch* str, SizeType length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
+	 bool StartObject() override {
+		 set_current_item();
+		 _delegate_to_current = true;
+		 return _value_handler->StartObject();
+	 }
+	 bool Key(const Ch* str, SizeType length, bool copy) {
+		 AF_ASSERT(_delegate_to_current, "Keys are not expeted in arrays.");
+		 return _value_handler->Key(str, length, copy);
+	 }
+	 bool EndObject(SizeType memberCount) override {
+		 set_current_item();
+		 bool ret = _value_handler->EndObject(memberCount);
+		 _delegate_to_current = _value_handler->is_done();
+		 return ret;
+
+	 }
+	 bool StartArray() override {
+		 if (!_this_array_started) {
+			 _this_array_started = true;
+			 return true;
+		 }
+		 set_current_item();
+		 _delegate_to_current = true;
+		 return _value_handler->StartArray();
+	 }
+	 bool EndArray(SizeType elementCount) override {
+		 if (!_delegate_to_current) {
+			 done();
+			 return true;
+		 }
+		 bool ret = _value_handler->EndArray();
+		 _delegate_to_current = _value_handler->is_done();
+		 return ret;
+	 }
+
+	 // writer part 
+	 void write(writer_t& writer_) const override {
+		 writer_->StartArray();
+		 for (auto const& t : *_target)
+			 t->write(writer_);
+		 writer_->EndArray();
+	 }
+
+	 void release() override {
+		 _value_handler->release();
+		 delete this;
 	 }
  };
 
- template< typename TargetT, typename WriterT, TypeFilter(is_sequence<TargetT>::value) >
+ template< typename TargetT, typename WriterT, TypeFilter(is_setish<TargetT>::value) >
  af_rjson_handler* create_handler(
 	 TargetT& target_,
 	 null_setter_f null_setter_ = no_default_setter_f,
 	 contained_t const& empty_value_ = contained_t()) {
-	 return new af_rjson_handler_sequence_t<TargetT, WriterT>(target_, null_setter_, empty_value_);
+	 return new af_rjson_handler_setish_t<TargetT, WriterT>(target_, null_setter_, empty_value_);
  }
+
