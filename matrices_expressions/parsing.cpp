@@ -33,11 +33,11 @@ namespace parsing {
     }
     // we often skip past tokens but expect more after them (for all arithmetic)
     // skip_past_token does that and checks if there is more coming
-    inline void skip_past_token(std::string const& code, size_t& dot) {
+    inline void skip_past_token(std::string const& code, size_t& dot, bool can_be_last = false) {
         char c = code[dot];
         ++dot;
         skip_whitespace(code, dot);
-        if (done(code, dot))
+        if (!can_be_last && done(code, dot))
             throw std::runtime_error(error_with_position(std::string("trailing ") + c, dot));
     }
 
@@ -285,7 +285,7 @@ namespace parsing {
         }
         if (c != ']')
             throw std::runtime_error(error_with_position("expected ']'", local_dot));
-        skip_past_token(code, local_dot);
+        skip_past_token(code, local_dot, true);
 
         complete(code, dot, local_dot);
         return found(ret);

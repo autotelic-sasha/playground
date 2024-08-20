@@ -1,0 +1,109 @@
+{
+    "configurations": [
+        {
+            "name": "C/C++: build and debug json_serialization",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/json_serialization/debug/json_serialization_d",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/json_serialization/debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ debug build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: release build and run json_serialization" ,
+            "type":"cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/json_serialization/release/json_serialization",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/json_serialization/release",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ release build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },        
+        {
+            "name": "C/C++: build and debug json_serialization_test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/json_serialization/debug/json_serialization_test_d",
+            "args": ["-re", "-all"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/json_serialization/debug",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ debug build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C/C++: release build and run json_serialization_test" ,
+            "type":"cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/linux_build/packages/json_serialization/release/json_serialization_test",
+            "args": ["-re", "-errors_only"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/linux_build/packages/json_serialization/release",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: g++ release build",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }        
+    ],
+    "version": "2.0.0"
+}

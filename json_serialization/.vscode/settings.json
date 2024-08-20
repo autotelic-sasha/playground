@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "type_traits": "cpp",
+        "iosfwd": "cpp",
+        "functional": "cpp"
+    },
+    "json_serialization":{
+        "release_target_name" : "json_serialization",
+        "debug_target_name" : "json_serialization_d"
+    }
+}

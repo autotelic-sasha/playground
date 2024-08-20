@@ -5,4 +5,4 @@ int {{libname}}_add(int i, int j) {
 }
 
 {{libname}}_adder::{{libname}}_adder(int i_, int j_) :_i(i_), _j(j_) {}
-int {{libname}}_adder::sum() { return add( _i, _j); }
+int {{libname}}_adder::sum() { return {{libname}}_add( _i, _j); }

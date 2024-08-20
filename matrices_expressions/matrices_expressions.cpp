@@ -2512,6 +2512,8 @@ int main()
     std::cout << "m2\n" << matrix_cache::display_matrix("m2") << std::endl;
     matrix_cache::add("m3", "constant(3,3,0.109)");
     std::cout << "m3\n" << matrix_cache::display_matrix("m3") << std::endl;
+    matrix_cache::add("m10", "[[1,2,3],[4,5,6],[7,8,9]]");
+    std::cout << "m10\n" << matrix_cache::display_matrix("m3") << std::endl;
 
 
     for (auto const& m : matrix_cache::list())

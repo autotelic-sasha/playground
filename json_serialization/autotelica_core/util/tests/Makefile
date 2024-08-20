@@ -9,16 +9,16 @@ CURRENT_PATH := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 # Project configuration #
 #########################
 # Build target name
-TARGET_BASE_NAME := {{libname}}_test
+TARGET_BASE_NAME := tests
 # To build shared libraries, set this to yes.
 TARGET_IS_LIBRARY := no
 # Base name of the base shared library being tested, if this is a dll test project.
-BASE_SO_BASE_NAME := {{libname}}
+BASE_SO_BASE_NAME := 
 # Additional macro definitions for the build (NDEBUG for release and DEBUG for debug are always defined anyway).
 RELEASE_MACRO_DEFINITIONS := 
 DEBUG_MACRO_DEFINITIONS := $(RELEASE_MACRO_DEFINITIONS)
 # Additional include paths
-INCLUDE_PATHS := -I$(CURRENT_PATH)/../
+INCLUDE_PATHS := -I$(CURRENT_PATH)/../include/
 # cpp files to exclude from linux builds.
 EXCLUDE_FILES := 
 # Linker flags.
@@ -64,9 +64,9 @@ BUILD    :=  $(CURRENT_PATH)/linux_build
 OBJ_DIR  := $(BUILD)/objects
 RELEASE_OBJ_DIR  := $(OBJ_DIR)/release
 DEBUG_OBJ_DIR  := $(OBJ_DIR)/debug
-PACKAGE_DIR  := $(BUILD)/packages/$(TIDY_TARGET_NAME)
-RELEASE_PACKAGE_DIR  := $(PACKAGE_DIR)/release
-DEBUG_PACKAGE_DIR  := $(PACKAGE_DIR)/debug
+PACKAGE_DIR  := $(BUILD)/packages
+RELEASE_PACKAGE_DIR  := $(PACKAGE_DIR)/$(TIDY_TARGET_NAME)/release
+DEBUG_PACKAGE_DIR  := $(PACKAGE_DIR)/$(TIDY_TARGET_NAME)/debug
 
 ifeq ($(TARGET_IS_LIBRARY), yes)
 # When building shared libraries, the target names are made to match the usual *nix standards'
@@ -176,7 +176,7 @@ DEBUG_CXX      := g++
 else
 DEBUG_CXX      := export LD_LIBRARY_PATH=$(TIDY_DEBUG_LD_LIBRARY_PATH):${LD_LIBRARY_PATH};g++
 endif
-CXX_IGNORED_WARNINGS := -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function -Wno-ignored-qualifiers 
+CXX_IGNORED_WARNINGS := -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function -Wno-ignored-qualifiers -Wno-unused-but-set-variable
 CXX_BASE_FLAGS := -std=c++14 -fvisibility=hidden -fdiagnostics-color=always -Wall -Wextra -Werror $(CXX_IGNORED_WARNINGS)
 CXX_DEBUG_FLAGS := -D_DEBUG -g
 CXX_RELEASE_FLAGS := -DNDEBUG -O2
@@ -299,7 +299,7 @@ package_release: rebuild_release
 		if [ "${RELEASE_LD_LIBRARY_PATH}" != "" ]; then \
 			echo '#!/bin/sh' > ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh ; \
 			echo export LD_LIBRARY_PATH=$(RELEASE_LD_LIBRARY_PATH):${LD_LIBRARY_PATH} >> ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh ; \
-			echo  ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET} '$$@' >> ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh ; \
+			echo  ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET} >> ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh ; \
 			chmod a+x ${RELEASE_PACKAGE_DIR}/${RELEASE_TARGET}.sh; \
 		fi; \
 	else \
@@ -319,7 +319,7 @@ package_debug: rebuild_debug
 		if [ "${DEBUG_LD_LIBRARY_PATH}" != "" ]; then \
 			echo '#!/bin/sh' > ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh ; \
 			echo export LD_LIBRARY_PATH=$(DEBUG_LD_LIBRARY_PATH):${LD_LIBRARY_PATH} >> ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh ; \
-			echo  ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET} '$$@' >> ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh ; \
+			echo  ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET} >> ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh ; \
 			chmod a+x ${DEBUG_PACKAGE_DIR}/${DEBUG_TARGET}.sh; \
 		fi; \
 	else \

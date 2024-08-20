@@ -4,12 +4,10 @@
     <LocalDebuggerCommand>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\$(TargetName).exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-re -all</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\$(TargetName).exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)windows_build\packages\$(ProjectName)\$(Configuration)\</LocalDebuggerWorkingDirectory>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-rt -errors_only</LocalDebuggerCommandArguments>
+   <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>
