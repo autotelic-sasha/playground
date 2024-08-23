@@ -19,14 +19,14 @@ af_serializer serialise() {
 		pre_load_member_function_ << 
 		object <<
 			name_1 << _v <<
-			name_2 << _vector <<
+			name_2 << _vector | {} |  default_element(3) <<
 			name_3 <<
 				object <<
 					name_4 << _bool | false <<
 					name_5 << _int  | 0 << 
 					name_6 << _serialisable_object | nullptr <<
 				end_object <<
-			name_4 << handler_member_function_  << // handles everything in a customized way: TargetT const& cusom_json_handler(bool reading, TargetT const* value)  - when writing and value is nullptr, it means we read null
+			name_4 << handler_member_function_  << // handles everything in a customized way: TargetT const& custom_json_handler(bool reading, TargetT const* value)  - when writing and value is nullptr, it means we read null
 		end_object <<
 		post_load_member_function_;
 
