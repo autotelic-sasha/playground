@@ -19,14 +19,15 @@ af_serializer serialise() {
 		pre_load_member_function_ << 
 		object <<
 			name_1 << _v <<
-			name_2 << _vector | {} |  default_element(3) <<
+			name_2 << _vector | {} | default_element_ <<    // (std::string, T*, T const&)
 			name_3 <<
 				object <<
 					name_4 << _bool | false <<
 					name_5 << _int  | 0 << 
 					name_6 << _serialisable_object | nullptr <<
 				end_object <<
-			name_4 << handler_member_function_  << // handles everything in a customized way: TargetT const& custom_json_handler(bool reading, TargetT const* value)  - when writing and value is nullptr, it means we read null
+			name_7 << af_rhson_handler_t*  << 
+			name_8 << _map | {} | default_element_ <<
 		end_object <<
 		post_load_member_function_;
 

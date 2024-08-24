@@ -19,6 +19,12 @@ using namespace autotelica::std_disambiguation;
 //		if terse and default is present
 //			null on default
 
+
+struct af_json_serializable {
+	template<typename WriterT>
+	virtual 
+};
+
 #ifndef _AF_JSON_TERSE
 #define _AF_JSON_TERSE false
 #define
@@ -47,12 +53,12 @@ public:
 
 }
 
-template<typename TargetT, typename WriterT>
+template<typename target_t>
 default_value_handler {
-	TargetT const& _default_value;
+	target_t const _default_value;
 	bool _target_initialised;
-	inline TargetT& ref(void* target_) {
-		return *(static_cast<TargetT*>(target_));
+	inline target_t& ref(void* target_) {
+		return *(static_cast<target_t*>(target_));
 	}
 	inline bool set_target(void* target_) {
 		if (!_target_initialised) {
@@ -62,7 +68,7 @@ default_value_handler {
 		return true;
 	}
 public:
-	default_value_handler(TargetT const& default_value_) :
+	default_value_handler(target_t const& default_value_) :
 		_default_value(default_value_),
 		_target_initialised(false){
 	}
@@ -73,26 +79,43 @@ public:
 	inline bool null(void* target_) const {
 		return set_target(target_);
 	}
-	bool write(Target* target_, WriterT& writer_) const {
+	template<typename writer_t>
+	bool write(target_t const& target_, writer_t& writer_) const {
 		// in terse mode, when _target is equal to default, we just don't write it
-		return (af_json_configuration::terse() &&
-			ref(target_) == _default_value));
+		return (
+			af_json_configuration::terse() &&
+			target_ == _default_value));
 	}
 };
 
 
-template<typename TargetT, typename WriterT>
-void write(TargetT const& value, WriterT& writer);
+template<typename target_t, typename writer_t>
+void write(target_t const& value, writer_t& writer);
 
-template< typename WriterT >
-inline void write(int const& value, WriterT& writer) { writer.Int(value); }
+template< typename writer_t >
+inline void write(int const& value, writer_t& writer) { writer.Int(value); }
 
-template< typename WriterT >
-inline void write(size_t const& value, WriterT& writer) { writer.Uint64(static_cast<uint64_t>(value)); }
+template< typename writer_t >
+inline void write(size_t const& value, writer_t& writer) { writer.Uint64(static_cast<uint64_t>(value)); }
 
 // TODO: more write functions
 
-template<typename WriterT>
+// SFINAE based type filter
+#define TypeFilter( condition ) std::enable_if_t<condition, bool> = true
+#define CreateHandlers( HandlerType, Condition ) \
+	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
+	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, default_value_handler<TargetT, WriterT>* default_ = nullptr) {\
+		return new HandlerType<TargetT, WriterT>(target_, default_);\
+	}\
+	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
+	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, TargetT const& default_value_) {\
+		return new HandlerType<TargetT, WriterT>(target_, default_value_);\
+	}
+
+struct af_rjson_handler_base_t {
+	virtual ~af_rjson_handler_t() {}
+};
+
 struct af_rjson_handler_t {
 	
 	virtual ~af_rjson_handler_t(){}
@@ -115,30 +138,26 @@ struct af_rjson_handler_t {
 	virtual bool StartArray() { AF_ERROR("Array start was not expected."); return false; }
 	virtual bool EndArray(SizeType elementCount) { AF_ERROR("Array end was not expected."); return false; }
 
-	// writer part 
-	virtual void write(WriterT& writer_) const { AF_ERROR("Writer is not implemented."); }
-
 	virtual void release() { delete this; }
 };
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_value_t : public af_rjson_handler_t<WriterT> {
+template<typename target_t>
+struct af_rjson_handler_value_t : public af_rjson_handler_t {
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
-
+	using default_value_handler_t = default_value_handler<target_t>;
+	
 	target_t* _target;
-	default_value_handler* _default_h;
+	default_value_handler_t* _default_h;
 	bool _done;
 
-	af_rjson_handler_value_t(target_t* target_) : 
+	af_rjson_handler_value_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
 		_target(target_), 
-		_default_h(nullptr),
+		_default_h(default_),
 		_done(false){}
 
 	af_rjson_handler_value_t(target_t* target_, target_t const& default_value_) :
 			_target(target_),
-			_default_h(new default_value_handler<TargetT, WriterT>(default_value_),
+			_default_h(new default_value_handler<target_t>(default_value_),
 			_done(false) {
 		AF_ASSERT(_target, "Target is not initialised.");
 		_default_h->initialise(_target);
@@ -167,11 +186,6 @@ struct af_rjson_handler_value_t : public af_rjson_handler_t<WriterT> {
 		done();
 		return ret;
 	}
-	void write(writer_t& writer_) const override {
-		if (_default_h && _default_h->write(_target))
-			return;
-		write(get(), writer_);
-	}
 
 	virtual void release() { 
 		if (_target) {
@@ -184,20 +198,52 @@ struct af_rjson_handler_value_t : public af_rjson_handler_t<WriterT> {
 		}
 		af_rjson_handler_t<WriterT>::release();
 	}
-
 };
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<TargetT, WritterT> {
+template<typename target_t, typename writer_t>
+struct af_rjson_writer_value_t {
+	
+	using default_value_handler_t = default_value_handler<target_t>;
+	
+	target_t const& _target;
+	default_value_handler_t const* _default_f;
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	af_rjson_writer_value_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : _target(_target), _default_f(default_f_){}
 
-	af_rjson_handler_integral_t(target_t* target_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_) {}
+	inline bool default_write(writer_t& writer_) const { // returns true if default writer wrote
+		return (
+			_handler._default_h &&
+			_handler._default_h->write(_target, writer_));
+	}
+	template<typename writer_target_t>
+	inline void write(
+		writer_t& writer_,
+		writer_target_t const& target_,
+		default_value_handler<writer_target_t> const* default_f_ = nullptr
+	) {
+		auto writer = create_writer<writer_t>(target_, default_f);
+		key_writer.write(writer_);
+	}
+
+	inline void write(writer_t& writer_) const {
+		if (default_write()) return;
+		write(_target, writer_);
+	}
+};
+
+template<typename target_t>
+struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<target_t> {
+
+	using default_value_handler_t = default_value_handler<target_t>;
+
+	af_rjson_handler_integral_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_) {}
 	
 	af_rjson_handler_integral_t(target_t* target_, target_t const& default_value_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_){}
+		af_rjson_handler_value_t<target_t>(target_, default_value_){}
 
 	// reader part
 	bool Bool(bool b)  override { return set(b); }
@@ -208,39 +254,18 @@ struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<TargetT, Wr
 
 };
 
-// SFINAE based type filter
-#define TypeFilter( condition ) std::enable_if_t<condition, bool> = true
-#define CreateHandlers( HandlerType, Condition ) \
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_) {\
-		return new HandlerType<TargetT, WriterT>(target_);\
-	}\
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, TargetT const& default_value_) {\
-		return new HandlerType<TargetT, WriterT>(target_, default_value_);\
-	}
-
 CreateHandlers(af_rjson_handler_integral_t, std::is_integral<TargetT>::value )
-//template< typename TargetT, typename WriterT, TypeFilter( std::is_integral<TargetT>::value ) >
-//af_rjson_handler* create_handler(TargetT* target_) {
-//	return new af_rjson_handler_integral_t<TargetT, WriterT>(target_);
-//}
-//template< typename TargetT, typename WriterT, TypeFilter(std::is_integral<TargetT>::value) >
-//af_rjson_handler* create_handler(TargetT* target_, target_t const& default_value_) {
-//	return new af_rjson_handler_integral_t<TargetT, WriterT>(target_, default_value_);
-//}
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<TargetT, WritterT>{
+template<typename target_t>
+struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<target_t>{
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 
-	af_rjson_handler_floating_t(target_t* target_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_) {}
+	af_rjson_handler_floating_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_) {}
 
 	af_rjson_handler_floating_t(target_t* target_, target_t const& default_value_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_) {}
+		af_rjson_handler_value_t<target_t>(target_, default_value_) {}
 
 	// reader part
 	bool Double(double d) override { return set(d); }
@@ -253,22 +278,16 @@ struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<TargetT, Wr
 
 CreateHandlers(af_rjson_handler_integral_t, std::is_floating_point<TargetT>::value)
 
-//template< typename TargetT, typename WriterT, TypeFilter(std::is_floating_point<TargetT>::value) >
-//af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = no_default_setter_f) {
-//	return new af_rjson_handler_floating_t<TargetT, WriterT>(target_, null_setter_);
-//}
+template<typename target_t>
+struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_string_t : public af_rjson_handler_value_t<TargetT, WritterT> {
+	using default_value_handler_t = default_value_handler<target_t>;
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
-
-	af_rjson_handler_string_t(target_t* target_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_) {}
+	af_rjson_handler_string_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_) {}
 
 	af_rjson_handler_string_t(target_t* target_, target_t const& default_value_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_) {}
+		af_rjson_handler_value_t<target_t>(target_, default_value_) {}
 
 	// reader part
 	bool String(const Ch* str, SizeType length, bool copy) override {
@@ -281,31 +300,25 @@ struct af_rjson_handler_string_t : public af_rjson_handler_value_t<TargetT, Writ
 
 CreateHandlers(af_rjson_handler_integral_t, is_string<TargetT>::value)
 
-//template< typename TargetT, typename WriterT, TypeFilter(is_string<TargetT>::value) >
-//af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = no_default_setter_f) {
-//	return new af_rjson_handler_string_t<TargetT, WriterT>(target_, null_setter_);
-//}
+template<typename target_t>
+struct af_rjson_handler_shared_ptr_t : public af_rjson_handler_value_t<target_t> {
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_shared_ptr_t : public af_rjson_handler_value_t<WriterT> {
-
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 	using contained_t = target_t::element_type;
-	using value_handler_t = af_rjson_handler_value_t<contained_t, writer_t>;
-
+	using value_handler_t = af_rjson_handler_value_t<contained_t>;
 
 	value_handler_t* _value_handler;
 
 	af_rjson_handler_shared_ptr_t(
-			target_t* target_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_),
+			target_t* target_, 
+			default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_),
 		_value_handler(nullptr){
 	}
 	af_rjson_handler_shared_ptr_t(
 			target_t* target_,
 			target_t const& default_value_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_),
+		af_rjson_handler_value_t<target_t>(target_, default_value_),
 		_value_handler(nullptr){
 	}
 
@@ -363,19 +376,6 @@ struct af_rjson_handler_shared_ptr_t : public af_rjson_handler_value_t<WriterT> 
 	bool StartArray() override { return _value_handler->StartArray(str, length, copy); }
 	bool EndArray(SizeType elementCount)  override { return _value_handler->EndArray(elementCount); }
 
-	// writer part 
-	void write(writer_t& writer_) const override { 
-		if (!(*_target)) // null pointers are always written as null
-			writer.Null();
-		else if (_default_h)
-			_default_h->write(_target);
-		else {
-			if (!_value_handler)
-				create_value_handler(_target);
-			_value_handler->write(writer_);
-		}
-	}
-
 	void release() override {
 		if (_value_handler) {
 			_value_handler->release();
@@ -385,44 +385,54 @@ struct af_rjson_handler_shared_ptr_t : public af_rjson_handler_value_t<WriterT> 
 	}
 };
 
+template<typename target_t, typename writer_t>
+struct af_rjson_writer_shared_ptr_t : public af_rjson_writer_value_t<target_t, writer_t> {
+
+	using default_value_handler_t = default_value_handler<target_t>;
+
+	af_rjson_writer_shared_ptr_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : af_rjson_writer_value_t<target_, writer_t>(target_, default_f_) {}
+
+	void write(writer_t& writer_) const {
+		if (!_target) // null pointers are always written as null
+			writer.Null();
+		else if (default_write(writer_t & writer_))
+			return;
+		else 
+			write(writer_, *_target, nullptr);
+	}
+};
+
 CreateHandlers(af_rjson_handler_shared_ptr_t, is_shared_ptr<TargetT>::value || std::is_pointer<TargetT>::value)
 
-//template< typename TargetT, typename WriterT, TypeFilter(is_shared_ptr<TargetT>::value || std::is_pointer<TargetT>::value) >
-//af_rjson_handler* create_handler(TargetT& target_, null_setter_f null_setter_ = no_default_setter_f) {
-//	return new af_rjson_handler_shared_ptr_t<TargetT, WriterT>(target_, null_setter_);
-//}
+template<typename target_t>
+struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<target_t> {
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<WriterT> {
-
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 	using contained_t = target_t::value_type;
-	using value_handler_t = af_rjson_handler_value_t<contained_t, writer_t>;
+	using value_handler_t = af_rjson_handler_value_t<contained_t>;
 
 	 
 	value_handler_t* _value_handler;
-	contained_t const _empty_value;
 
 	af_rjson_handler_sequence_t(
 			target_t* target_, 
-			contained_t const& empty_value_ = contained_t()) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_),
-		_value_handler(create_handler<contained_t, writer_t>(nullptr)),
-		_empty_value(empty_value_){
+			default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_),
+		_value_handler(create_handler<contained_t, writer_t>(nullptr)){
 	}
 	af_rjson_handler_sequence_t(
 			target_t* target_,
-			target_t const& default_value_,
-			contained_t const& empty_value_ = contained_t()) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_),
-		_value_handler(create_handler<contained_t, writer_t>(nullptr)),
-		_empty_value(empty_value_){
+			target_t const& default_value_) :
+		af_rjson_handler_value_t<target_t>(target_, default_value_),
+		_value_handler(create_handler<contained_t, writer_t>(nullptr)){
 	}
 
 	inline void set_current_item() {
 		if (!_value_handler->is_set() || _value_handler->is_done()) {
-			_target->push_back(_empty_value);
+			_target->emplace_back({});
 			contained_t& ret(_target->back());
 			_value_handler->reset(&ret);
 		}
@@ -463,16 +473,6 @@ struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<WriterT> {
 		return _value_handler->EndArray(elementCount);
 	}
 
-	 // writer part 
-	 void write(writer_t& writer_) const override { 
-		 writer_->StartArray();
-		 for (auto const& t : *_target) {
-			 _value_handler->reset(&t);
-			 _value_handler->write(writer_);
-		 }
-		 writer_->EndArray();
-	 }
-
 	 void release() override {
 		 if (_value_handler) {
 			 _value_handler->release();
@@ -482,60 +482,47 @@ struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<WriterT> {
 	 }
  };
 
-#define CreateArrayHandlers( HandlerType, Condition ) \
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(\
-			TargetT* target_, \
-			typename TargetT::value_type const& empty_value_ = contained_t()) {\
-		return new HandlerType<TargetT, WriterT>(target_, empty_value_);\
-	}\
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(\
-			TargetT* target_, \
-			TargetT const& default_value_,\
-			typename TargetT::value_type const& empty_value_ = contained_t()) {\
-		return new HandlerType<TargetT, WriterT>(target_, default_value_, empty_value_);\
+template<typename target_t, typename writer_t>
+struct af_rjson_writer_sequence_t : public af_rjson_writer_value_t<target_, writer_t> {
+
+	using default_value_handler_t = default_value_handler<target_t>;
+	
+	af_rjson_writer_sequence_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : af_rjson_writer_value_t<target_, writer_t>(target_, default_f_){}
+
+	void write(writer_t& writer_) const {
+		if(default_write()) return;
+		writer_->StartArray();
+		for (auto const& t : _target)
+			write(writer_, t, nullptr);
+		writer_->EndArray();
 	}
+};
 
-CreateArrayHandlers(af_rjson_handler_sequence_t, is_sequence<TargetT>::value);
+CreateHandlers(af_rjson_handler_sequence_t, is_sequence<TargetT>::value);
 
- //template< typename TargetT, typename WriterT, TypeFilter(is_sequence<TargetT>::value) >
- //af_rjson_handler* create_handler(
-	//	TargetT& target_, 
-	//	null_setter_f null_setter_ = no_default_setter_f,
-	//	contained_t const& empty_value_ = contained_t()	) {
-	// return new af_rjson_handler_sequence_t<TargetT, WriterT>(target_, null_setter_, empty_value_);
- //}
+ template<typename target_t, typename writer_t>
+ struct af_rjson_handler_setish_t : public af_rjson_handler_sequence_t<writer_t> {
 
- template<typename TargetT, typename WriterT>
- struct af_rjson_handler_setish_t : public af_rjson_handler_sequence_t<WriterT> {
-
-	 using target_t = TargetT;
-	 using writer_t = WriterT;
+	 using default_value_handler_t = default_value_handler<target_t, writer_t>;
 	 using contained_t = target_t::value_type;
 	 using value_handler_t = af_rjson_handler_value_t<contained_t, writer_t>;
 
 	 contained_t _current_value;
 
-	 af_rjson_handler_setish_t(
-			 target_t* target_,
-			 contained_t const& empty_value_ = contained_t()) :
-		 af_rjson_handler_sequence_t(target_, empty_value_),
-		 _current_value(empty_value){
+	 af_rjson_handler_setish_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
+		 af_rjson_handler_sequence_t(target_, default_){
 
 	 }
-	 af_rjson_handler_setish_t(
-			 target_t* target_,
-			 target_t const& default_value_,
-			 contained_t const& empty_value_ = contained_t()) :
-		 af_rjson_handler_sequence_t(target_, empty_value_),
-		 _current_value(empty_value) {
-
+	 af_rjson_handler_setish_t(target_t* target_, target_t const& default_value_) :
+		 af_rjson_handler_sequence_t(target_) {
 	 }
 
 	 inline void set_current_item() {
 		 if (!_value_handler->is_set() || _value_handler->is_done()) {
-			 _current_value = _empty_value;
+			 _current_value = contained_t();
 			 _value_handler->reset(&_current_value);
 		 }
 	 }
@@ -570,186 +557,161 @@ CreateArrayHandlers(af_rjson_handler_sequence_t, is_sequence<TargetT>::value);
 
  };
 
- CreateArrayHandlers(af_rjson_handler_setish_t, is_setish<TargetT>::value);
-
-/*template< typename TargetT, typename WriterT, TypeFilter(is_setish<TargetT>::value) >
-af_rjson_handler* create_handler(
-	TargetT& target_,
-	null_setter_f null_setter_ = no_default_setter_f,
-	contained_t const& empty_value_ = contained_t()) {
-	return new af_rjson_handler_setish_t<TargetT, WriterT>(target_, null_setter_, empty_value_);
-}*/
+ CreateHandlers(af_rjson_handler_setish_t, is_setish<TargetT>::value);
 
 // general maps are stored as arrays of pair objects: { "key" : key_value, "value" : value_value }
 // there is an optimisation for string maps
 // first we need an intermediate handler for these objects
- namespace af_json_pairs {
-	 namespace {
-		 static const char* const tag_key = "key";
-		 static const char* const tag_value = "value";
-	 };
-	 // reader and writer are different for these pairs
-	 template< typename KeyT, typename ValueT, typename WriterT>
-	 struct af_rjson_handler_pair_t {
-		 using key_t = KeyT;
-		 using value_t = ValueT;
-		 using writer_t = WriterT;
-		 using key_handler_t = af_rjson_handler_value_t<key_t, writer_t>;
-		 using value_handler_t = af_rjson_handler_value_t<value_t, writer_t>;
-		 using current_handler_t = af_rjson_handler_t<writer_t>;
+namespace {
+	static const char* const tag_key = "key";
+	static const char* const tag_value = "value";
+};
+// reader and writer are different for these pairs
+template< typename key_t, typename value_t>
+struct af_rjson_handler_pair_t {
+	using key_handler_t = af_rjson_handler_value_t<key_t>;
+	using value_handler_t = af_rjson_handler_value_t<value_t>;
+	using current_handler_t = af_rjson_handler_t;
 
-		 key_t _key;
-		 value_t _value;
-		 key_handler_t* _key_handler;
-		 value_handler_t* _value_handler;
-		 current_handler_t* _current_handler;
+	key_t _key;
+	value_t _value;
+	key_handler_t* _key_handler;
+	value_handler_t* _value_handler;
+	current_handler_t* _current_handler;
 
-		 af_rjson_handler_pair_t() :
-			 _key_handler(create_handler<key_t, writer_t>(&_key)),
-			 _value_handler(create_handler<value_t, writer_t>(&_value)),
-			 _current_handler(nullptr) {
-		 }
+	af_rjson_handler_pair_t() :
+		_key_handler(create_handler<key_t>(&_key)),
+		_value_handler(create_handler<value_t>(&_value)),
+		_current_handler(nullptr) {
+	}
 
-		 key_t const& key() const { return _key; }
-		 value_t const& value() const { return _value; }
+	key_t const& key() const { return _key; }
+	value_t const& value() const { return _value; }
 
-		 bool is_done() const {
-			 return _key_handler->is_done() && _value_handler->is_done();
-		 }
+	bool is_done() const {
+		return _key_handler->is_done() && _value_handler->is_done();
+	}
 
-		 inline void reset() {
-			 _current_handler = nullptr;
-		 }
+	inline void reset() {
+		_current_handler = nullptr;
+	}
 
-		 template<typename... ParamsT>
-		 bool delegate_f(bool (current_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
-			 bool ret = (_current_handler->*mf)(ps...);
-			 if (_current_handler->is_done())
-				 _current_handler = nullptr;
-			 return ret;
-		 }
+	template<typename... ParamsT>
+	bool delegate_f(bool (current_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
+		bool ret = (_current_handler->*mf)(ps...);
+		if (_current_handler->is_done())
+			_current_handler = nullptr;
+		return ret;
+	}
 
-		 bool Null() {
-			 AF_ASSERT(_current_handler, "Maps cannot contain nulls.");
-			 AF_ASSERT(_current_handler != _key_handler, "Keys in a map cannot be null.");
-			 return delegate_f(&current_handler_t::Null);
-		 }
-		 bool Bool(bool b) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Bool, b);
-		 }
-		 bool Int(int i) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Int, i);
-		 }
-		 bool Uint(unsigned i) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Uint, i);
-		 }
-		 bool Int64(int64_t i) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Int64, i);
-		 }
-		 bool Uint64(uint64_t i) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Uint64, i);
-		 }
-		 bool Double(double d) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::Double, i);
-		 }
-		 bool String(const Ch* str, SizeType length, bool copy) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::String, str, length, copy);
-		 }
+	bool Null() {
+		AF_ASSERT(_current_handler, "Maps cannot contain nulls.");
+		AF_ASSERT(_current_handler != _key_handler, "Keys in a map cannot be null.");
+		return delegate_f(&current_handler_t::Null);
+	}
+	bool Bool(bool b) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Bool, b);
+	}
+	bool Int(int i) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Int, i);
+	}
+	bool Uint(unsigned i) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Uint, i);
+	}
+	bool Int64(int64_t i) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Int64, i);
+	}
+	bool Uint64(uint64_t i) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Uint64, i);
+	}
+	bool Double(double d) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::Double, i);
+	}
+	bool String(const Ch* str, SizeType length, bool copy) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::String, str, length, copy);
+	}
 
-		 bool StartObject() {
-			 if (_current_handler)
-				 return delegate_f(&current_handler_t::StartObject);
-			 return true;
-		 }
-		 bool Key(const Ch* str, SizeType length, bool copy) {
-			 if (_current_handler)
-				 return delegate_f(&current_handler_t::Key, str, length, copy);
-			 _key_handler->reset(&_key);
-			 _value_handler->reset(&_value);
-			 if (strncmp(str, tag_key) == 0)
-				 _current_handler = _key_handler;
-			 else if (strncmp(str, tag_value) == 0)
-				 _current_handler = _value_handler;
-			 else
-				 AF_ERROR("Unknown value: %", str);
-			 return true;
-		 }
-		 bool EndObject(SizeType memberCount) {
-			 if (_current_handler)
-				 return delegate_f(&current_handler_t::EndObject, memberCount);
-			 _current_handler = nullptr;
-			 return true;
-		 }
+	bool StartObject() {
+		if (_current_handler)
+			return delegate_f(&current_handler_t::StartObject);
+		return true;
+	}
+	bool Key(const Ch* str, SizeType length, bool copy) {
+		if (_current_handler)
+			return delegate_f(&current_handler_t::Key, str, length, copy);
+		_key_handler->reset(&_key);
+		_value_handler->reset(&_value);
+		if (strncmp(str, tag_key) == 0)
+			_current_handler = _key_handler;
+		else if (strncmp(str, tag_value) == 0)
+			_current_handler = _value_handler;
+		else
+			AF_ERROR("Unknown value: %", str);
+		return true;
+	}
+	bool EndObject(SizeType memberCount) {
+		if (_current_handler)
+			return delegate_f(&current_handler_t::EndObject, memberCount);
+		_current_handler = nullptr;
+		return true;
+	}
 
-		 bool StartArray() {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::StartArray);
-		 }
-		 bool EndArray(SizeType elementCount) {
-			 AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
-			 return delegate_f(&current_handler_t::EndArray, elementCount);
-		 }
-	 };
+	bool StartArray() {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::StartArray);
+	}
+	bool EndArray(SizeType elementCount) {
+		AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
+		return delegate_f(&current_handler_t::EndArray, elementCount);
+	}
+};
 
-	 template< typename KeyT, typename ValueT, typename WriterT>
-	 struct af_rjson_writer_pair_t {
-		 using key_t = KeyT;
-		 using value_t = ValueT;
-		 using writer_t = WriterT;
-		 using key_writer_t = af_rjson_handler_value_t<key_t, writer_t>;
-		 using value_writer_t = af_rjson_handler_value_t<value_t, writer_t>;
+template< typename target_t, typename writer_t>
+struct af_rjson_writer_pair_t : public af_rjson_writer_value_t<target_t, writer_t> {
 
-		 key_writer_t* _key_writer;
-		 value_writer_t* _value_writer;
+	using default_value_handler_t = default_value_handler<target_t>;
 
-		 af_rjson_writer_pair_t() :
-			 _key_writer(create_handler<key_t, writer_t>(nullptr)),
-			 _value_writer(create_handler<value_t, writer_t>(nullptr)) {
-		 }
-		 void reset(key_t& key_, value_t& value_) {
-			 _key_writer->reset(&key_);
-			 _value_writer->reset(&value_);
-		 }
+	af_rjson_writer_pair_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : af_rjson_writer_value_t<target_, writer_t>(target_, default_f_) {}
 
-		 void write(WriterT& writer_) const {
-			 writer_->StartObject();
-			 writer_->Key(tag_key);
-			 _key_writer->write(writer_);
-			 writer_->Key(tag_value);
-			 _value_writer->write(writer_);
-			 writer_->EndObject();
-		 }
-	 };
- }
+	void write(WriterT& writer_) const {
+		if (default_write()) return;
+		writer_->StartObject();
+		writer_->Key(tag_key);
+		write(writer_, _target.first, nullptr);
+		writer_->Key(tag_value);
+		write(writer_, _target.second, nullptr);
+		writer_->EndObject();
+	}
+};
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<WriterT> {
+template<typename target_t>
+struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<target_t> {
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 	using key_t = target_t::key_type;
 	using value_t = target_t::mapped_type;
-	using pair_reader_t = af_json_pairs::af_rjson_handler_pair_t<key_t, value_t, writer_t>;
-	using pair_writer_t = af_json_pairs::af_rjson_writer_pair_t<key_t, value_t, writer_t>;
+	using pair_reader_t = af_json_pairs::af_rjson_handler_pair_t<key_t, value_t>;
 
 	pair_reader_t _pair_reader;
-	pair_writer_t _pair_writer;
 
 	bool _this_array_started;
 
-	af_rjson_handler_mappish_t(target_t* target_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_),
+	af_rjson_handler_mappish_t(target_t* target_, default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_),
 		_this_array_started(false) {
 	}
 	af_rjson_handler_mappish_t(target_t* target_,target_t const& default_value_) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_),
+		af_rjson_handler_value_t<target_t>(target_, default_value_),
 		_this_array_started(false) {
 	}
 
@@ -764,7 +726,7 @@ struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<WriterT> {
 	}
 	bool Null() {
 		if (!_this_array_started)
-			return af_rjson_handler_value_t<TargetT, WriterT>::Null();
+			return af_rjson_handler_value_t<target_t>::Null();
 		return delegate_f(&_pair_reader::Null);
 	}
 	bool Bool(bool b) override { return delegate_f(&_pair_reader::Bool, b); }
@@ -794,31 +756,24 @@ struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<WriterT> {
 			return delegate_f(&_pair_reader::EndArray, memberCount);
 	}
 
-	void write(writer_t& writer_) const override {
-		writer_->StartArray();
-		for (auto const& t : *_target) {
-			_pair_writer.reset(t.first, t.second);
-			_pair_writer.write(writer_);
-		}
-		writer_->EndArray();
-	}
 };
+
+template<typename target_t, typename writer_t>
+using af_rjson_writer_mappish_t = af_rjson_writer_value_t<target_, writer_t>;
 
 CreateHandlers(af_rjson_handler_mappish_t, (is_mappish<TargetT>::value && !(is_string<TargetT>::value)))
 
 //opitimised format for maps with string keys
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<WriterT> {
+template<typename target_t>
+struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<target_t> {
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 	using key_t = target_t::key_type; // this is some string type
 	using value_t = target_t::mapped_type;
-	using value_handler_t = af_rjson_handler_value_t<value_t, writer_t>;
+	using value_handler_t = af_rjson_handler_value_t<value_t>;
 
 	key_t _current_key;
 	value_t _current_value;
-	value_t const _empty_value;
 
 	value_handler_t* _value_handler;
 
@@ -826,21 +781,16 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<Write
 
 	af_rjson_handler_mappish_t(
 			target_t* target_, 
-			value_t const& empty_value_ = value_t()) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_),
-		_current_value(empty_value_),
-		_empty_value(empty_value_)
-		_value_handler(create_handler<value_t, writer_t>(nullptr)),
+			default_value_handler_t* default_ = nullptr) :
+		af_rjson_handler_value_t<target_t>(target_, default_),
+		_value_handler(create_handler<value_t>(nullptr)),
 		_this_object_started(false) {
 	}
 	af_rjson_handler_mappish_t(
 			target_t* target_,
-			target_t const& default_value_,
-			value_t const& empty_value_ = value_t()) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_),
-		_current_value(empty_value_),
-		_empty_value(empty_value_)
-		_value_handler(create_handler<value_t, writer_t>(nullptr)),
+			target_t const& default_value_) :
+		af_rjson_handler_value_t<target_t>(target_, default_value_),
+		_value_handler(create_handler<value_t>(nullptr)),
 		_this_object_started(false) {
 	}
 
@@ -850,14 +800,14 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<Write
 		if (_value_handler.is_done()) {
 			_target[_current_key] = _current_value;
 			_current_key = key_t();
-			_current_value = _empty_value;
+			_current_value = value_t();
 			_value_handler.reset(&current_value);
 		}
 		return ret;
 	}
 	bool Null() {
 		if (_current_key.empty())
-			return af_rjson_handler_value_t<TargetT, WriterT>::Null();
+			return af_rjson_handler_value_t<target_t>::Null();
 		return delegate_f(&_pair_reader::Null);
 	}
 	bool Bool(bool b) override { return delegate_f(&_pair_reader::Bool, b); }
@@ -885,16 +835,6 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<Write
 			return delegate_f(&_pair_reader::EndArray, memberCount);
 	}
 
-	void write(writer_t& writer_) const override {
-		writer_->StartObject();
-		for (auto const& t : *_target) {
-			writer_->Key(t.first);
-			_value_handler->reset(&t.second);
-			_value_handler->write(writer_);
-		}
-		writer_->EndObject();
-	}
-
 	void release() override {
 		if (_value_handler) {
 			_value_handler->release();
@@ -904,12 +844,33 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<Write
 	}
 };
 
+template<typename target_t, typename writer_t>
+struct af_rjson_writer_string_mappish_t : public af_rjson_writer_value_t<target_, writer_t> {
+
+	using default_value_handler_t = default_value_handler<target_t>;
+
+	af_rjson_writer_string_mappish_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : af_rjson_writer_value_t<target_, writer_t>(target_, default_f_) {}
+
+	void write(writer_t& writer_) const {
+		if (default_write()) return;
+		writer_->StartObject();
+		for (auto const& t : _target) {
+			writer_->Key(t.first);
+			write(writer_, t.second, nullptr);
+		}
+		writer_->EndObject();
+	}
+};
+
 template< typename TargetT, typename WriterT, TypeFilter((is_mappish<TargetT>::value && is_string<TargetT>::value)) >
-af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_) {
+af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, default_value_handler_t* default_ = nullptr) {
 	if(af_json_configuration::optimised_string_maps())
-		return new af_rjson_handler_string_mappish_t<TargetT, WriterT>(target_);
+		return new af_rjson_handler_string_mappish_t<TargetT, WriterT>(target_, default_);
 	else
-		return new af_rjson_handler_mappish_t<TargetT, WriterT>(target_);
+		return new af_rjson_handler_mappish_t<TargetT, WriterT>(target_, default_);
 }
 
 template< typename TargetT, typename WriterT, TypeFilter((is_mappish<TargetT>::value && is_string<TargetT>::value)) >
@@ -921,11 +882,10 @@ af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, Tar
 }
 
 
-template<typename TargetT, typename WriterT>
-struct af_rjson_handler_object_t : public af_rjson_handler_value_t<TargetT, WriterT> {
+template<typename target_t>
+struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 
-	using target_t = TargetT;
-	using writer_t = WriterT;
+	using default_value_handler_t = default_value_handler<target_t>;
 	using handler_p_t = af_rjson_handler*;
 	using handlers_t = std::vector<std::pair<std::string, handler_p_t>>;
 	// we use a vector here to preserve the order of elements
@@ -934,9 +894,10 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<TargetT, Writ
 	handler_p_t _current_handler;
 
 	af_rjson_handler_object_t(
-			target_t* target_, 
+			target_t* target_,
+			default_value_handler_t* default_ = nullptr,
 			handlers_t const& handlers_ = {}) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_),
+		af_rjson_handler_value_t<target_t>(target_, default_),
 		_handlers(handlers_),
 		_current_handler(nullptr){
 	}
@@ -944,7 +905,7 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<TargetT, Writ
 			target_t* target_,
 			target_t const& default_value_,
 			handlers_t const& handlers_ = {}) :
-		af_rjson_handler_value_t<TargetT, WriterT>(target_, default_value_),
+		af_rjson_handler_value_t<target_t>(target_, default_value_),
 		_handlers(handlers_),
 		_current_handler(nullptr) {
 	}
@@ -1045,5 +1006,27 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<TargetT, Writ
 		for (auto const& h : _handlers)
 			h.second->release();
 		af_rjson_handler_value_t<TargetT, WriterT>::release();
+	}
+};
+
+template<typename target_t, typename writer_t>
+struct af_rjson_writer_object_t : public af_rjson_writer_value_t<target_, writer_t> {
+
+	using default_value_handler_t = default_value_handler<target_t>;
+
+	af_rjson_writer_object_t(
+		target_t const& target_,
+		default_value_handler_t const* default_f_
+	) : af_rjson_writer_value_t<target_, writer_t>(target_, default_f_) {}
+
+	void write(writer_t& writer_) const {
+		if (default_write()) return;
+
+		writer_->StartObject();
+		for (auto const& h : _target) {
+			writer_->Key(h.first);
+			write(writer_, t.second->get(), nullptr);
+		}
+		writer_->EndObject();
 	}
 };
