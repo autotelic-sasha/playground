@@ -173,11 +173,16 @@ inline void write(size_t const& value, writer_t& writer) { writer.Uint64(static_
 	}
 
 
-struct af_rjson_handler_base_t {
-	using char_type = encoding::Ch;
-	virtual ~af_rjson_handler_t() {}
+struct af_rjson_serializable {
+	using char_t = af_json_char_t::char_t;
+	using key_t = std::basic_string<char_t>;
+	using handler_t = af_rjson_handler;
+	using handler_t_p = std::shared_ptr<af_rjson_handler>;
+	using handlers_t = std::vector<std::pair<key_t, handler_t_p>>;
+	// we use a vector here to preserve the order of elements
+
+	virtual handlers_t& handlers() = 0;
 };
-template<typename encoding = rapidjson::UTF8<>>
 struct af_rjson_handler_t {
 	using char_t = af_json_char_t::char_t;
 	
@@ -1060,46 +1065,40 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 	using char_t = af_json_char_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>; 
 	using default_value_handler_t = default_value_handler<target_t>;
-	using key_t = std::basic_string<Ch>;
-	using handler_t = af_rjson_handler;
-	using handlers_t = std::vector<std::pair<key_t, handler_t*>>;
-	// we use a vector here to preserve the order of elements
-	handlers_t _handlers;
+	using key_t = af_rjson_serializable::key_t;
+	using handler_t = af_rjson_serializable::handler_t;
+	using handler_t_p = af_rjson_serializable::handler_t_p;
+	using handlers_t = af_rjson_serializable::handlers_t;
 
-	handler_t* _current_handler;
+	handler_t_p _current_handler;
+
 	af_rjson_handler_object_t(
 			target_t* target_,
 			default_value_handler_t* default_ = nullptr,
 			handlers_t const& handlers_ = {}) :
-		base_t(target_, default_),
-		_handlers(handlers_),
+		base_t(target_, default_)
 		_current_handler(nullptr){
 	}
 	af_rjson_handler_object_t(
 			target_t* target_,
-			target_t const& default_value_,
-			handlers_t const& handlers_ = {}) :
+			target_t const& default_value_) :
 		base_t(target_, default_value_),
-		_handlers(handlers_),
 		_current_handler(nullptr) {
 	}
 
-	inline handler_t* find_handler(const Ch* const key, size_t length) {
+	inline handlers_t& handlers() {
+		return _target->handlers();
+	}
+	inline handler_t_p find_handler(const char_t* const key, size_t length) {
 		for (auto& h : _handlers) {
-			if (strncmp(key, h.first, length) == 0)
+			if (equal_tag(key, length, h.first))
 				return h.second;
 		}
 		return nullptr;
 	}
-	inline add_handler(key_t const& key_, handler_t* handler_) {
-		AF_ASSERT(!key_.empty(), "Empty key in object serialization.");
-		AF_ASSERT(handler_, "Null handler in object serialization.");
-		AF_ASSERT(find_handler(key_) == nullptr, "Duplicate key in object serialization: %", key_);
-		_handlers.push_back(std::make_pair(key_, handler_));
-	}
 
 	bool validate_all_loaded() const {
-		for (auto const& h : _handlers) {
+		for (auto const& h : handlers()) {
 			if (!h.second->is_done())
 				if( !af_rjson_configuration::terse() || !h.second->handles_terse_storage())
 					return false;
@@ -1110,21 +1109,20 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 	void reset(target_t* target_) override { 
 		base_t::reset(target_);
 		_current_handler = nullptr;
-		for (auto const& h : _handlers) {
-
-		}
 	}
-
 
 	template<typename... ParamsT>
 	inline bool delegate_f(bool (handler_t::* mf)(ParamsT ...), ParamsT... ps) {
-		
-		return (_current_handler->*mf)(ps...);
+		AF_ASSERT(_current_handler, "Unexpected value when loading object");
+		bool ret = (_current_handler->*mf)(ps...);
+		if (_current_handler->is_done())
+			_current_handler = nullptr;
+		return ret;
 	}
 	bool Null() override {
 		if (_current_handler)
-			return _current_handler->Null();
-		return af_rjson_handler_value_t<TargetT, WriterT>::Null();
+			return delegate_f(&handler_t::Null);
+		return base_t::Null();
 	}
 	bool Bool(bool b) override { return delegate_f(&handler_t::Bool, b); }
 	bool Int(int i) override { return delegate_f(&handler_t::Int, i); }
@@ -1135,30 +1133,27 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 	bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::RawNumber, str, length, copy); }
 	bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::String, str, length, copy); }
 	bool StartObject() override { 
-		if (_current_handler && !_current_handler->is_done())
-			return _current_handler->StartObject();
+		if (_current_handler)
+			return delegate_f(&handler_t::StartObject);
 		return true;
 	}
 	bool Key(const char_t* str, size_t length, bool copy) { 
-		if (_current_handler && !_current_handler->is_done())
-			return _current_handler->Key(std, length, copy);
-		_current_key.assign(str);
+		if(_current_handler)
+			return delegate_f(&handler_t::String, str, length, copy);
+
+		_current_handler = find_handler(str, length);
+		AF_ASSERT(_current_handler, "Unexpected key when loading object %", str);
+		return true;
 	}
 	bool EndObject(size_t memberCount) override {
-		if (_current_handler && !_current_handler->is_done())
+		if (_current_handler)
 			return _current_handler->EndObject(memberCount);
 		AF_ASSERT(validate_all_loaded(), "Not all object members are loaded.");
-		done();
-		return true; 
+		return done(); 
 	}
 	bool StartArray() override { return delegate_f(&handler_t::StartArray); }
 	bool EndArray(size_t elementCount) override { return delegate_f(&handler_t::EndArray(elementCount); }
 
-	void release() override {
-		for (auto const& h : _handlers)
-			h.second->release();
-		base_t::release();
-	}
 };
 
 template<typename target_t, typename writer_t>
