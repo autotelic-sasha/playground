@@ -60,7 +60,7 @@ namespace autotelica {
                     // by default string message handler doesn't throw error exceptions
                     // just traces error text
                     // but this can be configured by setting second constructor parameter to true
-                    auto string_traces = string_message_handler::make_scoped(string_storage);
+                    auto string_traces = make_scoped_string_message_handler(string_storage);
                     trace_some_messages();
                 }
 
@@ -76,7 +76,7 @@ namespace autotelica {
                     // by default file message handler doesn't throw error exceptions
                     // just traces error text
                     // but this can be configured by setting second constructor parameter to true
-                    auto string_traces = file_message_handler::make_scoped("trace_file.txt");
+                    auto string_traces = make_scoped_file_message_handler("trace_file.txt");
                     trace_some_messages();
 
                 }

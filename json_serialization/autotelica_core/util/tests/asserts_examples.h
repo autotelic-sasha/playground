@@ -13,7 +13,44 @@ namespace autotelica {
                 std::cout << "f() evaluated" << std::endl;
                 return 3;
             }
+            static int fw() {
+                // test function, to show that string interpolation only evaluates parameters when needed
+                std::wcout << L"f() evaluated" << std::endl;
+                return 3;
+            }
+            static void tracing_to_std_wout() {
+                using namespace autotelica::diagnostic_messages;
 
+                auto l = [] { std::wcout << L"l() evaluated" << std::endl; return 3; };
+
+                std::vector<double> v{ 1.23, 0.32435, 4.5656, 0.120981280932481 };
+
+                print::title(L"Tracing to stdout");
+
+                AF_MESSAGE_W(L"blah blah");
+                AF_MESSAGE_W(L"Message with % parameters % some %", l(), L"and", L"more"); // evaluates l()
+                AF_MESSAGE_EX_W(L"blah blah");
+                AF_MESSAGE_EX_W(L"Warning with % parameters % some %", fw(), L"and", L"more"); // evaluates f()
+
+                AF_ASSERT_WARNING_W(true, L"Error with % parameters % some %", fw(), L"and", L"more"); // does not evaluate f()
+                AF_ASSERT_WARNING_W(false, L"Error with % parameters % some %", fw(), L"and", L"more"); // evaluates f()
+                AF_ASSERT_WARNING_W(false, L"Error with % parameters % some %", l(), L"and", L"more"); // evaluates l()
+                AF_ASSERT_WARNING_EX_W(false, L"Error with % parameters % some %", l(), L"and", L"more"); // evaluates l()
+
+
+                AF_ASSERT_W(true, L"Error with % parameters % some %", fw(), L"and", L"more"); // does not evaluate f()
+                try {
+                    AF_ASSERT_W(false, L"Error with % parameters % some %", fw(), L"and", L"more"); // evaluates f() and throws runtime_error
+                }
+                catch (std::runtime_error const& e) {
+                    AF_MESSAGE_W(L"Exception: %", e.what());
+                }
+
+                AF_ASSERT_WARNING_W(v.size(), L"The vector v size is %", v.size());
+                AF_ASSERT_WARNING_W(v.size() == 0, L"The vector v is not empty!");
+                AF_ASSERT_WARNING_EX_W(v.size() == 0, L"The vector v is not empty!");
+                print::line(L' ');
+            }
             static void tracing_to_std_out() {
                 using namespace autotelica::diagnostic_messages;
                 
@@ -45,7 +82,6 @@ namespace autotelica {
                 AF_ASSERT_WARNING(v.size(), "The vector v size is %", v.size());
                 AF_ASSERT_WARNING(v.size() == 0, "The vector v is not empty!");
                 AF_ASSERT_WARNING_EX(v.size() == 0, "The vector v is not empty!");
-                AF_ASSERT_WARNING_EX(v.size() == 0, 0);
                 print::line();
             }
 
@@ -79,7 +115,6 @@ namespace autotelica {
                 af_assert_warning(v.size(), "The vector v size is %", v.size());
                 af_assert_warning(v.size() == 0, "The vector v is not empty!");
                 af_assert_warning_ex(v.size() == 0, "The vector v is not empty!");
-                af_assert_warning_ex(v.size() == 0, 0);
                 print::line();
             }
 
@@ -123,7 +158,6 @@ namespace autotelica {
                 af_dbg_assert_warning(v.size(), "The vector v size is %", v.size());
                 af_dbg_assert_warning(v.size() == 0, "The vector v is not empty!");
                 af_dbg_assert_warning_ex(v.size() == 0, "The vector v is not empty!");
-                af_dbg_assert_warning_ex(v.size() == 0, 0);
                 print::line();
             }
 
@@ -133,7 +167,7 @@ namespace autotelica {
 
                 std::string message_store;
                 {
-                    auto message_handler = string_message_handler::make_scoped(message_store);
+                    auto message_handler = make_scoped_string_message_handler(message_store);
                     // disable exceptions being throws
                     messages::configure(true, true, true, false);
                     
@@ -157,7 +191,6 @@ namespace autotelica {
                     AF_ASSERT_WARNING(v.size(), "The vector v size is %", v.size());
                     AF_ASSERT_WARNING(v.size() == 0, "The vector v is not empty!");
                     AF_ASSERT_WARNING_EX(v.size() == 0, "The vector v is not empty!");
-                    AF_ASSERT_WARNING_EX(v.size() == 0,0);
                     // re-enable exceptions being throws
                     messages::configure(true, true, true, true);
 
@@ -174,6 +207,7 @@ namespace autotelica {
             void examples() {
                 // code here will only be run in example runs
                 tracing_to_std_out();
+                tracing_to_std_wout();
                 tracing_to_std_out_lowercase();
                 tracing_to_std_out_debug();
                 tracing_to_string();

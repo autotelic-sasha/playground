@@ -1,4 +1,5 @@
 #include "testing_util.h"
+#include <utility>
 #include "cl_parsing.h"
 #include "diagnostic_messages.h"
 
@@ -7,7 +8,7 @@ namespace autotelica {
 // -l, -list_examples
 // -re, -run_examples with no arguments runs them all, with arguments runs listed ones
 // -rt, -run_tests with no arguments runs them all, with arguments runs listed ones
-// -record with no arguments runs them all, with arguments runs listed ones
+// -record with no arguments records them all, with arguments records listed ones
 // -f filename outputs to file
 // -csv outputs in csv format
 // -excel outputs in excel csv format
@@ -72,7 +73,7 @@ class test_runner_impl{
                 "Records named tests (if none are named, all are recorded).",
                 { "record" },
                 -1,
-                run_tests)
+                record)
             .register_command(
                 "Save to file",
                 "Redirects test outputs to a named file.",
@@ -132,7 +133,7 @@ public:
             return 0;
         }
         if (commands.has("no_timestamps")) {
-            messages::set_timestamp_format("");
+            messages::set_include_timestamp(false);
         }
         if (commands.has("csv") || commands.has("excel")) {
             if (commands.has("excel"))
@@ -141,10 +142,9 @@ public:
                 testing_config::set_run_mode_plain_csv();
 
         }
-        std::shared_ptr<file_message_handler> file_message_handler;
         if (commands.has("output_file")) {
             std::string file_name = commands.arguments("output_file")[0];
-            file_message_handler = file_message_handler::make_active(file_name);
+           std::ignore = make_file_message_handler_active(file_name);
         }
 
         bool trace_messages = commands.has("messages");
@@ -155,9 +155,9 @@ public:
         
         bool trace_all = commands.has("all") || !(trace_messages || trace_warnings || trace_error_text || throw_errors);
         std::shared_ptr<error_collector> only_errors;
-
+        std::vector<std::string> errors;
         if (errors_only) {
-            only_errors = error_collector::make_active();
+            only_errors = std::dynamic_pointer_cast<error_collector>(make_error_collector(errors));
         }
         else if (!trace_all) {
             messages::configure(trace_messages, trace_warnings, trace_error_text || throw_errors, throw_errors);
@@ -166,8 +166,8 @@ public:
         commands.execute();
 
         if (errors_only) {
-            if (!only_errors->errors().empty()) {
-                auto count = only_errors->errors().size();
+            if (!errors.empty()) {
+                auto count = errors.size();
                 only_errors->deactivate();//killing it will make it dump errors
                 messages::warning("Errors during test run. Total errors found: %.", count);
                 return 1;
