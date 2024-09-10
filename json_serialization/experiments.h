@@ -16,7 +16,9 @@ af_serializer serialise() {
 
 	return 
 	af_stream <<
-		pre_load_member_function_ << 
+		pre_load_function_ << 
+		use_default_defaults <<
+		dont_use_default_defalts << 
 		object <<
 			name_1 << _v <<
 			name_2 << _vector | {} | default_element_ <<    // (std::string, T*, T const&)
@@ -27,9 +29,9 @@ af_serializer serialise() {
 					name_6 << _serialisable_object | nullptr <<
 				end_object <<
 			name_7 << af_rjson_handler_t*  << 
-			name_8 << _map | {} | default_element_ <<
+			name_8 << _map | {} | [default_element_] <<
 		end_object <<
-		post_load_member_function_;
+		post_load_function_;
 
 }
 class serialisation_description {
