@@ -26,7 +26,7 @@ af_serializer serialise() {
 					name_5 << _int  | 0 << 
 					name_6 << _serialisable_object | nullptr <<
 				end_object <<
-			name_7 << af_rhson_handler_t*  << 
+			name_7 << af_rjson_handler_t*  << 
 			name_8 << _map | {} | default_element_ <<
 		end_object <<
 		post_load_member_function_;

@@ -1,6 +1,7 @@
 #pragma once
 #include "autotelica_core/util/include/std_disambiguation.h"
 #include "autotelica_core/util/include/asserts.h"
+#include "autotelica_core/util/include/enum_to_string.h"
 #include <string.h>
 // for some reason, probably good, rapidjson uses their own size_t
 // we are going to just make that size_type
@@ -136,19 +137,19 @@ inline void write(size_t const& value, writer_t& writer) { writer.Uint64(static_
 // SFINAE based type filter
 #define TypeFilter( condition ) std::enable_if_t<condition, bool> = true
 #define CreateHandlers( HandlerType, Condition ) \
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, default_value_handler<TargetT, WriterT>* default_ = nullptr) {\
-		return new HandlerType<TargetT, WriterT>(target_, default_);\
+	template< typename TargetT, TypeFilter( Condition ) >\
+	af_rjson_handler_value_t<TargetT>* create_handler(TargetT* target_, default_value_handler<TargetT>* default_ = nullptr) {\
+		return new HandlerType<TargetT>(target_, default_);\
 	}\
-	template< typename TargetT, typename WriterT, TypeFilter( Condition ) >\
-	af_rjson_handler_value_t<TargetT, WriterT>* create_handler(TargetT* target_, TargetT const& default_value_) {\
-		return new HandlerType<TargetT, WriterT>(target_, default_value_);\
+	template< typename TargetT, TypeFilter( Condition ) >\
+	af_rjson_handler_value_t<TargetT>* create_handler(TargetT* target_, TargetT const& default_value_) {\
+		return new HandlerType<TargetT>(target_, default_value_);\
 	}
 
 
 struct af_rjson_serializable {
 	using char_t = af_json_char_t::char_t;
-	using key_t = std::basic_string<char_t>;
+	using key_t = af_json_char_t::string_t;
 	using handler_t = af_rjson_handler;
 	using handler_t_p = std::shared_ptr<af_rjson_handler>;
 	using handlers_t = std::vector<std::pair<key_t, handler_t_p>>;
@@ -156,6 +157,7 @@ struct af_rjson_serializable {
 
 	virtual handlers_t& handlers() = 0;
 };
+
 
 struct af_rjson_handler_t {
 	using char_t = af_json_char_t::char_t;
@@ -436,7 +438,43 @@ struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
 };
 
-CreateHandlers(af_rjson_handler_integral_t, is_string<TargetT>::value)
+CreateHandlers(af_rjson_handler_string_t, is_string<TargetT>::value)
+
+template<typename target_t>
+struct af_rjson_handler_enum_t : public af_rjson_handler_value_t<target_t> {
+
+	using char_t = af_json_char_t::char_t;
+	using base_t = af_rjson_handler_value_t<target_t>;
+	using default_value_handler_t = default_value_handler<target_t>;
+	using string_t = af_json_char_t::string_t;
+
+	af_rjson_handler_string_t(
+		target_t* target_,
+		default_value_handler_t* default_ = nullptr) :
+		base_t(target_, default_) {}
+
+	af_rjson_handler_string_t(
+		target_t* target_,
+		target_t const& default_value_) :
+		base_t(target_, default_value_) {}
+
+	// reader part
+	bool String(const char_t* str, size_t length, bool copy) override {
+		using autotelica::enum_to_string;
+		*_target = to_enum(str);
+		return done();
+	}
+	void write(af_rjson_writer_wrapper_t& writer_) const override {
+		if (default_write(writer_)) return;
+		string_t out;
+		using autotelica::enum_to_string;
+		to_string(out, *_target);
+		write(out, writer_);
+	}
+};
+
+CreateHandlers(af_rjson_handler_enum_t, std::is_enum<TargetT>::value)
+
 
 template<typename target_t>
 struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
