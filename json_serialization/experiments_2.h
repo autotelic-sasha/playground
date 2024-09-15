@@ -8,6 +8,7 @@
 #define RAPIDJSON_NO_SIZETYPEDEFINE
 namespace rapidjson { typedef size_t size_t; }
 #include "rapidjson/encodings.h"
+#include "rapidjson/error/en.h"
 using namespace autotelica::std_disambiguation;
 
 
@@ -42,6 +43,10 @@ using namespace autotelica::std_disambiguation;
 #define _AF_RJSON_OPTIMISED true
 #endif
 
+#ifndef _AF_RJSON_READ_BUFFER_SIZE 
+#define _AF_RJSON_READ_BUFFER_SIZE 4*65535
+#endif
+
 #if _AF_RJSON_OPTIMISED
 
 #ifndef		_AF_RJSON_TERSE
@@ -52,6 +57,9 @@ using namespace autotelica::std_disambiguation;
 #endif
 #ifndef		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION
 #define		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION true
+#endif
+#ifndef		_AF_RJSON_VALIDATE_DUPLICATE_KEYS
+#define		_AF_RJSON_VALIDATE_DUPLICATE_KEYS false
 #endif
 
 #else
@@ -64,6 +72,9 @@ using namespace autotelica::std_disambiguation;
 #endif
 #ifndef		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION
 #define		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION false
+#endif
+#ifndef		_AF_RJSON_VALIDATE_DUPLICATE_KEYS
+#define		_AF_RJSON_VALIDATE_DUPLICATE_KEYS true
 #endif
 
 #endif
@@ -81,10 +92,16 @@ using namespace autotelica::std_disambiguation;
 #error Unknown rapidjson encoding.
 #endif
 
-struct af_rjson_char_t {
+struct af_rjson_handler_t; // we need the forward declaration to handle the types more prettily
+
+struct af_rjson_types_t {
 	using encoding_t = __AF_RAPIDJSON_ENCODING;
 	using char_t = encoding_t::Ch;
 	using string_t = std::basic_string<char_t>;
+	using key_t = string_t;
+	using handler_t = af_rjson_handler_t;
+	using handler_p = af_rjson_handler_t*;
+	using handlers_t = std::vector<std::pair<key_t, handler_p>>;
 
 	static inline bool equal_tag(char_t const* s, size_t n, char_t const* t) {
 		for (size_t i = 0; i < n; ++i, ++s, ++t)
@@ -102,46 +119,55 @@ struct af_rjson_char_t {
 
 #define _AF_RJSON_DECLARE_HANDLER_CREATORS( HandlerType, Condition ) \
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
-			TargetT::default_value_handler_t* default_ = nullptr) {\
+			TargetT::af_rjson_default_value_t* default_) {\
 		return new HandlerType<TargetT>(target_, default_);\
 	}\
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
 			TargetT const& default_value_) {\
 		return new HandlerType<TargetT>(target_, default_value_);\
-	}
+	}\
+	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
+			TargetT* target_,\
+			TargetT::af_rjson_default_value_t* default_,\
+			void* dummy) {\
+		AF_ASSERT(dummy == nullptr, "Wrong create function invoked.");
+		return new HandlerType<TargetT>(target_, default_);\
+	}\
+
 
 #define _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS( HandlerType, Condition ) \
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
-			TargetT::default_value_handler_t* default_ = nullptr) {\
+			TargetT::af_rjson_default_value_t* default_ = nullptr) {\
 		return new HandlerType<TargetT>(target_, default_, nullptr);\
 	}\
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
-			value_default_value_handler_t* value_default_) {\
+			TargetT::value_af_rjson_default_value_t* value_default_) {\
 		return new HandlerType<TargetT>(target_, nullptr, value_default_);\
 	}\
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
-			TargetT::default_value_handler_t* default_,
-			value_default_value_handler_t* value_default_) {\
+			TargetT::af_rjson_default_value_t* default_,\
+			TargetT::value_af_rjson_default_value_t* value_default_) {\
 		return new HandlerType<TargetT>(target_, default_, value_default_);\
 	}\
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_,\
 			TargetT const& default_value_) {\
 		return new HandlerType<TargetT>(target_, default_value_);\
 	}\
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER(Condition) >\
-	af_rjson_handler_value_t<TargetT>* create_handler(\
+	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
 			TargetT* target_, \
 			TargetT const& default_value_, 
 			TargetT::value_t const& value_default_value_) {\
@@ -149,16 +175,10 @@ struct af_rjson_char_t {
 	}
 
 
+class object_description;
 
-struct af_rjson_serializable {
-	using char_t = af_rjson_char_t::char_t;
-	using key_t = af_rjson_char_t::string_t;
-	using handler_t = af_rjson_handler;
-	using handler_t_p = std::shared_ptr<af_rjson_handler>;
-	using handlers_t = std::vector<std::pair<key_t, handler_t_p>>;
-	// we use a vector here to preserve the order of elements
-
-	virtual handlers_t& handlers() = 0;
+struct af_serializable {
+	virtual std::shared_ptr<object_description> serialisation() = 0;
 };
 
 struct af_rjson_writer_wrapper_t {
@@ -220,14 +240,14 @@ namespace writing {
 
 	inline void write(bool const& value, af_rjson_writer_wrapper_t& writer) { writer.Bool(value); }
 
-	inline void write(af_rjson_char_t::string_t const& value, af_rjson_writer_wrapper_t& writer) {
+	inline void write(af_rjson_types_t::string_t const& value, af_rjson_writer_wrapper_t& writer) {
 		writer.String(value.c_str(), value.length(), false);
 	}
 }
 
 template<typename target_t>
-default_value_handler{
-	target_t const _default_value;
+af_rjson_default_value{
+	target_t const& _default_value;
 	bool _target_initialised;
 	inline bool set_target(target_t* target_) {
 		if (!_target_initialised) {
@@ -237,7 +257,7 @@ default_value_handler{
 		return true;
 	}
 public:
-	default_value_handler(target_t const& default_value_) :
+	af_rjson_default_value(target_t const& default_value_) :
 		_default_value(default_value_),
 		_target_initialised(false) {
 	}
@@ -265,7 +285,7 @@ public:
 };
 
 struct af_rjson_handler_t {
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 
 	virtual ~af_rjson_handler_t() {}
 	virtual bool is_done() const = 0; // signal to the controller that we are done loading this value
@@ -313,17 +333,17 @@ protected:
 template<typename target_t>
 struct af_rjson_handler_value_t : public af_rjson_handler_t {
 	
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_t;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 
 	target_t* _target; // owned by someone else, don't delete
-	default_value_handler_t* _default_h;
+	default_value_t* _default_h;
 	bool _done;
 
 	af_rjson_handler_value_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr) :
 		_target(target_), 
 		_default_h(default_),
 		_done(false){
@@ -336,7 +356,7 @@ struct af_rjson_handler_value_t : public af_rjson_handler_t {
 			target_t* target_, 
 			target_t const& default_value_) :
 		_target(target_),
-		_default_h(new default_value_handler<target_t>(default_value_),
+		_default_h(new af_rjson_default_value<target_t>(default_value_),
 		_done(false) {
 		AF_ASSERT(_target, "Target is not initialised.");
 		_default_h->initialise(_target);
@@ -390,11 +410,11 @@ template<typename target_t>
 struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<target_t> {
 
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 
 	af_rjson_handler_integral_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr) :
 		base_t(target_, default_) {}
 	
 	af_rjson_handler_integral_t(
@@ -416,11 +436,11 @@ template<typename target_t>
 struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<target_t>{
 
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 
 	af_rjson_handler_floating_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr) :
 		base_t(target_, default_) {}
 
 	af_rjson_handler_floating_t(	
@@ -441,13 +461,13 @@ _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_integral_t, std::is_floating
 template<typename target_t>
 struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 
 	af_rjson_handler_string_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr) :
 		base_t(target_, default_) {}
 
 	af_rjson_handler_string_t(
@@ -457,7 +477,7 @@ struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
 	// reader part
 	bool String(const char_t* str, size_t length, bool copy) override {
-		af_rjson_char_t::assign(_target, str, length);
+		af_rjson_types_t::assign(_target, str, length);
 		return done();
 	}
 
@@ -468,14 +488,14 @@ _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_string_t, is_string<TargetT>
 template<typename target_t>
 struct af_rjson_handler_enum_t : public af_rjson_handler_value_t<target_t> {
 
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
-	using string_t = af_rjson_char_t::string_t;
+	using default_value_t = af_rjson_default_value<target_t>;
+	using string_t = af_rjson_types_t::string_t;
 
 	af_rjson_handler_string_t(
 		target_t* target_,
-		default_value_handler_t* default_ = nullptr) :
+		default_value_t* default_ = nullptr) :
 		base_t(target_, default_) {}
 
 	af_rjson_handler_string_t(
@@ -504,26 +524,31 @@ _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_enum_t, std::is_enum<TargetT
 template<typename target_t>
 struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 	
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 	using contained_t = target_t::element_type;
 	using value_handler_t = af_rjson_handler_value_t<contained_t>;
+	using contained_default_value_t = af_rjson_default_value<contained_t>;
 
 	value_handler_t* _value_handler;
+	contained_default_value_t* _value_default;
 
 	af_rjson_handler_ptr_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr,
+			contained_default_value_t* contained_default_f_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(nullptr){
+		_value_handler(nullptr),
+		_value_default(contained_default_f_){
 	}
 	
 	af_rjson_handler_ptr_t(
 			target_t* target_,
 			target_t const& default_value_) :
 		base_t(target_, default_value_),
-		_value_handler(nullptr){
+		_value_handler(nullptr),
+		_value_default(nullptr){
 	}
 
 	bool is_done() const override { 
@@ -542,14 +567,14 @@ struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 		if (!_value_handler)
 			_value_handler->reset(value_ptr());
 		else
-			_value_handler = create_handler(value_ptr());
+			_value_handler = af_create_rjson_handler(value_ptr(), _value_default);
 	}
 
 	template<typename... ParamsT>
 	bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 		initialise_target();
 		if(!_value_handler)
-			_value_handler = create_handler(value_ptr()); // for shared_ptr this is _target->get(), but this should work for naked pointers too
+			_value_handler = af_create_rjson_handler(value_ptr(), _value_default); // for shared_ptr this is _target->get(), but this should work for naked pointers too
 		return (_value_handler->*mf)(ps...);
 	}
 
@@ -574,6 +599,7 @@ struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 
 	void release() override {
 		release_handler_ptr(_value_handler);
+		release_ptr(_value_default);
 		base_t::release();
 	}
 
@@ -583,33 +609,33 @@ struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 	}
 };
 
-_AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_shared_ptr_t, is_shared_ptr<TargetT>::value || std::is_pointer<TargetT>::value)
+_AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_shared_ptr_t, is_shared_ptr<TargetT>::value || std::is_pointer<TargetT>::value)
 
 template<typename target_t>
 struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<target_t> {
 	
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 	using contained_t = target_t::value_type;
-	using contained_default_value_handler_t = default_value_handler<contained_t>;
+	using contained_default_value_t = af_rjson_default_value<contained_t>;
 	using value_handler_t = af_rjson_handler_value_t<contained_t>;
 	 
 	value_handler_t* _value_handler;
 
 	af_rjson_handler_sequence_t(
 			target_t* target_, 
-			default_value_handler_t* default_f_ = nullptr,
-			contained_default_value_handler_t* contained_default_f_ = nullptr) :
+			default_value_t* default_f_ = nullptr,
+			contained_default_value_t* contained_default_f_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(create_handler<contained_t>(nullptr, contained_default_f_)){
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr, contained_default_f_)){
 	}
 	
 	af_rjson_handler_sequence_t(
 			target_t* target_,
 			target_t const& default_value_) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<contained_t>(nullptr)){
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr)){
 	}
 
 	af_rjson_handler_sequence_t(
@@ -617,7 +643,7 @@ struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<target_t> {
 			target_t const& default_value_,
 			contained_t const& contained_default_value) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<contained_t>(nullptr, contained_default_value)) {
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr, contained_default_value)) {
 	}
 
 	void reset(target_t* target_) override {
@@ -689,9 +715,9 @@ _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_sequence_t, is_seq
  template<typename target_t>
  struct af_rjson_handler_setish_t : public af_rjson_handler_sequence_t<target_t> {
 
-	 using char_t = af_rjson_char_t::char_t;
+	 using char_t = af_rjson_types_t::char_t;
 	 using base_t = af_rjson_handler_sequence_t<target_t>;
-	 using default_value_handler_t = default_value_handler<target_t>;
+	 using default_value_t = af_rjson_default_value<target_t>;
 	 using contained_t = target_t::value_type;
 	 using value_handler_t = af_rjson_handler_value_t<contained_t>;
 
@@ -699,7 +725,7 @@ _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_sequence_t, is_seq
 
 	 af_rjson_handler_setish_t(
 			target_t* target_,
-			 default_value_handler_t* default_ = nullptr) :
+			default_value_t* default_ = nullptr) :
 		 base_t(target_, default_, nullptr){// sets canot contain default values
 
 	 }
@@ -770,14 +796,14 @@ namespace pair_tags{
 template< typename target_t>
 struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 	
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
 	using key_t = target_t::first_type;
 	using value_t = target_t::second_type;
 	using key_handler_t = af_rjson_handler_value_t<key_t>;
 	using value_handler_t = af_rjson_handler_value_t<value_t>;
 	using current_handler_t = af_rjson_handler_t;
-	using default_value_handler_t = default_value_handler <value_t> ;
+	using default_value_t = af_rjson_default_value <value_t> ;
 
 	inline key_t* key() { return is_set()?(&(_target->first):nullptr; }
 	inline value_t* value() { return is_set()?(&(_target->second)):nullptr;}
@@ -788,12 +814,12 @@ struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 
 	af_rjson_handler_pair_t(
 			target_t* target_,
-			default_value_handler_t* value_default_value_f = nullptr) :
+			default_value_t* value_default_value_f = nullptr) :
 		base_t(target_, nullptr), // maps cannot contain nulls
 		_current_handler(nullptr) {
 
-		_key_handler = create_handler<key_t>(key(), nullptr);
-		_value_handler = create_handler<value_t>(value(), value_default_value_f);
+		_key_handler = af_create_rjson_handler<key_t>(key(), nullptr);
+		_value_handler = af_create_rjson_handler<value_t>(value(), value_default_value_f);
 	}
 
 	af_rjson_handler_pair_t(
@@ -802,8 +828,8 @@ struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 		base_t(target_, nullptr), // maps cannot contain nulls
 		_current_handler(nullptr) {
 
-		_key_handler = create_handler<key_t>(key(), nullptr);
-		_value_handler = create_handler<value_t>(value(), value_default_value);
+		_key_handler = af_create_rjson_handler<key_t>(key(), nullptr);
+		_value_handler = af_create_rjson_handler<value_t>(value(), value_default_value);
 	}
 
 	bool is_done() const {
@@ -845,9 +871,9 @@ struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 	bool Key(const char_t* str, size_t length, bool copy) {
 		if (_current_handler)
 			return delegate_f(&current_handler_t::Key, str, length, copy);
-		if (af_rjson_char_t::equal_tag(str, length, pair_tags::tag_key))
+		if (af_rjson_types_t::equal_tag(str, length, pair_tags::tag_key))
 			_current_handler = _key_handler;
-		else if (af_rjson_char_t::equal_tag(str, length, pair_tags::tag_value) == 0)
+		else if (af_rjson_types_t::equal_tag(str, length, pair_tags::tag_value) == 0)
 			_current_handler = _value_handler;
 		else
 			AF_ERROR("Unknown key value: %", str);
@@ -883,36 +909,36 @@ template<typename target_t>
 struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<target_t> {
 	// TODO: this is so similar to both sequence and settish
 	// perhaps all they need is different construction?
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 	using value_t = target_t::mapped_type;
 	using contained_t = target_t::value_type;
 	using value_handler_t = af_json_pairs::af_rjson_handler_pair_t<contained_t>;
-	using value_default_value_handler_t = default_value_handler <value_t>;
+	using value_default_value_t = af_rjson_default_value <value_t>;
 
 	contained_t _current_value;
 	value_handler_t* _value_handler;
 
 	af_rjson_handler_mappish_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr,
-			value_default_value_handler_t* value_default_f_ = nullptr) :
+			default_value_t* default_ = nullptr,
+			value_default_value_t* value_default_f_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(create_handler<contained_t>(nullptr, value_default_f_){
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr, value_default_f_){
 	}
 	af_rjson_handler_mappish_t(
 			target_t* target_,
 			target_t const& default_value_) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<contained_t>(nullptr){
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr){
 	}
 	af_rjson_handler_mappish_t(
 			target_t* target_,
 			target_t const& default_value_,
 			value_t const& value_default_value_) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<contained_t>(nullptr, value_default_value_){
+		_value_handler(af_create_rjson_handler<contained_t>(nullptr, value_default_value_){
 	}
 	void reset(target_t* target_) override {
 		base_t::reset(target_);
@@ -976,29 +1002,29 @@ _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_mappish_t, (is_map
 template<typename target_t>
 struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<target_t> {
 
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>;
-	using default_value_handler_t = default_value_handler<target_t>;
+	using default_value_t = af_rjson_default_value<target_t>;
 	using key_t = target_t::key_type; // this is some string type
 	using value_t = target_t::mapped_type;
 	using value_handler_t = af_rjson_handler_value_t <value_t> ;
-	using value_default_value_handler_t = default_value_handler<value_t>;
+	using value_default_value_t = af_rjson_default_value<value_t>;
 	
 	value_handler_t* _value_handler;
 
 	af_rjson_handler_mappish_t(
 			target_t* target_, 
-			default_value_handler_t* default_ = nullptr,
-			value_default_value_handler_t* value_default_f_ = nullptr) :
+			default_value_t* default_ = nullptr,
+			value_default_value_t* value_default_f_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(create_handler<value_t>(nullptr, value_default_f_)){
+		_value_handler(af_create_rjson_handler<value_t>(nullptr, value_default_f_)){
 	}
 
 	af_rjson_handler_mappish_t(
 			target_t* target_,
 			target_t const& default_value_) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<value_t>(nullptr)){
+		_value_handler(af_create_rjson_handler<value_t>(nullptr)){
 	}
 
 	af_rjson_handler_mappish_t(
@@ -1006,7 +1032,7 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<targe
 			target_t const& default_value_, 
 			value_t const& value_default_value) :
 		base_t(target_, default_value_),
-		_value_handler(create_handler<value_t>(nullptr, value_default_value)) {
+		_value_handler(af_create_rjson_handler<value_t>(nullptr, value_default_value)) {
 	}
 	
 	void reset(target_t* target_) override {
@@ -1048,7 +1074,7 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<targe
 	bool Key(const char_t* str, size_t length, bool copy) { 
 		if (!_value_handler->is_set()) {
 			key_t key;
-			af_rjson_char_t::assign(&key, str, length);
+			af_rjson_types_t::assign(&key, str, length);
 			AF_ASSERT(_target->find(key) == _target->end(), "Duplicate key found in object (%)", key);
 			_value_handler->reset(value_ptr(key));
 			return true;
@@ -1088,43 +1114,62 @@ _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_mappish_t, (is_map
 template<typename target_t>
 struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 
-	using char_t = af_rjson_char_t::char_t;
+	using char_t = af_rjson_types_t::char_t;
 	using base_t = af_rjson_handler_value_t<target_t>; 
-	using default_value_handler_t = default_value_handler<target_t>;
-	using key_t = af_rjson_serializable::key_t;
-	using handler_t = af_rjson_serializable::handler_t;
-	using handler_t_p = af_rjson_serializable::handler_t_p;
-	using handlers_t = af_rjson_serializable::handlers_t;
+	using default_value_t = af_rjson_default_value<target_t>;
+	
+	using key_t = af_rjson_types_t::key_t;
+	using handler_t = af_rjson_types_t::handler_t;
+	using handler_p = af_rjson_types_t::handler_p;
+	using handlers_t = af_rjson_types_t::handlers_t;
 
+	using pre_load_function_t = std::function<void()>;
+	using pre_save_function_t = std::function<void()>;
+	using post_load_function_t = std::function<void()>;
+	using post_save_function_t = std::function<void()>;
+
+	handlers_t	_handlers;
 	handler_t_p _current_handler;
+	pre_load_function_t _pre_load_f;
+	pre_save_function_t _pre_save_f;
+	post_load_function_t _post_load_f;
+	post_save_function_t _post_save_f;
 
 	af_rjson_handler_object_t(
 			target_t* target_,
-			default_value_handler_t* default_ = nullptr,
+			default_value_t* default_ = nullptr,
+			pre_load_function_t pre_load_f_ = nullptr,
+			pre_save_function_t pre_save_f_ = nullptr,
+			post_load_function_t post_load_f_ = nullptr,
+			post_save_function_t post_save_f_ = nullptr,
 			handlers_t const& handlers_ = {}) :
-		base_t(target_, default_)
+		base_t(target_, default_),
+		_pre_load_f(pre_load_f_),
+		_pre_save_f(pre_save_f_),
+		_post_load_f(post_load_f_),
+		_post_save_f(post_save_f_),
+		_handlers(handlers_),
 		_current_handler(nullptr){
 	}
-	af_rjson_handler_object_t(
-			target_t* target_,
-			target_t const& default_value_) :
-		base_t(target_, default_value_),
-		_current_handler(nullptr) {
+
+	void release() override {
+		for (auto& h : _handlers)
+			release_handler(h.second);
+		_handlers = {};
+		_current_handler = nullptr;
+		base_t::release();
 	}
 
-	inline handlers_t& handlers() {
-		return _target->handlers();
-	}
 	inline handler_t_p find_handler(const char_t* const key, size_t length) {
 		for (auto& h : _handlers) {
-			if (af_rjson_char_t::equal_tag(key, length, h.first))
+			if (af_rjson_types_t::equal_tag(key, length, h.first))
 				return h.second;
 		}
 		return nullptr;
 	}
 
 	bool validate_all_loaded() const {
-		for (auto const& h : handlers()) {
+		for (auto const& h : _handlers) {
 			if (!h.second->is_done())
 				if( !_AF_RJSON_TERSE || !h.second->handles_terse_storage())
 					return false;
@@ -1161,6 +1206,8 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 	bool StartObject() override { 
 		if (_current_handler)
 			return delegate_f(&handler_t::StartObject);
+		if (_pre_load_f)
+			_pre_load_f();
 		return true;
 	}
 	bool Key(const char_t* str, size_t length, bool copy) { 
@@ -1168,26 +1215,468 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 			return delegate_f(&handler_t::String, str, length, copy);
 
 		_current_handler = find_handler(str, length);
-		AF_ASSERT(_current_handler, "Unexpected key when loading object %", str);
+		AF_ASSERT(_current_handler, "Unexpected key (%) when loading object.", str);
 		return true;
 	}
 	bool EndObject(size_t memberCount) override {
 		if (_current_handler)
 			return _current_handler->EndObject(memberCount);
 		AF_ASSERT(validate_all_loaded(), "Not all object members are loaded.");
+		if (_post_load_f)
+			_post_load_f();
 		return done(); 
 	}
 	bool StartArray() override { return delegate_f(&handler_t::StartArray); }
 	bool EndArray(size_t elementCount) override { return delegate_f(&handler_t::EndArray(elementCount); }
 
 	void write(af_rjson_writer_wrapper_t& writer_) const override {
+		if (_pre_save_f)
+			_pre_save_f();
 		if (default_write(writer_)) return;
 		writer_->StartObject();
-		for (auto const& h : handlers()) {
+		for (auto const& h : _handlers) {
 			writer_->Key(h.first);
 			t.second->write(writer_);
 		}
 		writer_->EndObject();
+		if (_post_save_f)
+			_post_save_f();
+
 	}
 };
 
+
+struct has_no_default_t;
+struct has_no_element_default_t;
+
+constexpr has_no_default_t has_no_default;
+constexpr has_no_element_default_t has_no_element_default;
+
+template<target_t>
+struct default_value_description {
+	target_t const _default_value;
+
+	af_rjson_default_value<target_t>* create_rjson_default() const {
+		 return new af_rjson_default_value<target_t>(_default_value);
+	}
+};
+
+struct member_description {
+	using key_t = af_rjson_types_t::key_t;
+	
+	key_t _key;
+	
+	member_description(key_t const& _key) :_key(key_) {}
+
+	key_t const& key() const { return _key; }
+
+	virtual af_rjson_handler_t* create_rjson_handler() const = 0;
+	virtual ~member_description() {}
+};
+
+class object_description;
+
+template<typename target_t, typename target_element_t = void*>
+struct member_description_impl : public member_description {
+	//		is_sequence<TargetT>::value || is_mappish<TargetT>::value 
+	using key_t = af_rjson_types_t::key_t;
+	using target_p = target_t*;
+	using target_default_p = default_value_description<target_t>*;
+	using target_element_default_p = default_value_description<target_element_t>*;
+
+	target_p _target;
+	target_default_p _default_value;
+	target_element_default_p _element_default_value;
+
+	member_description_impl(
+		key_t const* _key,
+		target_p target_
+		target_default_p default_value_,
+		target_element_default_p element_default_value_
+		) :
+		_target(target_), 
+		_default_value(_default_value),
+		_element_default_value(element_default_value_){
+
+	}
+	~member_description_impl() {
+		if (_default_value)
+			delete _default_value;
+		if (_element_default_value)
+			delete _element_default_value;
+	}
+	af_rjson_handler_t* create_rjson_handler() const override {
+		af_rjson_default_value<target_t>* _default(nullptr);
+		if (_default_value)
+			_default = _default_value->create_rjson_default();
+		af_rjson_default_value<target_t>* _element_default(nullptr);
+		if (_element_default_value)
+			_element_default = _element_default_value->create_rjson_default();
+		return af_create_rjson_handler(_target, _default, _element_default);
+	}
+};
+template<typename target_t, typename element_t>
+inline member_description* create_member_description(
+	af_rjson_types_t::key_t const& key_,
+	target_t* target_,
+	target_t const& default_,
+	element_t const& element_default_
+) {
+	return new member_description_impl<target_t, element_t>(
+		key_,
+		target_,
+		new default_value_description_impl<target_t>(default_),
+		new default_value_description_impl<element_t>(element_default_));
+}
+template<typename target_t>
+inline member_description* create_member_description(
+	af_rjson_types_t::key_t const& key_,
+	target_t* target_,
+	has_no_default_t const& unused_ = has_no_default,
+	has_no_element_default_t const& unused_2_ = has_no_element_default
+) {
+	return new member_description_impl<target_t>(
+		key_, 
+		target_,
+		nullptr,
+		nullptr);
+}
+template<typename target_t>
+inline member_description* create_member_description(
+	af_rjson_types_t::key_t const& key_,
+	target_t* target_,
+	target_t const& default_,
+	has_no_element_default_t const& unused_ = has_no_element_default
+) {
+	return new member_description_impl<target_t>(
+		key_,
+		target_,
+		new default_value_description<target_t>(default_),
+		nullptr);
+}
+
+class object_description  {
+
+public:
+	using key_t = af_rjson_types_t::key_t;
+	using pre_load_function_t = std::function<void()>;
+	using pre_save_function_t = std::function<void()>;
+	using post_load_function_t = std::function<void()>;
+	using post_save_function_t = std::function<void()>;
+	using member_description_p = member_description*;
+	using member_descriptions_t = std::vector<member_description_p>;
+	using handlers_t = af_rjson_types_t::handlers_t;
+private:
+	bool _done;
+	pre_load_function_t _pre_load_f;
+	pre_save_function_t _pre_save_f;
+	post_load_function_t _post_load_f;
+	post_save_function_t _post_save_f;
+	member_descriptions_t _member_descriptions;
+	
+	
+	inline void validate_key(key_t const& key) {
+#ifdef _AF_RJSON_VALIDATE_DUPLICATE_KEYS
+		AF_ASSERT(!key.empty(), "Empty keys are not allowed");
+		for (auto const& d : _member_descriptions) {
+			AF_ASSERT(af_rjson_types_t::equal_keys(key, d->key()),
+				"Key % is duplicated", key);
+		}
+#endif
+	}
+public:
+	object_description() :_done(false) {
+	}
+	~object_description() {
+		for (auto p : _member_descriptions)
+			delete p;
+		_member_descriptions = {};
+	}
+
+	inline object_description& before_loading(pre_load_function_t& f) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		_pre_load_f = f;
+		return *this;
+	}
+	inline object_description& before_saving(pre_save_function_t& f) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		_pre_save_f = f;
+		return *this;
+	}
+	inline object_description& after_loading(post_load_function_t& f) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		_post_load_f = f;
+		return *this;
+	}
+	inline object_description& after_saving(post_save_function_t& f) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		_post_save_f = f;
+		return *this;
+	}
+	template<typename target_t, typename element_t>
+	inline object_description& member(
+		key_t const& key_,
+		target_t& target_,
+		target_t const& default_,
+		element_t const& element_default_
+	) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		validate_key(key_);
+		_member_descriptions.push_back(create_member_description(key_, &target_, default_, element_default_));
+		return *this;
+	}
+	template<typename target_t>
+	inline object_description& member(
+		af_rjson_types_t::key_t const& key_,
+		target_t& target_,
+		has_no_default_t const& default_ = has_no_default,
+		has_no_element_default_t const& element_default_ = has_no_element_default
+	) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		validate_key(key_);
+		_member_descriptions.push_back(create_member_description(key_, &target_, default_, element_default_));
+		return *this;
+	}
+	template<typename target_t>
+	inline object_description& member(
+		af_rjson_types_t::key_t const& key_,
+		target_t& target_,
+		target_t const& default_,
+		has_no_element_default_t const& element_default_ = has_no_element_default
+	) {
+		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+		validate_key(key_);
+		_member_descriptions.push_back(create_member_description(key_, &target_, default_, element_default_));
+		return *this;
+	}
+	inline object_description& end_object() {
+		AF_ASSERT(!_done, "Cannot end_object more than once.");
+		_done = true;
+		return *this;
+	}
+
+	template<typename target_t>
+	af_rjson_handler_t* create_rjson_handler(
+		target_t* target_,
+		target_t::af_rjson_default_value_t* default_ = nullptr) const {
+
+			AF_ASSERT(_done, "Cannot create handlers before object description is done.");
+			handlers_t _handlers;
+			_handlers.resize(_member_descriptions.size());
+			for (auto const& d : _member_descriptions)
+				_handlers.push_back({ d->key(), d->create_rjson_handler() });
+
+			return new af_rjson_handler_object_t(
+				target_,
+				default_,
+				_pre_load_f,
+				_pre_save_f,
+				_post_load_f,
+				_post_save_f,
+				_handlers);
+	}
+};
+
+
+template< typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>) >
+af_rjson_handler_t* af_create_rjson_handler(
+		target_t* target_, 
+		target_t::af_rjson_default_value_t* default_ = nullptr,
+		void* unused_ = nullptr) {
+	return target_->serialisation()->create_rjson_handler(target_t, default_);
+}
+
+
+namespace af_rjson {
+	template<typename target_t, typename stream_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline void load_from_stream(
+			std::shared_ptr<target_t>& target, 
+			stream_t& stream, 
+			bool encoded = false) {
+		using namespace rapidjson;
+		using encoding_t = AutoUTFInputStream<unsigned, stream_t>;
+		
+		Reader reader;
+		std::unique_ptr<af_rjson_handler_t> handler(af_create_rjson_handler(target.get()));
+		bool parsed = false;
+		if (encoded)
+			parsed = reader.Parse(encoding_t(stream), *handler);
+		else
+			parsed = reader.Parse(stream, *handler);
+		
+		if (!encoded) {
+			ParseErrorCode e = reader.GetParseErrorCode();
+			size_t o = reader.GetErrorOffset();
+			AF_ERROR("Error parsing JSON. Error is: % (at %, near '%...')",
+				GetParseError_En(e), o, json.substr(o, 10));
+		}
+	}
+
+
+
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	void load(
+			std::shared_ptr<target_t>& target, 
+			af_rjson_types_t::string_t const& json, 
+			bool encoded = false) {
+		using namespace rapidjson;
+		StringStream ss(json.c_str());
+		load_from_stream(target, ss, encoded);
+	}
+
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	std::shared_ptr<target_t> load(
+			af_rjson_types_t::string_t const& json,
+			bool encoded = false) {
+		std::shared_ptr<target_t> target(new target_t);
+		load(target, json, encoded);
+		return target;
+	}
+
+
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	void load_from_file(
+			std::shared_ptr<target_t>& target,
+			af_rjson_types_t::string_t const& path,
+			bool encoded = false) {
+		using namespace rapidjson;
+	// rapidjson documentation says this is how to open files
+#ifdef _WIN32
+		const char* const file_flags = "rb";
+#else
+		const char* const file_flags = "r";
+#endif
+		FILE* fp = fopen(path.c_str(), file_flags);
+		char readBuffer[_AF_RJSON_READ_BUFFER_SIZE];
+		FileReadStream fs(fp, readBuffer, sizeof(readBuffer));
+		load_from_stream(target, fs, encoded);
+		fclose(fp);
+	}
+
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	std::shared_ptr<target_t> load_from_file(
+		af_rjson_types_t::string_t const& path,
+		bool encoded = false) {
+		std::shared_ptr<target_t> target(new target_t);
+		load(target, json, encoded);
+		return target;
+	}
+
+	template<typename target_t, typename writer_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline void write_to_writer(
+			std::shared_ptr<target_t>& target,
+			writer_t& writer) {
+		using namespace rapidjson;
+		std::unique_ptr<af_rjson_handler_t> handler(af_create_rjson_handler(target.get()));
+		auto writer_wrapper = af_rjson_writer_wrapper_impl_t<writer_t>(writer);
+		handler->write(writer_wrapper);
+	}
+
+	template<typename target_t, typename stream_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline void write_to_stream(
+			std::shared_ptr<target_t>& target,
+			stream_t& stream,
+			bool pretty = false,
+			bool encoded = false) {
+		using namespace rapidjson;
+		using encoding_t = AutoUTFOutputStream<unsigned, stream_t>;
+		if (pretty) {
+			if (encoding)
+				write_to_writer(target, PrettyWriter<encoding_t>(encoding_t(stream)));
+			else
+				write_to_writer(target, PrettyWriter<stream_t>(stream));
+		}
+		else {
+			if (encoding)
+				write_to_writer(target, Writer<encoding_t>(encoding_t(stream)));
+			else
+				write_to_writer(target, Writer<stream_t>(stream));
+
+		}
+	}
+
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline void write(
+			std::shared_ptr<target_t>& target,
+			af_rjson_types_t::string_t& json,
+			bool pretty = false,
+			bool encoded = false) {
+		using namespace rapidjson;
+		StringBuffer ss;
+		write_to_stream(target, ss, pretty, encoded);
+		json = ss.GetString();
+	}
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline af_rjson_types_t::string_t write(
+			std::shared_ptr<target_t>& target,
+			bool pretty = false,
+			bool encoded = false) {
+		using namespace rapidjson;
+		StringBuffer ss;
+		write_to_stream(target, ss, pretty, encoded);
+		return ss.GetString();
+	}
+	template<typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
+	inline void write_to_file(
+			std::shared_ptr<target_t>& target,
+			af_rjson_types_t::string_t& path,
+			bool pretty = false,
+			bool encoded = false) {
+		// rapidjson documentation says this is how to open files
+#ifdef _WIN32
+		const char* const file_flags = "wb";
+#else
+		const char* const file_flags = "w";
+#endif
+		FILE* fp = fopen(path.c_str(), file_flags);
+		char writeBuffer[_AF_RJSON_READ_BUFFER_SIZE];
+		FileWriteStream fs(fp, writeBuffer, sizeof(readBuffer));
+		write_to_stream(target, fs, pretty, encoded);
+		fclose(fp);
+	}
+}
+
+class af_object_rjson_serialisation {
+
+public:
+	using top_t = std::shared_ptr<af_rjson_handler_object_t>;
+
+	using pre_load_function_t = std::function<void()>;
+	using pre_save_function_t = std::function<void()>;
+	using post_load_function_t = std::function<void()>;
+	using post_save_function_t = std::function<void()>;
+	
+private: 
+	top_t _top;
+	pre_load_function_t _pre_load_f;
+	pre_save_function_t _pre_save_f;
+	post_load_function_t _post_load_f;
+	post_save_function_t _post_save_f;
+
+public:
+
+	af_object_rjson_serialisation(
+		top_t top_,
+		pre_load_function_t pre_load_f_,
+		pre_save_function_t pre_save_f_,
+		post_load_function_t post_load_f_,
+		post_save_function_t post_save_f_
+	) : _top(top_), 
+		_pre_load_f(pre_load_f), 
+		_pre_save_f(pre_save_f),
+		_post_load_f(post_load_f_),
+		_post_save_f(post_save_f_) {
+
+	}
+
+	// IMPLEMENT THIS:
+	// read( ... )
+	// write( ... )
+
+	top_t const& top() const { return _top; }
+	pre_load_function_t const& pre_load_function() const { return _pre_load_f; }
+	pre_save_function_t const& pre_save_function() const { return _pre_save_f; }
+	post_load_function_t const& post_load_function() const { return _post_load_f; }
+	post_save_function_t const& post_save_function() const { return _post_save_f; }
+
+};

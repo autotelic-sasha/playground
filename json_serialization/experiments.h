@@ -17,8 +17,6 @@ af_serializer serialise() {
 	return 
 	af_stream <<
 		pre_load_function_ << 
-		use_default_defaults <<
-		dont_use_default_defalts << 
 		object <<
 			name_1 << _v <<
 			name_2 << _vector | {} | default_element_ <<    // (std::string, T*, T const&)
@@ -32,6 +30,19 @@ af_serializer serialise() {
 			name_8 << _map | {} | [default_element_] <<
 		end_object <<
 		post_load_function_;
+
+
+
+
+	object_description().
+		before_loading([]() {pre_load_function(); }).
+		before_saving([]() {pre_save_function(); }).
+		member(name_1, _v).
+		member(name_2, _vector, {}, default_element_).
+		member(name_4, _vector2, has_no_default, has_no_element_default).
+		after_loading([]() {post_load_function(); }).
+		after_saving([]() {post_save_function(); }).
+	end_object();
 
 }
 class serialisation_description {
