@@ -9,32 +9,21 @@
 namespace rapidjson { typedef size_t size_t; }
 #include "rapidjson/encodings.h"
 #include "rapidjson/error/en.h"
-using namespace autotelica::std_disambiguation;
 
+// Compile time configuration
 
-//  terse means don't write nulls OR defaults
-//  reading:
-//		default on null  - just do it, if default value is present
-//		otherwise 
-//			throw on null
-//		
-//		terse			 - initialise at start if default is present 
-//
-//	writing:
-//		if not terse
-//			write nullptr as null
-//		if terse and default is present
-//			null on default
-
-
+// constants, they help
 #define _AF_RJSON_ASCII 0
 #define _AF_RJSON_UTF8  1
 #define _AF_RJSON_UTF16 2
 
+// Encoding. Most of the time UTF8 will just work. 
 #ifndef _AF_RJSON_ENCODING
 #define _AF_RJSON_ENCODING _AF_RJSON_UTF8
 #endif
 
+// Default optmisation settings are all optimised.
+// To make it all more verbose, define _AF_RJSON_VERBOSE
 #ifdef _AF_RJSON_VERBOSE
 #define _AF_RJSON_OPTIMISED false
 #endif
@@ -49,36 +38,57 @@ using namespace autotelica::std_disambiguation;
 
 #if _AF_RJSON_OPTIMISED
 
+// In terse mode, when target value is equal to default, we just don't write it
 #ifndef		_AF_RJSON_TERSE
 #define		_AF_RJSON_TERSE true
 #endif
+
+// Optimisation of strings maps means that keys in the map are used as JSON keys.
+// Otherwise they are written with "key", "value" pairs like other maps.
 #ifndef		_AF_RJSON_OPTIMISED_STRING_MAPS
 #define		_AF_RJSON_OPTIMISED_STRING_MAPS true
 #endif
+
+// When Optimised Default Initialisation is turned off, values are not initialised 
+// with defaults during JSON reads.
+// Otherwise they are. 
 #ifndef		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION
 #define		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION true
 #endif
+
+// Checking if there are duplicate keys in object descriptions.
 #ifndef		_AF_RJSON_VALIDATE_DUPLICATE_KEYS
 #define		_AF_RJSON_VALIDATE_DUPLICATE_KEYS false
 #endif
 
 #else
 
+// in terse mode, when target value is equal to default, we just don't write it
 #ifndef		_AF_RJSON_TERSE
 #define		_AF_RJSON_TERSE false
 #endif
+
+// Optimisation of strings maps means that keys in the map are used as JSON keys.
+// Otherwise they are written with "key", "value" pairs like other maps.
 #ifndef		_AF_RJSON_OPTIMISED_STRING_MAPS
 #define		_AF_RJSON_OPTIMISED_STRING_MAPS false
 #endif
+
+// When Optimised Default Initialisation is turned off, values are not initialised 
+// with defaults during JSON reads.
+// Otherwise they are. 
 #ifndef		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION
 #define		_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION false
 #endif
+
+// Checking if there are duplicate keys in object descriptions.
 #ifndef		_AF_RJSON_VALIDATE_DUPLICATE_KEYS
 #define		_AF_RJSON_VALIDATE_DUPLICATE_KEYS true
 #endif
 
 #endif
 
+// Translating configuration to rapidjson constants and tag types.
 #if _AF_RJSON_ENCODING == _AF_RJSON_ASCII
 #define __AF_RAPIDJSON_ENCODING rapidjson::ASCII<>
 #define AF_RJSON_TAG( name, value ) static const char* const name = value; 
@@ -91,9 +101,25 @@ using namespace autotelica::std_disambiguation;
 #else
 #error Unknown rapidjson encoding.
 #endif
+namespace autotelica{
+namespace serialization {
 
+// serialization stuff is always hierarchical, we gonna have some forward declarations
+class object_description;
+
+// af_serializable is how you make objects serializable
+struct af_serializable {
+	virtual std::shared_ptr<object_description> serialization() = 0;
+};
+
+// rapidjson interface implementation
+namespace rjson_impl{
+
+// we use SFINAE a lot here
+using namespace autotelica::std_disambiguation;
 struct af_rjson_handler_t; // we need the forward declaration to handle the types more prettily
 
+// traits class to name all the types used later
 struct af_rjson_types_t {
 	using encoding_t = __AF_RAPIDJSON_ENCODING;
 	using char_t = encoding_t::Ch;
@@ -117,6 +143,7 @@ struct af_rjson_types_t {
 // SFINAE based type filter
 #define _AF_RJSON_TYPE_FILTER( condition ) std::enable_if_t<condition, bool> = true
 
+// creator functions all need to follow a certain form
 #define _AF_RJSON_DECLARE_HANDLER_CREATORS( HandlerType, Condition ) \
 	template< typename TargetT, _AF_RJSON_TYPE_FILTER( Condition ) >\
 	af_rjson_handler_value_t<TargetT>* af_create_rjson_handler(\
@@ -175,12 +202,10 @@ struct af_rjson_types_t {
 	}
 
 
-class object_description;
-
-struct af_serializable {
-	virtual std::shared_ptr<object_description> serialisation() = 0;
-};
-
+// rapidjson has this weird thing about writers - there's no hierarchy
+// but we want to make things really easy to use, so we are going to pay 
+// the cost of virtual function calls (at least until we see too much damage in profilers)
+// so we have this little wrapper hierarchy
 struct af_rjson_writer_wrapper_t {
 	virtual ~af_rjson_writer_t() {}
 
@@ -221,6 +246,7 @@ struct af_rjson_writer_wrapper_impl_t {
 	bool EndArray(size_t elementCount) override { return _writer.EndArray(elementCount); }
 };
 
+// writing simple types
 namespace writing {
 	inline void write(int const& value, af_rjson_writer_wrapper_t& writer) { writer.Int(value); }
 	inline void write(unsigned const& value, af_rjson_writer_wrapper_t& writer) { writer.Uint(value); }
@@ -245,6 +271,8 @@ namespace writing {
 	}
 }
 
+// handling defaults generically is a pain
+// we have a whole class to do it properly
 template<typename target_t>
 af_rjson_default_value{
 	target_t const& _default_value;
@@ -262,7 +290,6 @@ public:
 		_target_initialised(false) {
 	}
 	inline bool initialise(target_t* target_) const {
-
 		return (_AF_RJSON_OPTIMISED_DEFAULT_INITIALISATION ||
 				((_AF_RJSON_TERSE && set_target(target_)));
 	}
@@ -284,6 +311,23 @@ public:
 	}
 };
 
+// we use naked pointers internally a lot
+// a couple of utility functions to make memory management consistent
+template<typename ptr_t>
+inline void release_handler_ptr(ptr_t* p) const {
+	if (p)
+		p->release();
+	p = nullptr;
+}
+template<typename ptr_t>
+inline void release_ptr(ptr_t p) const {
+	if (p) {
+		delete p;
+		p = nullptr;
+	}
+}
+// rapidjson SAX
+// base class  for rapidjson SAX handlers
 struct af_rjson_handler_t {
 	using char_t = af_rjson_types_t::char_t;
 
@@ -310,26 +354,9 @@ struct af_rjson_handler_t {
 	virtual void release() { delete this; }
 
 	virtual void write(af_rjson_writer_wrapper_t& writer_) const = 0;
-
-protected:
-	// utility functions used by derived classes
-	// makes memory management a little more consistent
-	template<typename ptr_t>
-	inline void release_handler_ptr(ptr_t* p) const {
-		if (p)
-			p->release();
-		p = nullptr;
-	}
-	template<typename ptr_t>
-	inline void release_ptr(ptr_t p) const {
-		if (p) {
-			delete p;
-			p = nullptr;
-		}
-	}
-
 };
 
+// base handler for most values
 template<typename target_t>
 struct af_rjson_handler_value_t : public af_rjson_handler_t {
 	
@@ -406,6 +433,7 @@ struct af_rjson_handler_value_t : public af_rjson_handler_t {
 	}
 };
 
+// handler for integral types
 template<typename target_t>
 struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<target_t> {
 
@@ -432,6 +460,7 @@ struct af_rjson_handler_integral_t : public af_rjson_handler_value_t<target_t> {
 
 _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_integral_t, std::is_integral<TargetT>::value )
 
+// handler for floating types
 template<typename target_t>
 struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<target_t>{
 
@@ -458,6 +487,7 @@ struct af_rjson_handler_floating_t : public af_rjson_handler_value_t<target_t>{
 
 _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_integral_t, std::is_floating_point<TargetT>::value)
 
+// handler for strings
 template<typename target_t>
 struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
@@ -485,6 +515,7 @@ struct af_rjson_handler_string_t : public af_rjson_handler_value_t<target_t> {
 
 _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_string_t, is_string<TargetT>::value)
 
+// handler for enumerations
 template<typename target_t>
 struct af_rjson_handler_enum_t : public af_rjson_handler_value_t<target_t> {
 
@@ -520,7 +551,7 @@ struct af_rjson_handler_enum_t : public af_rjson_handler_value_t<target_t> {
 
 _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_enum_t, std::is_enum<TargetT>::value)
 
-
+// handler for pointers
 template<typename target_t>
 struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 	
@@ -611,6 +642,7 @@ struct af_rjson_handler_ptr_t : public af_rjson_handler_value_t<target_t> {
 
 _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_shared_ptr_t, is_shared_ptr<TargetT>::value || std::is_pointer<TargetT>::value)
 
+// handler for sequences (lists and vectors)
 template<typename target_t>
 struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<target_t> {
 	
@@ -712,6 +744,7 @@ struct af_rjson_handler_sequence_t : public af_rjson_handler_value_t<target_t> {
 
 _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_sequence_t, is_sequence<TargetT>::value);
 
+// handler for sets
  template<typename target_t>
  struct af_rjson_handler_setish_t : public af_rjson_handler_sequence_t<target_t> {
 
@@ -785,6 +818,7 @@ _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_sequence_t, is_seq
  
 _AF_RJSON_DECLARE_HANDLER_CREATORS(af_rjson_handler_setish_t, is_setish<TargetT>::value);
 
+// handling maps needs a bit of work
 // general maps are stored as arrays of pair objects: { "key" : key_value, "value" : value_value }
 // there is an optimisation for string maps
 // first we need an intermediate handler for these objects
@@ -792,7 +826,7 @@ namespace pair_tags{
 	AF_RJSON_TAG(tag_key, "key");
 	AF_RJSON_TAG(tag_value, "value");
 };
-// reader and writer are different for these pairs
+// handling pairs
 template< typename target_t>
 struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 	
@@ -905,6 +939,7 @@ struct af_rjson_handler_pair_t : public af_rjson_handler_value_t<target_t> {
 	}
 };
 
+// handler for general maps
 template<typename target_t>
 struct af_rjson_handler_mappish_t : public af_rjson_handler_value_t<target_t> {
 	// TODO: this is so similar to both sequence and settish
@@ -1111,6 +1146,7 @@ struct af_rjson_handler_string_mappish_t : public af_rjson_handler_value_t<targe
 _AF_RJSON_DECLARE_CONTAINER_HANDLER_CREATORS(af_rjson_handler_mappish_t, (is_mappish<TargetT>::value && is_string<TargetT::key_t>::value))
 #endif
 
+// handler for objects
 template<typename target_t>
 struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 
@@ -1244,8 +1280,14 @@ struct af_rjson_handler_object_t : public af_rjson_handler_value_t<target_t> {
 
 	}
 };
+} // namespace rjson_impl
 
-
+// object descriptions
+// Serilization is a two step process:
+//		first we builld a generic object description
+//		then out of that we create handlers for the target format
+// A little slower than handcrafting things, but it does mean that we can use 
+// same serialization framework for many serialization formats. 
 struct has_no_default_t;
 struct has_no_element_default_t;
 
@@ -1273,8 +1315,6 @@ struct member_description {
 	virtual af_rjson_handler_t* create_rjson_handler() const = 0;
 	virtual ~member_description() {}
 };
-
-class object_description;
 
 template<typename target_t, typename target_element_t = void*>
 struct member_description_impl : public member_description {
@@ -1477,17 +1517,18 @@ public:
 	}
 };
 
-
-template< typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>) >
-af_rjson_handler_t* af_create_rjson_handler(
-		target_t* target_, 
+namespace rjson_impl {
+	template< typename target_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>) >
+	af_rjson_handler_t* af_create_rjson_handler(
+		target_t* target_,
 		target_t::af_rjson_default_value_t* default_ = nullptr,
 		void* unused_ = nullptr) {
-	return target_->serialisation()->create_rjson_handler(target_t, default_);
+		return target_->serialisation()->create_rjson_handler(target_t, default_);
+	}
 }
 
-
-namespace af_rjson {
+// public interface for JSON serialization
+namespace json {
 	template<typename target_t, typename stream_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
 	inline void load_from_stream(
 			std::shared_ptr<target_t>& target, 
@@ -1496,20 +1537,28 @@ namespace af_rjson {
 		using namespace rapidjson;
 		using encoding_t = AutoUTFInputStream<unsigned, stream_t>;
 		
-		Reader reader;
-		std::unique_ptr<af_rjson_handler_t> handler(af_create_rjson_handler(target.get()));
-		bool parsed = false;
-		if (encoded)
-			parsed = reader.Parse(encoding_t(stream), *handler);
-		else
-			parsed = reader.Parse(stream, *handler);
-		
-		if (!encoded) {
-			ParseErrorCode e = reader.GetParseErrorCode();
-			size_t o = reader.GetErrorOffset();
-			AF_ERROR("Error parsing JSON. Error is: % (at %, near '%...')",
-				GetParseError_En(e), o, json.substr(o, 10));
+		af_rjson_handler_t* handler = nullptr;
+		try {
+			Reader reader;
+			handler = af_create_rjson_handler(target.get());
+			bool parsed = false;
+			if (encoded)
+				parsed = reader.Parse(encoding_t(stream), *handler);
+			else
+				parsed = reader.Parse(stream, *handler);
+
+			if (!encoded) {
+				ParseErrorCode e = reader.GetParseErrorCode();
+				size_t o = reader.GetErrorOffset();
+				AF_ERROR("Error parsing JSON. Error is: % (at %, near '%...')",
+					GetParseError_En(e), o, json.substr(o, 10));
+			}
 		}
+		catch (...) {
+			release_handler_ptr(handler);
+			throw;
+		}
+		release_handler_ptr(handler);
 	}
 
 
@@ -1567,9 +1616,17 @@ namespace af_rjson {
 			std::shared_ptr<target_t>& target,
 			writer_t& writer) {
 		using namespace rapidjson;
-		std::unique_ptr<af_rjson_handler_t> handler(af_create_rjson_handler(target.get()));
-		auto writer_wrapper = af_rjson_writer_wrapper_impl_t<writer_t>(writer);
-		handler->write(writer_wrapper);
+		af_rjson_handler_t* handler = nullptr;
+		try {
+			handler = af_create_rjson_handler(target.get());
+			auto writer_wrapper = af_rjson_writer_wrapper_impl_t<writer_t>(writer);
+			handler->write(writer_wrapper);
+		}
+		catch (...) {
+			release_handler_ptr(handler);
+			throw;
+		}
+		release_handler_ptr(handler);
 	}
 
 	template<typename target_t, typename stream_t, _AF_RJSON_TYPE_FILTER(std::is_base_of<af_serializable, target_t>)>
@@ -1636,47 +1693,5 @@ namespace af_rjson {
 	}
 }
 
-class af_object_rjson_serialisation {
-
-public:
-	using top_t = std::shared_ptr<af_rjson_handler_object_t>;
-
-	using pre_load_function_t = std::function<void()>;
-	using pre_save_function_t = std::function<void()>;
-	using post_load_function_t = std::function<void()>;
-	using post_save_function_t = std::function<void()>;
-	
-private: 
-	top_t _top;
-	pre_load_function_t _pre_load_f;
-	pre_save_function_t _pre_save_f;
-	post_load_function_t _post_load_f;
-	post_save_function_t _post_save_f;
-
-public:
-
-	af_object_rjson_serialisation(
-		top_t top_,
-		pre_load_function_t pre_load_f_,
-		pre_save_function_t pre_save_f_,
-		post_load_function_t post_load_f_,
-		post_save_function_t post_save_f_
-	) : _top(top_), 
-		_pre_load_f(pre_load_f), 
-		_pre_save_f(pre_save_f),
-		_post_load_f(post_load_f_),
-		_post_save_f(post_save_f_) {
-
-	}
-
-	// IMPLEMENT THIS:
-	// read( ... )
-	// write( ... )
-
-	top_t const& top() const { return _top; }
-	pre_load_function_t const& pre_load_function() const { return _pre_load_f; }
-	pre_save_function_t const& pre_save_function() const { return _pre_save_f; }
-	post_load_function_t const& post_load_function() const { return _post_load_f; }
-	post_save_function_t const& post_save_function() const { return _post_save_f; }
-
-};
+}//namespace serialization
+}//namespace autotelica
