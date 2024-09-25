@@ -41,29 +41,29 @@ namespace autotelica {
 			}
 		};
 		template<typename string_t>
-		string_t utf8_convert(std::string const& in);
+		inline string_t utf8_convert(std::string const& in);
 		template<typename string_t>
-		string_t utf8_convert(std::wstring const& in);
+		inline string_t utf8_convert(std::wstring const& in);
 		template<>
-		std::string utf8_convert<std::string>(std::string const& in){
+		inline std::string utf8_convert<std::string>(std::string const& in){
 			return in;
 		}
 		template<>
-		std::string utf8_convert<std::string>(std::wstring const& in){
+		inline std::string utf8_convert<std::string>(std::wstring const& in){
 			return utf8::convert(in);
 		}
 		template<>
-		std::wstring utf8_convert<std::wstring>(std::string const& in){
+		inline std::wstring utf8_convert<std::wstring>(std::string const& in){
 			return utf8::convert(in);
 		}
 		template<>
-		std::wstring utf8_convert<std::wstring>(std::wstring const& in){
+		inline std::wstring utf8_convert<std::wstring>(std::wstring const& in){
 			return in;
 		}
 
 
 		template<typename string_t>
-		string_t utf8_convert(std::wstring const& in);
+		inline string_t utf8_convert(std::wstring const& in);
 
 
 		// fast conversion to uppercase (doesn't use locales)

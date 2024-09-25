@@ -420,7 +420,7 @@ namespace autotelica {
 			}
 
 			template<typename lambda_t>
-			void test_no_throw(
+			static void test_no_throw(
 				const char* const macro_name,
 				lambda_t lambda,
 				const char* const code_snippet,
@@ -445,7 +445,7 @@ namespace autotelica {
 			}
 
 			template<typename lambda_t>
-			void test_throws(
+			static void test_throws(
 				const char* const macro_name,
 				lambda_t lambda,
 				const char* const code_snippet,
@@ -469,7 +469,7 @@ namespace autotelica {
 				}
 			}
 			template<typename result_t, typename lambda_t>
-			void test_result(
+			static void test_result(
 				result_t const& expected_result,
 				const char* const macro_name,
 				lambda_t lambda,
@@ -501,7 +501,7 @@ namespace autotelica {
 				}
 			}
 
-			void comment_test(const char* const comment) {
+			static void comment_test(const char* const comment) {
 				using namespace autotelica::diagnostic_messages;
 				using config = autotelica::testing::testing_config;
 				if (config::is_run_mode_csv()) {
