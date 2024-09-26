@@ -250,20 +250,28 @@ public:
 		_default_value(default_value_),
 		_target_initialised(false) {
 	}
-	inline bool initialise(target_t* target_){
-		return (_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION ||
-				((_AF_JSON_TERSE && set_target(target_))));
+	inline void initialise(target_t* target_){
+#if _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
+		return;
+#elif _AF_JSON_TERSE
+		set_target(target_);
+#endif
 	}
 	inline bool null(target_t* target_)  {
-		return (_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION ||
-				set_target(target_));
+#if _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
+		return true;
+#else
+		return set_target(target_);
+#endif
 	}
 
 	bool write(target_t const& target_, af_json_writer_wrapper_t& writer_) const {
 		// in terse mode, when _target is equal to default, we just don't write it
-		return (
-			_AF_JSON_TERSE &&
-			target_ == _default_value);
+#if _AF_JSON_TERSE
+		return (target_ == _default_value);
+#else
+		return false;
+#endif
 	}
 
 	void reset(target_t* target_) {
@@ -379,10 +387,7 @@ struct af_json_handler_value_t : public af_json_handler_t {
 			_default_h &&
 			_default_h->write(*_target, writer_));
 	}
-	void write(af_json_writer_wrapper_t& writer_) const override{
-		if (default_write(writer_)) return;
-		writing::write(_target, writer_);
-	}
+
 };
 
 // handler for integral types
@@ -402,6 +407,11 @@ struct af_json_handler_integral_t : public af_json_handler_value_t<target_t> {
 	bool Uint(unsigned i)  override { return base_t::set(i); }
 	bool Int64(int64_t i)  override { return base_t::set(i); }
 	bool Uint64(uint64_t i) override { return base_t::set(i); }
+
+	void write(af_json_writer_wrapper_t& writer_) const override {
+		if (base_t::default_write(writer_)) return;
+		writing::write(*base_t::_target, writer_);
+	}
 
 };
 
@@ -425,6 +435,10 @@ struct af_json_handler_floating_t : public af_json_handler_value_t<target_t>{
 	bool Int64(int64_t i)  override { return base_t::set(i); }
 	bool Uint64(uint64_t i) override { return base_t::set(i); }
 
+	void write(af_json_writer_wrapper_t& writer_) const override {
+		if (base_t::default_write(writer_)) return;
+		writing::write(*base_t::_target, writer_);
+	}
 };
 
 _AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_integral_t, std::is_floating_point<target_t>::value)
@@ -448,6 +462,10 @@ struct af_json_handler_string_t : public af_json_handler_value_t<target_t> {
 		return base_t::done();
 	}
 
+	void write(af_json_writer_wrapper_t& writer_) const override {
+		if (base_t::default_write(writer_)) return;
+		writing::write(*base_t::_target, writer_);
+	}
 };
 
 _AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_string_t, is_string_t<target_t>::value)
@@ -1159,6 +1177,10 @@ struct default_value_description {
 	rjson_impl::af_json_default_value<target_t>* create_rjson_default() const {
 		 return new rjson_impl::af_json_default_value<target_t>(_default_value);
 	}
+	static std::shared_ptr<default_value_description<target_t>> create(target_t const& v) {
+		return std::shared_ptr<default_value_description<target_t>>(
+			new default_value_description<target_t>{ v });
+	}
 };
 
 struct member_description {
@@ -1192,8 +1214,8 @@ public:
 	//		is_sequence<target_t>::value || is_mappish<target_t>::value 
 	using key_t = typename rjson_impl::af_json_types_t::key_t;
 	using target_p = target_t*;
-	using target_default_p = default_value_description<target_t>*;
-	using target_element_default_p = default_value_description<target_element_t>*;
+	using target_default_p = std::shared_ptr<default_value_description<target_t>>;
+	using target_element_default_p = std::shared_ptr < default_value_description<target_element_t>>;
 
 	target_p _target;
 	target_default_p _default_value;
@@ -1207,15 +1229,9 @@ public:
 		) :
 		member_description(key_),
 		_target(target_), 
-		_default_value(_default_value),
+		_default_value(default_value_),
 		_element_default_value(element_default_value_){
 
-	}
-	~member_description_impl() {
-		if (_default_value)
-			delete _default_value;
-		if (_element_default_value)
-			delete _element_default_value;
 	}
 	rjson_impl::af_json_handler_t* create_rjson_handler() const override {
 		rjson_impl::af_json_default_value<target_t>* _default(nullptr);
@@ -1238,8 +1254,8 @@ inline member_description* create_member_description(
 	return new member_description_impl<target_t, element_t>(
 		key_,
 		target_,
-		new default_value_description<target_t>(default_),
-		new default_value_description<element_t>(element_default_));
+		default_value_description<target_t>::create(default_),
+		default_value_description<element_t>::create(element_default_));
 }
 template<typename target_t>
 inline member_description* create_member_description(
@@ -1264,7 +1280,7 @@ inline member_description* create_member_description(
 	return new member_description_impl<target_t>(
 		key_,
 		target_,
-		new default_value_description<target_t>{ default_ },
+		default_value_description<target_t>::create(default_),
 		nullptr);
 }
 
@@ -1279,6 +1295,7 @@ public:
 	using member_description_p = member_description*;
 	using member_descriptions_t = std::vector<member_description_p>;
 	using handlers_t = typename rjson_impl::af_json_types_t::handlers_t;
+	using handlers_value_t = typename handlers_t::value_type;
 private:
 	bool _done;
 	pre_load_function_t _pre_load_f;
@@ -1375,9 +1392,9 @@ public:
 
 			AF_ASSERT(_done, "Cannot create handlers before object description is done.");
 			handlers_t _handlers;
-			_handlers.resize(_member_descriptions.size());
+			_handlers.reserve(_member_descriptions.size());
 			for (auto const& d : _member_descriptions)
-				_handlers.push_back({ d->key(), d->create_rjson_handler() });
+				_handlers.push_back(handlers_value_t( d->key(), d->create_rjson_handler() ));
 
 			return new rjson_impl::af_json_handler_object_t<target_t>(
 				target_,

@@ -1,4 +1,9 @@
 #include <iostream>
+// #define _AF_JSON_OPTIMISED true
+// #define _AF_JSON_OPTIMISED_STRING_MAPS
+// #define _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
+// #define _AF_JSON_VALIDATE_DUPLICATE_KEYS
+// #define _AF_JSON_TERSE 
 #include "experiments_2.h"
 
 using namespace autotelica::serialization;
