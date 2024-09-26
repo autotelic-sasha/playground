@@ -97,11 +97,12 @@ namespace autotelica{
 namespace serialization {
 	using namespace autotelica::std_disambiguation;
 // serialization stuff is always hierarchical, we gonna have some forward declarations
-class object_description;
+class object_description_t;
+using object_description_p = std::shared_ptr<object_description_t>;
 
 // af_serializable is how you make objects serializable
 struct af_serializable {
-	virtual std::shared_ptr<object_description> serialization() = 0;
+	virtual object_description_p serialization() = 0;
 };
 
 // rapidjson interface implementation
@@ -1284,7 +1285,7 @@ inline member_description* create_member_description(
 		nullptr);
 }
 
-class object_description  {
+class object_description_t  {
 
 public:
 	using key_t = typename rjson_impl::af_json_types_t::key_t;
@@ -1296,7 +1297,7 @@ public:
 	using member_descriptions_t = std::vector<member_description_p>;
 	using handlers_t = typename rjson_impl::af_json_types_t::handlers_t;
 	using handlers_value_t = typename handlers_t::value_type;
-private:
+protected:
 	bool _done;
 	pre_load_function_t _pre_load_f;
 	pre_save_function_t _pre_save_f;
@@ -1315,36 +1316,36 @@ private:
 #endif
 	}
 public:
-	object_description() :_done(false) {
+	object_description_t() :_done(false) {
 	}
-	~object_description() {
+	~object_description_t() {
 		for (member_description_p p : _member_descriptions)
 			delete p;
 		_member_descriptions = {};
 	}
 
-	inline object_description& before_loading(pre_load_function_t& f) {
+	inline object_description_t& before_loading(pre_load_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_pre_load_f = f;
 		return *this;
 	}
-	inline object_description& before_saving(pre_save_function_t& f) {
+	inline object_description_t& before_saving(pre_save_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_pre_save_f = f;
 		return *this;
 	}
-	inline object_description& after_loading(post_load_function_t& f) {
+	inline object_description_t& after_loading(post_load_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_post_load_f = f;
 		return *this;
 	}
-	inline object_description& after_saving(post_save_function_t& f) {
+	inline object_description_t& after_saving(post_save_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_post_save_f = f;
 		return *this;
 	}
 	template<typename target_t, typename element_t>
-	inline object_description& member(
+	inline object_description_t& member(
 		key_t const& key_,
 		target_t& target_,
 		target_t const& default_,
@@ -1356,7 +1357,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline object_description& member(
+	inline object_description_t& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t& target_,
 		has_no_default_t const& default_ = has_no_default,
@@ -1368,7 +1369,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline object_description& member(
+	inline object_description_t& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t& target_,
 		target_t const& default_,
@@ -1379,34 +1380,43 @@ public:
 		_member_descriptions.push_back(create_member_description(key_, &target_, default_, element_default_));
 		return *this;
 	}
-	inline object_description& end_object() {
+	inline object_description_t& end_object() {
 		AF_ASSERT(!_done, "Cannot end_object more than once.");
 		_done = true;
 		return *this;
 	}
 
-	template<typename target_t>
-	typename rjson_impl::af_json_handler_t* create_rjson_handler(
-		target_t* target_,
-		typename rjson_impl::af_json_handler_object_t<target_t>::default_value_t* default_ = nullptr) const {
+	virtual std::shared_ptr<rjson_impl::af_json_handler_t> create_json_handler() const = 0;
+};
 
-			AF_ASSERT(_done, "Cannot create handlers before object description is done.");
-			handlers_t _handlers;
-			_handlers.reserve(_member_descriptions.size());
-			for (auto const& d : _member_descriptions)
-				_handlers.push_back(handlers_value_t( d->key(), d->create_rjson_handler() ));
+template<typename object_t>
+class object_description_impl : public object_description_t {
+	object_t& _object;
+public:
+	object_description_impl(object_t& object_):_object(object_){}
 
-			return new rjson_impl::af_json_handler_object_t<target_t>(
-				target_,
-				default_,
-				_pre_load_f,
-				_pre_save_f,
-				_post_load_f,
-				_post_save_f,
-				_handlers);
+	std::shared_ptr<rjson_impl::af_json_handler_t> create_json_handler() const override {
+		
+		AF_ASSERT(_done, "Cannot create handlers before object description is done.");
+		handlers_t _handlers;
+		_handlers.reserve(_member_descriptions.size());
+		for (auto const& d : _member_descriptions)
+			_handlers.push_back(handlers_value_t(d->key(), d->create_rjson_handler()));
+
+		return std::shared_ptr<rjson_impl::af_json_handler_t>(new rjson_impl::af_json_handler_object_t<object_t>(
+			&_object,
+			nullptr,
+			_pre_load_f,
+			_pre_save_f,
+			_post_load_f,
+			_post_save_f,
+			_handlers));
+		;
 	}
 };
-class object_description_p {
+
+template<typename object_t>
+class object_description_builder {
 
 public:
 	using key_t = typename rjson_impl::af_json_types_t::key_t;
@@ -1418,29 +1428,29 @@ public:
 	using member_descriptions_t = std::vector<member_description_p>;
 	using handlers_t = typename rjson_impl::af_json_types_t::handlers_t;
 private:
-	std::shared_ptr<object_description> _description;
+	object_description_p _description;
 public:
-	object_description_p() :_description(new object_description()){
+	object_description_builder(object_t& object_) :_description(new object_description_impl<object_t>(object_)){
 	}
 
-	inline object_description_p& before_loading(pre_load_function_t& f) {
+	inline object_description_builder<object_t>& before_loading(pre_load_function_t& f) {
 		_description->before_loading(f);
 		return *this;
 	}
-	inline object_description_p& before_saving(pre_save_function_t& f) {
+	inline object_description_builder<object_t>& before_saving(pre_save_function_t& f) {
 		_description->before_saving(f);
 		return *this;
 	}
-	inline object_description_p& after_loading(post_load_function_t& f) {
+	inline object_description_builder<object_t>& after_loading(post_load_function_t& f) {
 		_description->after_loading(f);
 		return *this;
 	}
-	inline object_description_p& after_saving(post_save_function_t& f) {
+	inline object_description_builder<object_t>& after_saving(post_save_function_t& f) {
 		_description->after_saving(f);
 		return *this;
 	}
 	template<typename target_t, typename element_t>
-	inline object_description_p& member(
+	inline object_description_builder<object_t>& member(
 		key_t const& key_,
 		target_t& target_,
 		target_t const& default_,
@@ -1450,7 +1460,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline object_description_p& member(
+	inline object_description_builder<object_t>& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t& target_,
 		has_no_default_t const& default_ = has_no_default,
@@ -1460,7 +1470,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline object_description_p& member(
+	inline object_description_builder<object_t>& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t& target_,
 		target_t const& default_,
@@ -1469,15 +1479,18 @@ public:
 		_description->member(key_, target_, default_, element_default_);
 		return *this;
 	}
-	inline object_description_p& end_object() {
+	inline object_description_builder<object_t>& end_object() {
 		_description->end_object();
 		return *this;
 	}
 
-	inline operator std::shared_ptr<object_description>() {
+	inline operator object_description_p() {
 		return _description;
 	}
 };
+
+template<typename object_t>
+object_description_builder<object_t> object_description(object_t& object) { return object_description_builder<object_t>(object); }
 
 namespace json {
 	enum class json_encoding {
@@ -1650,17 +1663,9 @@ namespace json {
 			writer_t& writer) {
 			using namespace rapidjson;
 			using namespace rjson_impl;
-			af_json_handler_t* handler = nullptr;
-			try {
-				handler = target->serialization()->create_rjson_handler(const_cast<target_t*>(target.get()));
-				auto writer_wrapper = af_json_writer_wrapper_impl_t<writer_t>{ writer };
-				handler->write(writer_wrapper);
-			}
-			catch (...) {
-				release_handler_ptr(handler);
-				throw;
-			}
-			release_handler_ptr(handler);
+			auto handler = target->serialization()->create_json_handler();
+			auto writer_wrapper = af_json_writer_wrapper_impl_t<writer_t>{ writer };
+			handler->write(writer_wrapper);
 		}
 
 		template<typename target_t, typename stream_t, _AF_IS_SERIALIZABLE(target_t)>

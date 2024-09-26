@@ -14,8 +14,8 @@ struct test1 : public af_serializable {
     bool operator==(test1 const& rhs) const {
         return i == rhs.i;
     }
-    std::shared_ptr<object_description> serialization() override {
-        return object_description_p().
+    object_description_p serialization() override {
+        return object_description(*this).
             member("i", i,2510).
             end_object();
     }
