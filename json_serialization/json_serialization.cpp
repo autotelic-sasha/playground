@@ -1,7 +1,25 @@
 #include <iostream>
 #include "experiments_2.h"
+
+using namespace autotelica::serialization;
+
+struct test1 : public af_serializable {
+    int i;
+    test1(int i_) :i(i_) {}
+    bool operator==(test1 const& rhs) const {
+        return i == rhs.i;
+    }
+    std::shared_ptr<object_description> serialization() override {
+        return object_description_p().
+            member("i", i,2510).
+            end_object();
+    }
+};
+
 int main()
 {
-    std::cout << "Hello world!" << std::endl;
+    std::shared_ptr<test1> t{ new test1(1991) };
+    auto js = json::writer<>::to_string(t);
+    std::cout << js << std::endl;
 }
 
