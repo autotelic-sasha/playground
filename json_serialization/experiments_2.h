@@ -1548,10 +1548,17 @@ __AF_RJSON_WRITING_TRAIT(utf32be, UTF32BE)
 template<typename stream_t, json::json_encoding encoding>
 struct rjson_reading;
 
-#define __AF_RJSON_READING_TRAIT(OUTPUT_ENCODING_ENUM, OUTPUT_ENCODING_RJSON)\
+template<typename stream_t> 
+struct rjson_reading<stream_t, json::json_encoding::utf8> {
+		using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>; 
+		using input_stream_t = stream_t; 
+		static inline input_stream_t input_stream(stream_t& stream) { return stream; }
+};
+
+#define __AF_RJSON_READING_TRAIT(INPUT_ENCODING_ENUM, INPUT_ENCODING_RJSON)\
 template<typename stream_t> \
-struct rjson_reading<stream_t, json::json_encoding::OUTPUT_ENCODING_ENUM> {\
-	using input_encoding_t = rapidjson::OUTPUT_ENCODING_RJSON<_AF_SERIALIZATION_CHAR_T>;\
+struct rjson_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
+	using input_encoding_t = rapidjson::INPUT_ENCODING_RJSON<_AF_SERIALIZATION_CHAR_T>;\
 	using input_stream_t = rapidjson::EncodedInputStream<input_encoding_t, stream_t>;\
 	static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
 };
@@ -1562,7 +1569,7 @@ __AF_RJSON_READING_TRAIT(utf32le, UTF32LE)
 __AF_RJSON_READING_TRAIT(utf32be, UTF32BE)
 
 template<typename stream_t> 
-struct rjson_writing<stream_t, json::json_encoding::detect> {
+struct rjson_reading<stream_t, json::json_encoding::detect> {
 		using input_stream_t = rapidjson::AutoUTFInputStream<_AF_SERIALIZATION_CHAR_T, stream_t>; 
 		
 		static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }
@@ -1576,52 +1583,45 @@ namespace json {
 #define _AF_IS_SERIALIZABLE(TARGET_T) std::enable_if_t<std::is_base_of<typename autotelica::serialization::af_serializable, typename TARGET_T>::value, bool> = true 
 
 	template<json_encoding encoding = json_encoding::utf8>
-	struct loader {
-		template<
-			typename target_t,
-			typename stream_t,
+	struct reader {
+		template<typename target_t,typename stream_t,
 			_AF_JSON_TYPE_FILTER(std::is_base_of<af_serializable _AF_COMMA target_t>::value)>
 		static void from_stream(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			stream_t& stream) {
 			using namespace rapidjson;
 			using namespace rjson_impl;
-			rjson_impl::af_json_handler_t* handler = nullptr;
-			try {
-				Reader reader;
-				handler = af_create_rjson_handler(target.get());
-				bool parsed = false;
-				auto actual_stream = rjson_writing<stream_t, encoding>::input_stream(stream);
-				parsed = reader.Parse(actual_stream, *handler);
+			Reader reader;
+			auto handler = target.serialization()->create_json_handler();
+			bool parsed = false;
+			auto actual_stream = rjson_reading<stream_t, encoding>::input_stream(stream);
+			parsed = reader.Parse(actual_stream, *handler);
 
+			if (!parsed) {
 				ParseErrorCode e = reader.GetParseErrorCode();
 				size_t o = reader.GetErrorOffset();
-				AF_ERROR("Error parsing JSON. Error is: % (at %, near '%...')",
-					GetParseError_En(e), o, json.substr(o, 10));
+				AF_ERROR("Error parsing JSON. Error is: % (at %)",
+					GetParseError_En(e), o);
 			}
-			catch (...) {
-				release_handler_ptr(handler);
-				throw;
-			}
-			release_handler_ptr(handler);
 		}
-		template<
-			typename target_t,
-			_AF_IS_SERIALIZABLE(target_t)>
+		template<typename target_t,_AF_IS_SERIALIZABLE(target_t)>
 		static void from_string(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t const& json) {
 			using namespace rapidjson;
 			StringStream ss(json.c_str());
 			from_stream(target, ss);
 		}
-
-		template<
-			typename target_t,
-			_AF_IS_SERIALIZABLE(target_t)>
-		static std::shared_ptr<target_t> from_string(
+		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
+		static void from_string(
+			std::shared_ptr<target_t>& target,
 			typename rjson_impl::af_json_types_t::string_t const& json) {
-			std::shared_ptr<target_t> target(new target_t);
+			from_string(*target, json);
+		}
+		template<typename target_t,_AF_IS_SERIALIZABLE(target_t)>
+		static target_t from_string(
+			typename rjson_impl::af_json_types_t::string_t const& json) {
+			target_t target;
 			from_string(target, json);
 			return target;
 		}
@@ -1629,7 +1629,7 @@ namespace json {
 
 		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void from_file(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t const& path) {
 			using namespace rapidjson;
 			// rapidjson documentation says this is how to open files
@@ -1644,12 +1644,20 @@ namespace json {
 			from_stream(target, fs);
 			fclose(fp);
 		}
+		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
+		static void from_file(
+			std::shared_ptr<target_t>& target,
+			typename rjson_impl::af_json_types_t::string_t const& path) {
+			if (!target)
+				target = std::shared_ptr<target_t>(new target_t());
+			from_file(*target, path);
+		}
 
 		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
-		static std::shared_ptr<target_t> from_file(
+		static target_t from_file(
 			typename rjson_impl::af_json_types_t::string_t const& path,
 			bool encoded = false) {
-			std::shared_ptr<target_t> target(new target_t);
+			target_t target;
 			from_file(target, json, encoded);
 			return target;
 		}
@@ -1659,18 +1667,18 @@ namespace json {
 	struct writer {
 		template<typename target_t, typename writer_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_writer(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			writer_t& writer) {
 			using namespace rapidjson;
 			using namespace rjson_impl;
-			auto handler = target->serialization()->create_json_handler();
+			auto handler = target.serialization()->create_json_handler();
 			auto writer_wrapper = af_json_writer_wrapper_impl_t<writer_t>{ writer };
 			handler->write(writer_wrapper);
 		}
 
 		template<typename target_t, typename stream_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_stream(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			stream_t& stream,
 			bool pretty = false,
 			bool put_bom = false) {
@@ -1687,7 +1695,7 @@ namespace json {
 		}
 		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_string(
-			std::shared_ptr<target_t>& target,
+			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t& json,
 			bool pretty = false,
 			bool put_bom = false) {
@@ -1697,8 +1705,17 @@ namespace json {
 			json = ss.GetString();
 		}
 		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
-		static rjson_impl::af_json_types_t::string_t to_string(
+		static void to_string(
 			std::shared_ptr<target_t>& target,
+			typename rjson_impl::af_json_types_t::string_t& json,
+			bool pretty = false,
+			bool put_bom = false) {
+			to_string(*target, json, pretty, put_bom);
+		}
+
+		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
+		static rjson_impl::af_json_types_t::string_t to_string(
+			target_t& target,
 			bool pretty = false,
 			bool put_bom = false) {
 			using namespace rapidjson;
@@ -1707,8 +1724,16 @@ namespace json {
 			return ss.GetString();
 		}
 		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
-		static void to_file(
+		static rjson_impl::af_json_types_t::string_t to_string(
 			std::shared_ptr<target_t>& target,
+			bool pretty = false,
+			bool put_bom = false) {
+			return to_string(*target, pretty, put_bom);
+		}
+
+		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
+		static void to_file(
+			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t& path,
 			bool pretty = false,
 			bool put_bom = false) {
@@ -1724,6 +1749,15 @@ namespace json {
 			FileWriteStream fs(fp, writeBuffer, sizeof(writeBuffer));
 			to_stream(target, fs, pretty, put_bom);
 			fclose(fp);
+		}
+		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
+		static void to_file(
+			std::shared_ptr<target_t>& target,
+			typename rjson_impl::af_json_types_t::string_t& path,
+			bool pretty = false,
+			bool put_bom = false) {
+
+			to_file(*target, path, pretty, put_bom);
 		}
 	};
 }

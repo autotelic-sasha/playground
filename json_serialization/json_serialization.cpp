@@ -23,8 +23,10 @@ struct test1 : public af_serializable {
 
 int main()
 {
-    std::shared_ptr<test1> t{ new test1(1991) };
+    test1 t(1991);
     auto js = json::writer<>::to_string(t);
+    test1 t2(1971);
+    json::reader<>::from_string(t2, js);
     std::cout << js << std::endl;
 }
 
