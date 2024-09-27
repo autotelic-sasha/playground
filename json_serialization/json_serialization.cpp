@@ -16,34 +16,26 @@ struct test1 : public af_serializable {
     bool operator==(test1 const& rhs) const {
         return i == rhs.i;
     }
-    object_description_p serialization() override {
+    object_description_p object_description() override {
         if (!_description) {
-            _description = object_description(*this).
+            _description = begin_object(*this).
                 member("i", i, 2510).
                 end_object();
         }
         return _description;
     }
-    static type_description_t<test1>& type_description() {
-        static type_description_t<test1> description = 
-            type_description_t<test1>().
-                member("i", &test1::i, 2510).
-            end_object();
-        return description;
-    }
 };
 struct test2  {
     int i;
-    object_description_p _description;
 
     test2(int i_ = 0) :i(i_) {}
     bool operator==(test2 const& rhs) const {
         return i == rhs.i;
     }
-    static type_description_t<test2>& type_description() {
-        static type_description_t<test2> description =
-            type_description_t<test2>().
-            member("i", &test2::i, 2510).
+    static type_description_t const& type_description() {
+        static const auto description =
+            begin_object<test2>().
+                member("i", &test2::i, 2510).
             end_object();
         return description;
     }

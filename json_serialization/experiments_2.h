@@ -102,7 +102,7 @@ using object_description_p = std::shared_ptr<object_description_t>;
 
 // af_serializable is how you make objects serializable
 struct af_serializable {
-	virtual object_description_p serialization() = 0;
+	virtual object_description_p object_description() = 0;
 };
 
 // rapidjson interface implementation
@@ -136,6 +136,7 @@ struct af_json_types_t {
 
 #define _AF_COMMA ,
 // SFINAE based type filter
+
 #define _AF_JSON_TYPE_FILTER( condition ) std::enable_if_t<condition, bool> = true
 
 // creator functions all need to follow a certain form
@@ -1320,9 +1321,13 @@ inline type_member_description<object_t>* create_type_member_description(
 		nullptr);
 }
 
+struct type_description_t {
+	virtual ~type_description_t() {}
+};
+
 // type description
 template<typename object_t>
-class type_description_t {
+class type_description_impl_t : public type_description_t {
 public:
 	using key_t = typename rjson_impl::af_json_types_t::key_t;
 	using member_function_t = void (object_t::*)();
@@ -1352,7 +1357,7 @@ protected:
 #endif
 	}
 public:
-	type_description_t() : 
+	type_description_impl_t() :
 		_done(false), 
 		_pre_load_f(nullptr),
 		_pre_save_f(nullptr),
@@ -1360,31 +1365,29 @@ public:
 		_post_save_f(nullptr)
 	{
 	}
-	virtual ~type_description_t() {
-	}
 
-	inline type_description_t& before_loading(pre_load_function_t& f) {
+	inline type_description_impl_t& before_loading(pre_load_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_pre_load_f = f;
 		return *this;
 	}
-	inline type_description_t& before_saving(pre_save_function_t& f) {
+	inline type_description_impl_t& before_saving(pre_save_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_pre_save_f = f;
 		return *this;
 	}
-	inline type_description_t& after_loading(post_load_function_t& f) {
+	inline type_description_impl_t& after_loading(post_load_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_post_load_f = f;
 		return *this;
 	}
-	inline type_description_t& after_saving(post_save_function_t& f) {
+	inline type_description_impl_t& after_saving(post_save_function_t& f) {
 		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 		_post_save_f = f;
 		return *this;
 	}
 	template<typename target_t, typename element_t>
-	inline type_description_t& member(
+	inline type_description_impl_t& member(
 		key_t const& key_,
 		target_t object_t::* target_,
 		target_t const& default_,
@@ -1398,7 +1401,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline type_description_t& member(
+	inline type_description_impl_t& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t object_t::* target_,
 		has_no_default_t const& default_ = has_no_default,
@@ -1412,7 +1415,7 @@ public:
 		return *this;
 	}
 	template<typename target_t>
-	inline type_description_t& member(
+	inline type_description_impl_t& member(
 		typename rjson_impl::af_json_types_t::key_t const& key_,
 		target_t object_t::* target_,
 		target_t const& default_,
@@ -1425,13 +1428,15 @@ public:
 		_member_descriptions.push_back(member_description);
 		return *this;
 	}
-	inline type_description_t& end_object() {
+	inline type_description_impl_t& end_object() {
 		AF_ASSERT(!_done, "Cannot end_object more than once.");
 		_done = true;
 		return *this;
 	}
 
-	std::shared_ptr<rjson_impl::af_json_handler_t> create_json_handler(object_t& object) const {
+	rjson_impl::af_json_handler_t* create_json_handler(
+			object_t& object,
+			rjson_impl::af_json_default_value<object_t>* default_ = nullptr) const{
 		AF_ASSERT(_done, "Cannot create handlers before object description is done.");
 		handlers_t _handlers;
 		_handlers.reserve(_member_descriptions.size());
@@ -1453,18 +1458,21 @@ public:
 			post_save = [&]() { (object.*_post_save_f)(); };
 
 
-		return std::shared_ptr<rjson_impl::af_json_handler_t>(new rjson_impl::af_json_handler_object_t<object_t>(
+		return new rjson_impl::af_json_handler_object_t<object_t>(
 			&object,
-			nullptr,
+			default_,
 			pre_load,
 			pre_save,
 			post_load,
 			post_save,
-			_handlers));
-		;
+			_handlers);
 	}
 };
 
+template<typename object_t>
+type_description_impl_t<object_t> begin_object() {
+	return type_description_impl_t<object_t>();
+}
 // object member description
 template<typename target_t, typename target_element_t = void*>
 struct member_description_impl : public member_description {
@@ -1653,7 +1661,6 @@ public:
 		return *this;
 	}
 
-	virtual std::shared_ptr<rjson_impl::af_json_handler_t> create_json_handler() const = 0;
 };
 
 template<typename object_t>
@@ -1662,7 +1669,8 @@ class object_description_impl : public object_description_t {
 public:
 	object_description_impl(object_t& object_):_object(object_){}
 
-	std::shared_ptr<rjson_impl::af_json_handler_t> create_json_handler() const override {
+	rjson_impl::af_json_handler_t* create_json_handler(
+		rjson_impl::af_json_default_value<object_t>* default_ = nullptr) const {
 		
 		AF_ASSERT(_done, "Cannot create handlers before object description is done.");
 		handlers_t _handlers;
@@ -1670,15 +1678,14 @@ public:
 		for (auto const d : _member_descriptions)
 			_handlers.push_back(handlers_value_t(d->key(), d->create_rjson_handler()));
 
-		return std::shared_ptr<rjson_impl::af_json_handler_t>(new rjson_impl::af_json_handler_object_t<object_t>(
+		return new rjson_impl::af_json_handler_object_t<object_t>(
 			&_object,
-			nullptr,
+			default_,
 			_pre_load_f,
 			_pre_save_f,
 			_post_load_f,
 			_post_save_f,
-			_handlers));
-		;
+			_handlers);
 	}
 };
 
@@ -1757,7 +1764,7 @@ public:
 };
 
 template<typename object_t>
-object_description_builder<object_t> object_description(object_t& object) { return object_description_builder<object_t>(object); }
+object_description_builder<object_t> begin_object(object_t& object) { return object_description_builder<object_t>(object); }
 
 namespace json {
 	enum class json_encoding {
@@ -1769,16 +1776,80 @@ namespace json {
 		detect
 	};
 }
+namespace util {
+	template<typename T, typename U = void>
+	struct af_is_static_serializable_impl : std::false_type {};
+
+	template<typename T>
+	struct af_is_static_serializable_impl<T, std::enable_if_t<
+		std::is_same<
+		type_description_t const& (void),
+		decltype(T::type_description)>::value>> : std::true_type {};
+
+	template<typename T>
+	struct af_is_static_serializable : af_is_static_serializable_impl<T>::type {};
+
+	template<typename T, typename U = void>
+	struct af_is_dynamic_serializable_impl : std::false_type {};
+
+	template<typename T>
+	struct af_is_dynamic_serializable_impl<T, std::enable_if_t<
+		std::is_base_of<
+		typename autotelica::serialization::af_serializable,
+		typename T>::value>> : std::true_type {};
+
+	template<typename T>
+	struct af_is_dynamic_serializable : af_is_dynamic_serializable_impl<T>::type {};
+
+	template<typename T>
+	using af_choose_static_serializable_t = std::enable_if_t<af_is_static_serializable<T>::value, bool>;
+
+	template<typename T>
+	using af_choose_dynamic_serializable_t = std::enable_if_t<
+		af_is_dynamic_serializable<T>::value &&
+		!af_is_static_serializable<T>::value, bool>;
+
+	template<typename T>
+	using af_choose_serializable_t = std::enable_if_t<
+		af_is_dynamic_serializable<T>::value ||
+		af_is_static_serializable<T>::value, bool>;
+
+
+	template<typename target_t, af_choose_dynamic_serializable_t<target_t> = true>
+	inline rjson_impl::af_json_handler_t* get_handler_p(
+			target_t& target,
+			rjson_impl::af_json_default_value<target_t>* default_ = nullptr) {
+		using description_t = object_description_impl<target_t>;
+		auto const description = std::static_pointer_cast<description_t const>(target.object_description());
+		return description->create_json_handler(default_);
+	}
+	template<typename target_t, af_choose_static_serializable_t<target_t> = true>
+	inline rjson_impl::af_json_handler_t* get_handler_p(
+			target_t& target,
+			rjson_impl::af_json_default_value<target_t>* default_ = nullptr) {
+		using description_t = type_description_impl_t<target_t>;
+		description_t const& description = static_cast<description_t const&>(target_t::type_description());
+		return description.create_json_handler(target, default_);
+	}
+
+	template<typename target_t>
+	inline std::shared_ptr<rjson_impl::af_json_handler_t> get_handler(
+			target_t& target,
+			rjson_impl::af_json_default_value<target_t>* default_ = nullptr) {
+		return std::shared_ptr<rjson_impl::af_json_handler_t>(get_handler_p(target, default_));
+	}
+		
+}
 
 namespace rjson_impl {
-	template< typename target_t, _AF_JSON_TYPE_FILTER(std::is_base_of<af_serializable _AF_COMMA target_t>::value) >
+	template< typename target_t, util::af_choose_serializable_t<target_t> >
 	af_json_handler_t* af_create_rjson_handler(
 		target_t* target_,
 		typename target_t::af_json_default_value_t* default_ = nullptr,
 		void* unused_ = nullptr) {
-		return target_->serialisation()->create_rjson_handler(target_t, default_);
+		return util::get_handler_p(target_t, default_);
 	}
-	
+
 	template<typename stream_t, json::json_encoding encoding>
 	struct rjson_writing;
 
@@ -1847,19 +1918,6 @@ struct rjson_reading<stream_t, json::json_encoding::detect> {
 // public interface for JSON serialization
 namespace json {
 	// TODO: schema validation
-#define _AF_IS_SERIALIZABLE(TARGET_T) std::enable_if_t<std::is_base_of<typename autotelica::serialization::af_serializable, typename TARGET_T>::value, bool> = true 
-#define _AF_IS_NOT_SERIALIZABLE(TARGET_T) std::enable_if_t<!std::is_base_of<typename autotelica::serialization::af_serializable, typename TARGET_T>::value, bool> = true 
-	namespace util {
-		template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
-		static std::shared_ptr<rjson_impl::af_json_handler_t> get_handler(target_t& target) {
-			return target.serialization()->create_json_handler();
-		}
-		template<typename target_t, _AF_IS_NOT_SERIALIZABLE(target_t)>
-		static std::shared_ptr<rjson_impl::af_json_handler_t> get_handler(target_t& target) {
-			return target_t::type_description().create_json_handler(target);
-		}
-
-	}
 
 
 	template<json_encoding encoding = json_encoding::utf8>
@@ -1885,7 +1943,6 @@ namespace json {
 			}
 		}
 		template<typename target_t>
-		//template<typename target_t,_AF_IS_SERIALIZABLE(target_t)>
 		static void from_string(
 			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t const& json) {
@@ -1894,14 +1951,12 @@ namespace json {
 			from_stream(target, ss);
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void from_string(
 			std::shared_ptr<target_t>& target,
 			typename rjson_impl::af_json_types_t::string_t const& json) {
 			from_string(*target, json);
 		}
 		template<typename target_t>
-		//template<typename target_t,_AF_IS_SERIALIZABLE(target_t)>
 		static target_t from_string(
 			typename rjson_impl::af_json_types_t::string_t const& json) {
 			target_t target;
@@ -1911,7 +1966,6 @@ namespace json {
 
 
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void from_file(
 			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t const& path) {
@@ -1929,7 +1983,6 @@ namespace json {
 			fclose(fp);
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void from_file(
 			std::shared_ptr<target_t>& target,
 			typename rjson_impl::af_json_types_t::string_t const& path) {
@@ -1939,7 +1992,6 @@ namespace json {
 		}
 
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static target_t from_file(
 			typename rjson_impl::af_json_types_t::string_t const& path,
 			bool encoded = false) {
@@ -1953,7 +2005,6 @@ namespace json {
 	struct writer {
 
 		template<typename target_t, typename writer_t>
-		//template<typename target_t, typename writer_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_writer(
 			target_t& target,
 			writer_t& writer) {
@@ -1965,7 +2016,6 @@ namespace json {
 		}
 
 		template<typename target_t, typename stream_t>
-		//template<typename target_t, typename stream_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_stream(
 			target_t& target,
 			stream_t& stream,
@@ -1983,7 +2033,6 @@ namespace json {
 			}
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_string(
 			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t& json,
@@ -1995,7 +2044,6 @@ namespace json {
 			json = ss.GetString();
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_string(
 			std::shared_ptr<target_t>& target,
 			typename rjson_impl::af_json_types_t::string_t& json,
@@ -2005,7 +2053,6 @@ namespace json {
 		}
 
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static rjson_impl::af_json_types_t::string_t to_string(
 			target_t& target,
 			bool pretty = false,
@@ -2016,7 +2063,6 @@ namespace json {
 			return ss.GetString();
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static rjson_impl::af_json_types_t::string_t to_string(
 			std::shared_ptr<target_t>& target,
 			bool pretty = false,
@@ -2025,7 +2071,6 @@ namespace json {
 		}
 
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_file(
 			target_t& target,
 			typename rjson_impl::af_json_types_t::string_t& path,
@@ -2045,7 +2090,6 @@ namespace json {
 			fclose(fp);
 		}
 		template<typename target_t>
-		//template<typename target_t, _AF_IS_SERIALIZABLE(target_t)>
 		static void to_file(
 			std::shared_ptr<target_t>& target,
 			typename rjson_impl::af_json_types_t::string_t& path,
