@@ -134,14 +134,11 @@ struct af_json_types_t {
 	}
 };
 
-#define _AF_COMMA ,
 // SFINAE based type filter
-
-#define _AF_JSON_TYPE_FILTER( condition ) std::enable_if_t<condition, bool> = true
 
 // creator functions all need to follow a certain form
 #define _AF_JSON_DECLARE_HANDLER_CREATOR( HandlerType, Condition ) \
-	template< typename target_t, _AF_JSON_TYPE_FILTER( Condition ) >\
+	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
 	af_json_handler_value_t<target_t>* af_create_rjson_handler(\
 			target_t* target_,\
 			typename af_json_default_value<target_t>* default_ = nullptr,\
@@ -152,7 +149,7 @@ struct af_json_types_t {
 
 
 #define _AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR( HandlerType, Condition ) \
-	template< typename target_t, _AF_JSON_TYPE_FILTER( Condition ) >\
+	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
 	af_json_handler_value_t<target_t>* af_create_rjson_handler(\
 			target_t* target_,\
 			typename af_json_default_value<target_t>* default_ = nullptr,\
