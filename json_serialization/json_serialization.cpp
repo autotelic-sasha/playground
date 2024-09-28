@@ -27,15 +27,17 @@ struct test1 : public af_serializable {
 };
 struct test2  {
     int i;
+    double d;
 
-    test2(int i_ = 0) :i(i_) {}
+    test2(int i_ = 0, double d_ = 0) :i(i_), d(d_) {}
     bool operator==(test2 const& rhs) const {
         return i == rhs.i;
     }
     static type_description_t const& type_description() {
-        static const auto description =
+        static auto description = 
             begin_object<test2>().
                 member("i", &test2::i, 2510).
+                member("d", &test2::d, 1991.1025).
             end_object();
         return description;
     }

@@ -426,7 +426,7 @@ struct af_json_handler_floating_t : public af_json_handler_value_t<target_t>{
 	}
 };
 
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_integral_t, std::is_floating_point<target_t>::value)
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_floating_t, std::is_floating_point<target_t>::value)
 
 // handler for strings
 template<typename target_t>
@@ -1315,7 +1315,7 @@ protected:
 	inline void validate_key(key_t const& key) {
 #ifdef _AF_JSON_VALIDATE_DUPLICATE_KEYS
 		AF_ASSERT(!key.empty(), "Empty keys are not allowed");
-		auto test_key = [&](member_description_p d) { return rjson_impl::af_json_types_t::equal_tag(key, d->key()); };
+		auto test_key = [&](member_description_p d) { return !rjson_impl::af_json_types_t::equal_tag(key, d->key()); };
 		for (auto const& d : _member_descriptions) {
 			AF_ASSERT(test_key(d), "Key % is duplicated", key);
 		}
