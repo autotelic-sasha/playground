@@ -96,14 +96,6 @@ namespace rapidjson { typedef size_t SizeType; }
 namespace autotelica{
 namespace serialization {
 	using namespace autotelica::std_disambiguation;
-// serialization stuff is always hierarchical, we gonna have some forward declarations
-class object_description_t;
-using object_description_p = std::shared_ptr<object_description_t>;
-
-// af_serializable is how you make objects serializable
-struct af_serializable {
-	virtual object_description_p object_description() = 0;
-};
 
 // rapidjson interface implementation
 namespace rjson_impl{
@@ -209,8 +201,13 @@ namespace writing {
 
 // handling defaults generically is a pain
 // we have a whole class to do it properly
+class af_json_default_value_t {
+public:
+	virtual ~af_json_default_value_t() {}
+};
+
 template<typename target_t>
-class af_json_default_value{
+class af_json_default_value_impl_t : public af_json_default_value_t {
 	target_t const _default_value;
 	bool _target_initialised;
 	inline bool set_target(target_t* target_) {
@@ -221,7 +218,7 @@ class af_json_default_value{
 		return true;
 	}
 public:
-	af_json_default_value(target_t const& default_value_) :
+	af_json_default_value_impl_t(target_t const& default_value_) :
 		_default_value(default_value_),
 		_target_initialised(false) {
 	}
@@ -291,7 +288,7 @@ struct af_json_handler_value_t : public af_json_handler_t {
 	
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_t;
-	using default_value_t = std::shared_ptr<af_json_default_value<target_t>>;
+	using default_value_t = std::shared_ptr<af_json_default_value_impl_t<target_t>>;
 
 	target_t* _target; // owned by someone else, don't delete
 	default_value_t _default_h;
@@ -351,15 +348,17 @@ using af_json_handler_p = std::shared_ptr<af_json_handler_t>;
 template<typename target_t>
 using af_json_handler_value_p = std::shared_ptr<af_json_handler_value_t<target_t>>;
 
+using af_json_default_value_p = typename std::shared_ptr<af_json_default_value_t>;
+
 template<typename target_t>
-using af_json_default_value_p = typename std::shared_ptr<af_json_default_value<target_t>>;
+using af_json_default_value_impl_p = typename std::shared_ptr<af_json_default_value_impl_t<target_t>>;
 
 // creator functions all need to follow a certain form
 #define _AF_JSON_DECLARE_HANDLER_CREATOR( HandlerType, Condition ) \
 	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
 	af_json_handler_value_p<target_t> af_create_rjson_handler(\
 			target_t* target_,\
-			af_json_default_value_p<target_t> default_ = nullptr,\
+			af_json_default_value_impl_p<target_t> default_ = nullptr,\
 			void* dummy = nullptr) {\
 		AF_ASSERT(dummy == nullptr, "Wrong create function invoked.");\
 		return std::make_shared<HandlerType<target_t>>(target_, default_);\
@@ -370,8 +369,8 @@ using af_json_default_value_p = typename std::shared_ptr<af_json_default_value<t
 	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
 	af_json_handler_value_p<target_t> af_create_rjson_handler(\
 			target_t* target_,\
-			af_json_default_value_p<target_t> default_ = nullptr,\
-			typename target_t::value_af_json_default_value_t value_default_ = nullptr) {\
+			af_json_default_value_impl_p<target_t> default_ = nullptr,\
+			typename target_t::value_af_json_default_value_impl_t value_default_ = nullptr) {\
 		return std::make_shared<HandlerType<target_t>>(target_, default_, value_default_);\
 	}
 
@@ -380,7 +379,7 @@ template<typename target_t>
 struct af_json_handler_integral_t : public af_json_handler_value_t<target_t> {
 
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	
 	af_json_handler_integral_t(
 			target_t* target_, 
@@ -407,7 +406,7 @@ template<typename target_t>
 struct af_json_handler_floating_t : public af_json_handler_value_t<target_t>{
 
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	
 	af_json_handler_floating_t(
 			target_t* target_, 
@@ -434,7 +433,7 @@ struct af_json_handler_string_t : public af_json_handler_value_t<target_t> {
 
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 
 	af_json_handler_string_t(
 			target_t* target_, 
@@ -461,7 +460,7 @@ struct af_json_handler_enum_t : public af_json_handler_value_t<target_t> {
 
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using string_t = af_json_types_t::string_t;
 
 	af_json_handler_enum_t(
@@ -492,10 +491,10 @@ struct af_json_handler_ptr_t : public af_json_handler_value_t<target_t> {
 	
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using contained_t = typename target_t::element_type;
 	using value_handler_t = af_json_handler_value_p<contained_t>;
-	using contained_default_value_t = af_json_default_value_p<contained_t>;
+	using contained_default_value_t = af_json_default_value_impl_p<contained_t>;
 	
 	value_handler_t _value_handler;
 	contained_default_value_t _value_default;
@@ -573,9 +572,9 @@ struct af_json_handler_sequence_t : public af_json_handler_value_t<target_t> {
 	
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using contained_t = typename target_t::value_type;
-	using contained_default_value_t = af_json_default_value_p<contained_t>;
+	using contained_default_value_t = af_json_default_value_impl_p<contained_t>;
 	using value_handler_t = af_json_handler_value_p<contained_t>;
 	 
 	value_handler_t _value_handler;
@@ -656,7 +655,7 @@ _AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_sequence_t, is_sequen
 
 	 using char_t = af_json_types_t::char_t;
 	 using base_t = af_json_handler_sequence_t<target_t>;
-	 using default_value_t = af_json_default_value_p<target_t>;
+	 using default_value_t = af_json_default_value_impl_p<target_t>;
 	 using contained_t = typename target_t::value_type;
 	 using value_handler_t = af_json_handler_value_t<contained_t>;
 
@@ -735,7 +734,7 @@ struct af_json_handler_pair_t : public af_json_handler_value_t<target_t> {
 	using value_handler_t = af_json_handler_value_p<value_t>;
 	using current_handler_t = af_json_handler_t;
 	using current_handler_p = af_json_handler_p;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 
 	inline key_t key() { return base_t::is_set()?(&(base_t::_target->first)):nullptr; }
 	inline value_t value() { return base_t::is_set()?(&(base_t::_target->second)):nullptr;}
@@ -834,11 +833,11 @@ struct af_json_handler_mappish_t : public af_json_handler_value_t<target_t> {
 	// perhaps all they need is different construction?
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using value_t = typename target_t::mapped_type;
 	using contained_t = typename target_t::value_type;
 	using value_handler_t = af_json_handler_pair_t<contained_t>;
-	using value_default_value_t = af_json_default_value_p<value_t>;
+	using value_default_value_t = af_json_default_value_impl_p<value_t>;
 
 	contained_t _current_value;
 	value_handler_t _value_handler;
@@ -912,11 +911,11 @@ struct af_json_handler_string_mappish_t : public af_json_handler_value_t<target_
 
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>;
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using key_t = typename target_t::key_type; // this is some string type
 	using value_t = typename target_t::mapped_type;
 	using value_handler_t = af_json_handler_value_p<value_t> ;
-	using value_default_value_t = af_json_default_value_p<value_t>;
+	using value_default_value_t = af_json_default_value_impl_p<value_t>;
 
 	value_handler_t _value_handler;
 
@@ -1004,7 +1003,7 @@ struct af_json_handler_object_t : public af_json_handler_value_t<target_t> {
 
 	using char_t = af_json_types_t::char_t;
 	using base_t = af_json_handler_value_t<target_t>; 
-	using default_value_t = af_json_default_value_p<target_t>;
+	using default_value_t = af_json_default_value_impl_p<target_t>;
 
 	using key_t = af_json_types_t::key_t;
 	using handler_t = af_json_types_t::handler_t;
@@ -1151,12 +1150,14 @@ struct default_value_description {
 
 	default_value_description(target_t const& default_value_):_default_value(default_value_){}
 
-	using default_value_t = rjson_impl::af_json_default_value<target_t>;
+	using default_value_t = rjson_impl::af_json_default_value_impl_t<target_t>;
+	using default_value_p = rjson_impl::af_json_default_value_impl_p<target_t>;
+	using default_value_description_p = std::shared_ptr<default_value_description<target_t>>;
 
-	rjson_impl::af_json_default_value_p<target_t> create_rjson_default() const {
+	default_value_p create_rjson_default() const {
 		return std::make_shared<default_value_t>(_default_value);
 	}
-	static std::shared_ptr<default_value_description<target_t>> create(target_t const& v) {
+	static default_value_description_p create(target_t const& v) {
 		return std::make_shared<default_value_description<target_t>>(v);
 	}
 };
@@ -1188,7 +1189,7 @@ struct type_member_description_impl : public type_member_description<object_t> {
 	// resolving the type of element defaults, helps to avoid excessive overloading
 	template<typename target_element_t>
 	struct resolve_default_t {
-		using default_t = rjson_impl::af_json_default_value_p<target_element_t>;
+		using default_t = rjson_impl::af_json_default_value_impl_t<target_element_t>;
 		using default_p = std::shared_ptr < default_value_description<target_element_t>>;
 		
 		static default_t create(default_p const& element_default) {
@@ -1233,7 +1234,7 @@ public:
 		return nullptr;
 	}
 	rjson_impl::af_json_handler_p create_rjson_handler(object_t& object) const  {
-		rjson_impl::af_json_default_value_p<target_t> _default(nullptr);
+		rjson_impl::af_json_default_value_impl_p<target_t> _default(nullptr);
 		if (_default_value)
 			_default = _default_value->create_rjson_default();
 		target_t* target = &(object.*_target);
@@ -1286,9 +1287,22 @@ inline std::shared_ptr<type_member_description<object_t>> create_type_member_des
 			nullptr));
 }
 
+class object_description_t;
+
+using object_description_p = std::shared_ptr<object_description_t>;
+
+template< typename object_t >
+class object_description_impl_t;
+
 struct type_description_t {
 	virtual ~type_description_t() {}
+	
+	template<typename object_t>
+	object_description_p for_object(object_t& _object) const {
+		return std::make_shared<object_description_impl_t<object_t>>(_object, *this);
+	}
 };
+
 
 // type description
 template<typename object_t>
@@ -1401,7 +1415,7 @@ public:
 
 	rjson_impl::af_json_handler_p create_json_handler(
 			object_t& object,
-			rjson_impl::af_json_default_value_p<object_t> default_ = nullptr) const{
+			rjson_impl::af_json_default_value_impl_p<object_t> default_ = nullptr) const{
 		AF_ASSERT(_done, "Cannot create handlers before object description is done.");
 		handlers_t _handlers;
 		_handlers.reserve(_member_descriptions.size());
@@ -1435,316 +1449,45 @@ public:
 	}
 };
 
+class object_description_t {
+public:
+	virtual ~object_description_t() {}
+
+	virtual rjson_impl::af_json_handler_p create_json_handler(
+		rjson_impl::af_json_default_value_p default_ = nullptr) const = 0;
+
+};
+
+template< typename object_t >
+class object_description_impl_t : public object_description_t{
+	object_t& _object;
+	type_description_impl_t<object_t> const& _type_description;
+public:
+	object_description_impl_t(
+		object_t& object_,
+		type_description_impl_t<object_t> const& type_description_
+	) :_object(object_), _type_description(type_description_) {}
+
+	object_description_impl_t(
+		object_t& object_,
+		type_description_t const& type_description_
+	) :_object(object_), _type_description(
+		dynamic_cast<type_description_impl_t<object_t> const&>(type_description_))
+	{}
+
+
+	rjson_impl::af_json_handler_p create_json_handler(
+			rjson_impl::af_json_default_value_p default_ = nullptr) const override{
+		rjson_impl::af_json_default_value_impl_p<object_t> default_impl(
+			std::dynamic_pointer_cast<rjson_impl::af_json_default_value_impl_t<object_t>>(default_));
+		return _type_description.create_json_handler(_object, default_impl);
+	}
+};
+
 template<typename object_t>
 type_description_impl_t<object_t> begin_object() {
 	return type_description_impl_t<object_t>();
 }
-// object member description
-template<typename target_t, typename target_element_t = void*>
-struct member_description_impl : public member_description {
-private:
-	// resolving the type of element defaults, helps to avoid excessive overloading
-	template<typename target_element_t>
-	struct resolve_default_t {
-		using default_t = rjson_impl::af_json_default_value_p<target_element_t>;
-		using default_p = std::shared_ptr < default_value_description<target_element_t>>;
-		static default_t create(default_p const& element_default) {
-			return element_default->create_rjson_default();
-		}
-
-	};
-	template<>
-	struct resolve_default_t<void*> {
-		using default_t = void*;
-		using default_p = std::shared_ptr < default_value_description<target_element_t>>;
-		static default_t create(default_p const& element_default) {
-			return nullptr;
-		}
-	};
-
-public:	
-	//		is_sequence<target_t>::value || is_mappish<target_t>::value 
-	using key_t = typename rjson_impl::af_json_types_t::key_t;
-	using target_p = target_t*;
-	using target_default_p = std::shared_ptr<default_value_description<target_t>>;
-	using target_element_default_p = std::shared_ptr < default_value_description<target_element_t>>;
-
-	target_p _target;
-	target_default_p _default_value;
-	target_element_default_p _element_default_value;
-
-	member_description_impl(
-		key_t const& key_,
-		target_p target_,
-		target_default_p default_value_,
-		target_element_default_p element_default_value_
-		) :
-		member_description(key_),
-		_target(target_), 
-		_default_value(default_value_),
-		_element_default_value(element_default_value_){
-
-	}
-	rjson_impl::af_json_handler_p create_rjson_handler() const override {
-		rjson_impl::af_json_default_value_p<target_t> _default(nullptr);
-		if (_default_value)
-			_default = _default_value->create_rjson_default();
-		return std::static_pointer_cast<rjson_impl::af_json_handler_t>(
-			af_create_rjson_handler(_target, _default, 
-			resolve_default_t<target_element_t>::create(_element_default_value)));
-	}
-};
-template<typename target_t, typename element_t>
-inline std::shared_ptr <member_description> create_member_description(
-	typename rjson_impl::af_json_types_t::key_t const& key_,
-	target_t* target_,
-	target_t const& default_,
-	element_t const& element_default_
-) {
-	return std::static_pointer_cast<member_description>(
-			std::make_shared<member_description_impl<target_t, element_t>>(
-				key_,
-				target_,
-				default_value_description<target_t>::create(default_),
-				default_value_description<element_t>::create(element_default_)));
-}
-template<typename target_t>
-inline std::shared_ptr <member_description> create_member_description(
-	typename rjson_impl::af_json_types_t::key_t const& key_,
-	target_t* target_,
-	has_no_default_t const& unused_ = has_no_default,
-	has_no_element_default_t const& unused_2_ = has_no_element_default
-) {
-	return std::static_pointer_cast<member_description>(
-		std::make_shared<member_description_impl<target_t>>(
-			key_, 
-			target_,
-			nullptr,
-			nullptr));
-}
-template<typename target_t>
-inline std::shared_ptr<member_description> create_member_description(
-	typename rjson_impl::af_json_types_t::key_t const& key_,
-	target_t* target_,
-	target_t const& default_,
-	has_no_element_default_t const& unused_ = has_no_element_default
-) {
-	return std::static_pointer_cast<member_description>(
-		std::make_shared<member_description_impl<target_t>>(
-			key_,
-			target_,
-			default_value_description<target_t>::create(default_),
-			nullptr));
-}
-
-class object_description_t  {
-
-public:
-	using key_t = typename rjson_impl::af_json_types_t::key_t;
-	using pre_load_function_t = std::function<void()>;
-	using pre_save_function_t = std::function<void()>;
-	using post_load_function_t = std::function<void()>;
-	using post_save_function_t = std::function<void()>;
-	using member_description_p = std::shared_ptr <member_description>;
-	using member_descriptions_t = std::vector<member_description_p>;
-	using handlers_t = typename rjson_impl::af_json_types_t::handlers_t;
-	using handlers_value_t = typename handlers_t::value_type;
-protected:
-	bool _done;
-	pre_load_function_t _pre_load_f;
-	pre_save_function_t _pre_save_f;
-	post_load_function_t _post_load_f;
-	post_save_function_t _post_save_f;
-	member_descriptions_t _member_descriptions;
-	
-	
-	inline void validate_key(key_t const& key) {
-#ifdef _AF_JSON_VALIDATE_DUPLICATE_KEYS
-		AF_ASSERT(!key.empty(), "Empty keys are not allowed");
-		auto test_key = [&](member_description_p d) { return rjson_impl::af_json_types_t::equal_tag(key, d->key()); };
-		for (auto const& d : _member_descriptions) {
-			AF_ASSERT(test_key(d),"Key % is duplicated", key);
-		}
-#endif
-	}
-public:
-	object_description_t() : _done(false) {
-	}
-	virtual ~object_description_t() {
-	}
-
-	inline object_description_t& before_loading(pre_load_function_t& f) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		_pre_load_f = f;
-		return *this;
-	}
-	inline object_description_t& before_saving(pre_save_function_t& f) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		_pre_save_f = f;
-		return *this;
-	}
-	inline object_description_t& after_loading(post_load_function_t& f) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		_post_load_f = f;
-		return *this;
-	}
-	inline object_description_t& after_saving(post_save_function_t& f) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		_post_save_f = f;
-		return *this;
-	}
-	template<typename target_t, typename element_t>
-	inline object_description_t& member(
-		key_t const& key_,
-		target_t& target_,
-		target_t const& default_,
-		element_t const& element_default_
-	) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		validate_key(key_);
-		auto member_description(create_member_description(key_, &target_, default_, element_default_));
-		_member_descriptions.push_back(member_description);
-		return *this;
-	}
-	template<typename target_t>
-	inline object_description_t& member(
-		typename rjson_impl::af_json_types_t::key_t const& key_,
-		target_t& target_,
-		has_no_default_t const& default_ = has_no_default,
-		has_no_element_default_t const& element_default_ = has_no_element_default
-	) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		validate_key(key_);
-		auto member_description(create_member_description(key_, &target_, default_, element_default_));
-		_member_descriptions.push_back(member_description);
-		return *this;
-	}
-	template<typename target_t>
-	inline object_description_t& member(
-		typename rjson_impl::af_json_types_t::key_t const& key_,
-		target_t& target_,
-		target_t const& default_,
-		has_no_element_default_t const& element_default_ = has_no_element_default
-	) {
-		AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
-		validate_key(key_);
-		auto member_description(create_member_description(key_, &target_, default_, element_default_));
-		_member_descriptions.push_back(member_description);
-		return *this;
-	}
-	inline object_description_t& end_object() {
-		AF_ASSERT(!_done, "Cannot end_object more than once.");
-		_done = true;
-		return *this;
-	}
-
-};
-
-template<typename object_t>
-class object_description_impl : public object_description_t {
-	object_t& _object;
-public:
-	object_description_impl(object_t& object_):_object(object_){}
-	
-	rjson_impl::af_json_handler_p create_json_handler(
-		rjson_impl::af_json_default_value_p<object_t> default_ = nullptr) const {
-		
-		AF_ASSERT(_done, "Cannot create handlers before object description is done.");
-		handlers_t _handlers;
-		_handlers.reserve(_member_descriptions.size());
-		for (auto const d : _member_descriptions)
-			_handlers.push_back(handlers_value_t(d->key(), d->create_rjson_handler()));
-
-		return std::static_pointer_cast<rjson_impl::af_json_handler_t>(
-			std::make_shared<rjson_impl::af_json_handler_object_t<object_t>>(
-				&_object,
-				default_,
-				_pre_load_f,
-				_pre_save_f,
-				_post_load_f,
-				_post_save_f,
-				_handlers));
-	}
-};
-
-template<typename object_t>
-class object_description_builder {
-
-public:
-	using key_t = typename rjson_impl::af_json_types_t::key_t;
-	using pre_load_function_t = std::function<void()>;
-	using pre_save_function_t = std::function<void()>;
-	using post_load_function_t = std::function<void()>;
-	using post_save_function_t = std::function<void()>;
-	using member_description_p = member_description*;
-	using member_descriptions_t = std::vector<member_description_p>;
-	using handlers_t = typename rjson_impl::af_json_types_t::handlers_t;
-private:
-	object_description_p _description;
-public:
-	object_description_builder(object_t& object_){
-		_description = std::static_pointer_cast<object_description_t>(
-			std::make_shared< object_description_impl<object_t>>(object_));
-	}
-
-	inline object_description_builder<object_t>& before_loading(pre_load_function_t& f) {
-		_description->before_loading(f);
-		return *this;
-	}
-	inline object_description_builder<object_t>& before_saving(pre_save_function_t& f) {
-		_description->before_saving(f);
-		return *this;
-	}
-	inline object_description_builder<object_t>& after_loading(post_load_function_t& f) {
-		_description->after_loading(f);
-		return *this;
-	}
-	inline object_description_builder<object_t>& after_saving(post_save_function_t& f) {
-		_description->after_saving(f);
-		return *this;
-	}
-	template<typename target_t, typename element_t>
-	inline object_description_builder<object_t>& member(
-		key_t const& key_,
-		target_t& target_,
-		target_t const& default_,
-		element_t const& element_default_
-	) {
-		_description->member(key_, target_, default_, element_default_);
-		return *this;
-	}
-	template<typename target_t>
-	inline object_description_builder<object_t>& member(
-		typename rjson_impl::af_json_types_t::key_t const& key_,
-		target_t& target_,
-		has_no_default_t const& default_ = has_no_default,
-		has_no_element_default_t const& element_default_ = has_no_element_default
-	) {
-		_description->member(key_, target_, default_, element_default_);
-		return *this;
-	}
-	template<typename target_t>
-	inline object_description_builder<object_t>& member(
-		typename rjson_impl::af_json_types_t::key_t const& key_,
-		target_t& target_,
-		target_t const& default_,
-		has_no_element_default_t const& element_default_ = has_no_element_default
-	) {
-		_description->member(key_, target_, default_, element_default_);
-		return *this;
-	}
-	inline object_description_builder<object_t>& end_object() {
-		_description->end_object();
-		return *this;
-	}
-
-	inline operator object_description_p() {
-		return _description;
-	}
-};
-
-template<typename object_t>
-object_description_builder<object_t> begin_object(object_t& object) { return object_description_builder<object_t>(object); }
 
 namespace json {
 	enum class json_encoding {
@@ -1758,66 +1501,141 @@ namespace json {
 }
 namespace util {
 	template<typename T, typename U = void>
-	struct af_is_static_serializable_impl : std::false_type {};
+	struct af_has_type_description_impl : std::false_type {};
 
 	template<typename T>
-	struct af_is_static_serializable_impl<T, std::enable_if_t<
+	struct af_has_type_description_impl<T, std::enable_if_t<
 		std::is_same<
 		type_description_t const& (void),
 		decltype(T::type_description)>::value>> : std::true_type {};
 
 	template<typename T>
-	struct af_is_static_serializable : af_is_static_serializable_impl<T>::type {};
+	struct af_has_type_description : af_has_type_description_impl<T>::type {};
+
 
 	template<typename T, typename U = void>
-	struct af_is_dynamic_serializable_impl : std::false_type {};
+	struct af_has_object_description_impl : std::false_type {};
 
 	template<typename T>
-	struct af_is_dynamic_serializable_impl<T, std::enable_if_t<
-		std::is_base_of<
-		typename autotelica::serialization::af_serializable,
-		typename T>::value>> : std::true_type {};
+	struct af_has_object_description_impl<T, std::enable_if_t<
+		std::is_same<
+		object_description_p (void),
+		decltype(&T::object_description)>::value>> : std::true_type {};
 
 	template<typename T>
-	struct af_is_dynamic_serializable : af_is_dynamic_serializable_impl<T>::type {};
+	struct af_has_object_description : af_has_type_description_impl<T>::type {};
+
+	template<typename T, typename U = void>
+	struct af_has_get_json_handler_impl : std::false_type {};
 
 	template<typename T>
-	using af_choose_static_serializable_t = std::enable_if_t<af_is_static_serializable<T>::value, bool>;
+	struct af_has_get_json_handler_impl<T, std::enable_if_t<
+		std::is_same<
+		rjson_impl::af_json_handler_p(rjson_impl::af_json_default_value_impl_p<T>),
+		decltype(&T::get_json_handler)>::value>> : std::true_type {};
 
 	template<typename T>
-	using af_choose_dynamic_serializable_t = std::enable_if_t<
-		af_is_dynamic_serializable<T>::value &&
-		!af_is_static_serializable<T>::value, bool>;
+	struct af_has_get_json_handler : af_has_type_description_impl<T>::type {};
+
+	template<typename T>
+	using af_choose_get_json_handler_t = std::enable_if_t<
+		af_has_get_json_handler<T>::value, bool>;
+
+	template<typename T>
+	using af_choose_object_description_t = std::enable_if_t<
+		!af_has_get_json_handler<T>::value &&
+		af_has_object_description<T>::value, bool>;
+
+	template<typename T>
+	using af_choose_type_description_t = std::enable_if_t<
+		!af_has_get_json_handler<T>::value &&
+		!af_has_object_description<T>::value &&
+		af_has_type_description<T>::value, bool>;
+
+	template<typename T>
+	using af_choose_error_t = std::enable_if_t<
+		!af_has_get_json_handler<T>::value &&
+		!af_has_object_description<T>::value&&
+		!af_has_type_description<T>::value, bool>;
+
 
 	template<typename T>
 	using af_choose_serializable_t = std::enable_if_t<
-		af_is_dynamic_serializable<T>::value ||
-		af_is_static_serializable<T>::value, bool>;
+		af_has_get_json_handler<T>::value ||
+		af_has_object_description<T>::value ||
+		af_has_type_description<T>::value, bool>;
 
-	template<typename target_t, af_choose_dynamic_serializable_t<target_t> = true>
+	//template<typename T, typename U = void>
+	//struct af_is_dynamic_serializable_impl : std::false_type {};
+
+	//template<typename T>
+	//struct af_is_dynamic_serializable_impl<T, std::enable_if_t<
+	//	std::is_base_of<
+	//	typename autotelica::serialization::af_serializable,
+	//	typename T>::value>> : std::true_type {};
+
+	//template<typename T>
+	//struct af_is_dynamic_serializable : af_is_dynamic_serializable_impl<T>::type {};
+
+	//template<typename T>
+	//using af_choose_static_serializable_t = std::enable_if_t<af_has_type_description<T>::value, bool>;
+
+	//template<typename T>
+	//using af_choose_dynamic_serializable_t = std::enable_if_t<
+	//	af_is_dynamic_serializable<T>::value &&
+	//	!af_has_type_description<T>::value, bool>;
+
+	//template<typename T>
+	//using af_choose_serializable_t = std::enable_if_t<
+	//	af_is_dynamic_serializable<T>::value ||
+	//	af_has_type_description<T>::value, bool>;
+
+	//template<typename target_t, af_choose_dynamic_serializable_t<target_t> = true>
+	//inline rjson_impl::af_json_handler_p get_handler(
+	//		target_t& target,
+	//		rjson_impl::af_json_default_value_impl_t_p<target_t> default_ = nullptr) {
+	//	using description_t = object_description_impl<target_t>;
+	//	auto const description = std::static_pointer_cast<description_t const>(target.object_description());
+	//	return description->create_json_handler(default_);
+	//}
+
+	template<typename target_t, af_choose_get_json_handler_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
-			rjson_impl::af_json_default_value_p<target_t> default_ = nullptr) {
-		using description_t = object_description_impl<target_t>;
-		auto const description = std::static_pointer_cast<description_t const>(target.object_description());
-		return description->create_json_handler(default_);
+			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		return target.get_json_handler(default_);
 	}
-	template<typename target_t, af_choose_static_serializable_t<target_t> = true>
+
+	template<typename target_t, af_choose_object_description_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
-			rjson_impl::af_json_default_value_p<target_t> default_ = nullptr) {
-		using description_t = type_description_impl_t<target_t>;
-		description_t const& description = static_cast<description_t const&>(target_t::type_description());
-		return description.create_json_handler(target, default_);
+			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		return target.object_description()->create_json_handler(default_);
 	}
-		
+
+	template<typename target_t, af_choose_type_description_t<target_t> = true>
+	inline rjson_impl::af_json_handler_p get_handler(
+			target_t& target,
+			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		return target_t::type_description().for_object(target)->create_json_handler(default_);
+	}
+
+	template<typename target_t, af_choose_error_t<target_t> = true>
+	inline rjson_impl::af_json_handler_p get_handler(
+			target_t& target,
+			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		AF_ERROR("Type description is not implemented for type.");
+		return nullptr;
+	}
+
+
 }
 
 namespace rjson_impl {
 	template< typename target_t, util::af_choose_serializable_t<target_t> >
 	af_json_handler_p af_create_rjson_handler(
 		target_t* target_,
-		af_json_default_value_p<target_t> default_ = nullptr,
+		af_json_default_value_impl_p<target_t> default_ = nullptr,
 		void* unused_ = nullptr) {
 		return util::get_handler(target_t, default_);
 	}
@@ -1891,6 +1709,9 @@ struct rjson_reading<stream_t, json::json_encoding::detect> {
 namespace json {
 	// TODO: schema validation
 
+	using handler_p = rjson_impl::af_json_handler_p;
+	
+	using default_value_p = rjson_impl::af_json_default_value_p;
 
 	template<json_encoding encoding = json_encoding::utf8>
 	struct reader {
