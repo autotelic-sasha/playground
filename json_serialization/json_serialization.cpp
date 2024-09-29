@@ -43,18 +43,18 @@ struct test2  {
             end_object();
         return description;
     }
-    inline object_description_p object_description() {
-        return type_description().for_object(*this);
-    }
+    //inline object_description_p object_description() {
+    //    return type_description().for_object(*this);
+    //}
 
-    inline json::handler_p get_json_handler(
-            json::default_value_p default_ = nullptr) {
-        if (!_json_handler_cached || _default_value_cached != default_) {
-            _json_handler_cached = object_description()->create_json_handler(default_);
-            _default_value_cached = default_;
-        }
-        return _json_handler_cached;
-    }
+    //inline json::handler_p get_json_handler(
+    //        json::default_value_p default_ = nullptr) {
+    //    if (!_json_handler_cached || _default_value_cached != default_) {
+    //        _json_handler_cached = object_description()->create_json_handler(default_);
+    //        _default_value_cached = default_;
+    //    }
+    //    return _json_handler_cached;
+    //}
 
 };
 int main()
