@@ -1,36 +1,13 @@
 #pragma once
 #include "std_disambiguation.h"
 
-// _AF_DECLARE_HAS_STATIC_FUNCTION declares a sfinae predicate 
-// which is true if it's type parameter has a static function with a given 
-// name and signature
-#define _AF_DECLARE_HAS_STATIC_FUNCTION(function_name, signature ) \
-	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
-	template<typename T>\
-	struct af_has_##function_name##_impl<T, std::enable_if_t<\
-		std::is_same<\
-		signature,\
-		decltype(T::function_name)>::value>> : std::true_type {};\
-	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
-
-// _AF_DECLARE_HAS_MEMBER_FUNCTION declares a sfinae predicate 
-// which is true if it's type parameter has a member function with a given 
-// name and signature
-#define _AF_DECLARE_HAS_MEMBER_FUNCTION(function_name, signature ) \
-	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
-	template<typename T>\
-	struct af_has_##function_name##_impl<T, std::enable_if_t<\
-		std::is_same<\
-		signature,\
-		decltype(&T::function_name)>::value>> : std::true_type {};\
-	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
 
 namespace autotelica {
 	namespace sfinae {
+		// Trickery to make use of SFINAE - can be instantiated only if the listed types exist
+		// C++ 17 has this built in (and calls it std::void_t)     
+		template<typename ... Ts>
+		using if_types_exist = void;
 
 		// basic std types
 		template<typename T>
@@ -222,5 +199,26 @@ namespace autotelica {
 			(is_mapish_t<T>::value && is_string_t<typename T::key_t>::value), bool>;
 
 	}
-
 }
+
+// _AF_DECLARE_HAS_STATIC_MEMBER declares a sfinae predicate 
+// which is true if it's type parameter has a static function with a given name 
+#define _AF_DECLARE_HAS_STATIC_MEMBER(function_name) \
+	template<typename T, typename U = void>\
+	struct af_has_##function_name##_impl : std::false_type {};\
+	template<typename T>\
+	struct af_has_##function_name##_impl<T, \
+		autotelica::sfinae::if_types_exist<decltype(T::function_name)>> : std::true_type {};\
+	template<typename T>\
+	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
+
+// _AF_DECLARE_HAS_MEMBER declares a sfinae predicate 
+// which is true if it's type parameter has a non-static member with a given name
+#define _AF_DECLARE_HAS_MEMBER(function_name) \
+	template<typename T, typename U = void>\
+	struct af_has_##function_name##_impl : std::false_type {};\
+	template<typename T>\
+	struct af_has_##function_name##_impl<T, std::enable_if_t<\
+		std::is_member_pointer<decltype(&T::function_name)>::value>> : std::true_type {};\
+	template<typename T>\
+	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};

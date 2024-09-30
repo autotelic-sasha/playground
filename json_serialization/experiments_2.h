@@ -1131,6 +1131,18 @@ struct af_json_handler_object_t : public af_json_handler_value_t<target_t> {
 
 	}
 };
+
+_AF_DECLARE_HAS_STATIC_MEMBER(type_description);
+_AF_DECLARE_HAS_MEMBER(get_json_handler);
+_AF_DECLARE_HAS_MEMBER(object_description);
+
+template<typename T>
+using if_is_serializable_object_t = std::enable_if_t<
+	af_has_get_json_handler<T>::value ||
+	af_has_object_description<T>::value ||
+	af_has_type_description<T>::value, bool>;
+
+
 } // namespace rjson_impl
 
 // object descriptions
@@ -1489,9 +1501,14 @@ namespace json {
 namespace util {
 
 
-_AF_DECLARE_HAS_STATIC_FUNCTION(type_description, type_description_t const& (void));
-_AF_DECLARE_HAS_MEMBER_FUNCTION(get_json_handler, rjson_impl::af_json_handler_p(rjson_impl::af_json_default_value_impl_p<T>));
-_AF_DECLARE_HAS_MEMBER_FUNCTION(object_description, object_description_p(void));
+_AF_DECLARE_HAS_STATIC_MEMBER(type_description);
+_AF_DECLARE_HAS_MEMBER(get_json_handler);
+_AF_DECLARE_HAS_MEMBER(object_description);
+template<typename T>
+using if_is_serializable_object_t = std::enable_if_t<
+	af_has_get_json_handler<T>::value ||
+	af_has_object_description<T>::value ||
+	af_has_type_description<T>::value, bool>;
 
 
 	template<typename T>
@@ -1514,12 +1531,6 @@ _AF_DECLARE_HAS_MEMBER_FUNCTION(object_description, object_description_p(void));
 		!af_has_get_json_handler<T>::value &&
 		!af_has_object_description<T>::value&&
 		!af_has_type_description<T>::value, bool>;
-
-	template<typename T>
-	using if_is_serializable_object_t = std::enable_if_t<
-		af_has_get_json_handler<T>::value ||
-		af_has_object_description<T>::value ||
-		af_has_type_description<T>::value, bool>;
 
 	template<typename target_t, if_has_get_json_handler_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
