@@ -1,5 +1,5 @@
 #pragma once
-#include "autotelica_core/util/include/std_disambiguation.h"
+#include "autotelica_core/util/include/sfinae_util.h"
 #include "autotelica_core/util/include/asserts.h"
 #include "autotelica_core/util/include/enum_to_string.h"
 #include <string.h>
@@ -95,7 +95,7 @@ namespace rapidjson { typedef size_t SizeType; }
 
 namespace autotelica{
 namespace serialization {
-	using namespace autotelica::std_disambiguation;
+	using namespace autotelica::sfinae;
 
 // rapidjson interface implementation
 namespace rjson_impl{
@@ -355,7 +355,7 @@ using af_json_default_value_impl_p = std::shared_ptr<af_json_default_value_impl_
 
 // creator functions all need to follow a certain form
 #define _AF_JSON_DECLARE_HANDLER_CREATOR( HandlerType, Condition ) \
-	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
+	template< typename target_t, Condition = true >\
 	af_json_handler_value_p<target_t> af_create_rjson_handler(\
 			target_t* target_,\
 			af_json_default_value_impl_p<target_t> default_ = nullptr,\
@@ -366,7 +366,7 @@ using af_json_default_value_impl_p = std::shared_ptr<af_json_default_value_impl_
 
 
 #define _AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR( HandlerType, Condition ) \
-	template< typename target_t, std::enable_if_t< Condition, bool> = true >\
+	template< typename target_t, Condition = true >\
 	af_json_handler_value_p<target_t> af_create_rjson_handler(\
 			target_t* target_,\
 			af_json_default_value_impl_p<target_t> default_ = nullptr,\
@@ -399,7 +399,7 @@ struct af_json_handler_integral_t : public af_json_handler_value_t<target_t> {
 
 };
 
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_integral_t, std::is_integral<target_t>::value )
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_integral_t, if_integral_t<target_t> )
 
 // handler for floating types
 template<typename target_t>
@@ -425,7 +425,7 @@ struct af_json_handler_floating_t : public af_json_handler_value_t<target_t>{
 	}
 };
 
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_floating_t, std::is_floating_point<target_t>::value)
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_floating_t, if_floating_point_t<target_t>)
 
 // handler for strings
 template<typename target_t>
@@ -452,7 +452,7 @@ struct af_json_handler_string_t : public af_json_handler_value_t<target_t> {
 	}
 };
 
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_string_t, is_string_t<target_t>::value)
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_string_t, if_string_t<target_t>)
 
 // handler for enumerations
 template<typename target_t>
@@ -483,7 +483,7 @@ struct af_json_handler_enum_t : public af_json_handler_value_t<target_t> {
 	}
 };
 
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_enum_t, std::is_enum<target_t>::value)
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_enum_t, if_enum_t<target_t>)
 
 // handler for pointers
 template<typename target_t>
@@ -564,7 +564,7 @@ struct af_json_handler_ptr_t : public af_json_handler_value_t<target_t> {
 	}
 };
 
-_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_ptr_t, is_shared_ptr_t<target_t>::value || std::is_pointer<target_t>::value)
+_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_ptr_t, if_pointer_t<target_t>)
 
 // handler for sequences (lists and vectors)
 template<typename target_t>
@@ -647,7 +647,7 @@ struct af_json_handler_sequence_t : public af_json_handler_value_t<target_t> {
 	 }
  };
 
-_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_sequence_t, is_sequence_t<target_t>::value);
+_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_sequence_t, if_sequence_t<target_t>);
 
 // handler for sets
  template<typename target_t>
@@ -712,7 +712,7 @@ _AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_sequence_t, is_sequen
 	 }
  };
  
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_setish_t, is_setish_t<target_t>::value);
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_setish_t, if_setish_t<target_t>);
 
 // handling maps needs a bit of work
 // general maps are stored as arrays of pair objects: { "key" : key_value, "value" : value_value }
@@ -825,7 +825,7 @@ struct af_json_handler_pair_t : public af_json_handler_value_t<target_t> {
 		writer_->EndObject();
 	}
 };
-_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_pair_t, is_pair_t<target_t>::value);
+_AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_pair_t, if_pair_t<target_t>);
 
 // handler for general maps
 template<typename target_t>
@@ -902,9 +902,9 @@ struct af_json_handler_mappish_t : public af_json_handler_value_t<target_t> {
 };
 
 #if _AF_JSON_OPTIMISED_STRING_MAPS
-_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, (is_mapish_t<target_t>::value && !(is_string_t<typename target_t::key_t>::value)))
+_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, if_non_string_map_t<target_t>)
 #else
-_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, (is_mapish_t<target_t>::value))
+_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, if_mapish_t<target_t>)
 #endif 
 //opitimised format for maps with string keys
 template<typename target_t>
@@ -995,7 +995,7 @@ struct af_json_handler_string_mappish_t : public af_json_handler_value_t<target_
 };
 
 #if _AF_JSON_OPTIMISED_STRING_MAPS
-_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, (is_mapish_t<target_t>::value && is_string_t<typename target_t::key_t>::value))
+_AF_JSON_DECLARE_CONTAINER_HANDLER_CREATOR(af_json_handler_mappish_t, if_string_map_t<target_t>)
 #endif
 
 // handler for objects
@@ -1488,84 +1488,61 @@ namespace json {
 }
 namespace util {
 
-#define declare_has_static_function(function_name, signature ) \
-	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
-	template<typename T>\
-	struct af_has_##function_name##_impl<T, std::enable_if_t<\
-		std::is_same<\
-		signature,\
-		decltype(T::function_name)>::value>> : std::true_type {};\
-	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
 
-#define declare_has_member_function(function_name, signature ) \
-	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
-	template<typename T>\
-	struct af_has_##function_name##_impl<T, std::enable_if_t<\
-		std::is_same<\
-		signature,\
-		decltype(&T::function_name)>::value>> : std::true_type {};\
-	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
-
-
-	declare_has_static_function(type_description, type_description_t const& (void));
-	declare_has_member_function(get_json_handler, rjson_impl::af_json_handler_p(rjson_impl::af_json_default_value_impl_p<T>));
-	declare_has_member_function(object_description, object_description_p(void));
+_AF_DECLARE_HAS_STATIC_FUNCTION(type_description, type_description_t const& (void));
+_AF_DECLARE_HAS_MEMBER_FUNCTION(get_json_handler, rjson_impl::af_json_handler_p(rjson_impl::af_json_default_value_impl_p<T>));
+_AF_DECLARE_HAS_MEMBER_FUNCTION(object_description, object_description_p(void));
 
 
 	template<typename T>
-	using af_choose_get_json_handler_t = std::enable_if_t<
+	using if_has_get_json_handler_t = std::enable_if_t<
 		af_has_get_json_handler<T>::value, bool>;
 
 	template<typename T>
-	using af_choose_object_description_t = std::enable_if_t<
+	using if_has_object_description_t = std::enable_if_t<
 		!af_has_get_json_handler<T>::value &&
 		af_has_object_description<T>::value, bool>;
 
 	template<typename T>
-	using af_choose_type_description_t = std::enable_if_t<
+	using if_has_type_description_t = std::enable_if_t<
 		!af_has_get_json_handler<T>::value &&
 		!af_has_object_description<T>::value &&
 		af_has_type_description<T>::value, bool>;
 
 	template<typename T>
-	using af_choose_error_t = std::enable_if_t<
+	using if_error_t = std::enable_if_t<
 		!af_has_get_json_handler<T>::value &&
 		!af_has_object_description<T>::value&&
 		!af_has_type_description<T>::value, bool>;
 
-
 	template<typename T>
-	using af_choose_serializable_t = std::enable_if_t<
+	using if_is_serializable_object_t = std::enable_if_t<
 		af_has_get_json_handler<T>::value ||
 		af_has_object_description<T>::value ||
 		af_has_type_description<T>::value, bool>;
 
-	template<typename target_t, af_choose_get_json_handler_t<target_t> = true>
+	template<typename target_t, if_has_get_json_handler_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target.get_json_handler(default_);
 	}
 
-	template<typename target_t, af_choose_object_description_t<target_t> = true>
+	template<typename target_t, if_has_object_description_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target.object_description()->create_json_handler(default_);
 	}
 
-	template<typename target_t, af_choose_type_description_t<target_t> = true>
+	template<typename target_t, if_has_type_description_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target_t::type_description().for_object(target)->create_json_handler(default_);
 	}
 
-	template<typename target_t, af_choose_error_t<target_t> = true>
+	template<typename target_t, if_error_t<target_t> = true>
 	inline rjson_impl::af_json_handler_p get_handler(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
@@ -1577,7 +1554,7 @@ namespace util {
 }
 
 namespace rjson_impl {
-	template< typename target_t, util::af_choose_serializable_t<target_t> >
+	template< typename target_t, util::if_is_serializable_object_t<target_t> >
 	af_json_handler_p af_create_rjson_handler(
 		target_t* target_,
 		af_json_default_value_impl_p<target_t> default_ = nullptr,

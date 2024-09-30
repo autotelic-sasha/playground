@@ -109,91 +109,10 @@ namespace autotelica {
 		template<typename T>
 		using is_value_grid_t = std_disambiguation::is_value_grid_t<T>;
 
-		// basic std constexpr functions
-		template<typename T>
-		using is_shared_ptr_f = std_disambiguation::is_shared_ptr_f<T>;
-		template<typename T>
-		// is_string detects either std::string or std::wstring
-		using is_string_f = std_disambiguation::is_string_f<T>;
-		template<typename T>
-		// is_astring detects only std::string
-		using is_astring_f = std_disambiguation::is_astring_f<T>;
-		// is_wstring detects only std::wstring
-		template<typename T>
-		using is_wstring_f = std_disambiguation::is_wstring_f<T>;
-		template<typename T>
-		using is_pair_f = std_disambiguation::is_pair_f<T>;
-		template<typename T>
-		using is_initializer_list_f = std_disambiguation::is_initializer_list_f<T>;
-		template<typename T>
-		using is_vector_f = std_disambiguation::is_vector_f<T>;
-		template<typename T>
-		using is_deque_f = std_disambiguation::is_deque_f<T>;
-		template<typename T>
-		using is_forward_list_f = std_disambiguation::is_forward_list_f<T>;
-		template<typename T>
-		using is_list_f = std_disambiguation::is_list_f<T>;
-		template<typename T>
-		using is_set_f = std_disambiguation::is_set_f<T>;
-		template<typename T>
-		using is_multiset_f = std_disambiguation::is_multiset_f<T>;
-		template<typename T>
-		using is_map_f = std_disambiguation::is_map_f<T>;
-		template<typename T>
-		using is_multimap_f = std_disambiguation::is_multimap_f<T>;
-		template<typename T>
-		using is_unordered_set_f = std_disambiguation::is_unordered_set_f<T>;
-		template<typename T>
-		using is_unordered_multiset_f = std_disambiguation::is_unordered_multiset_f<T>;
-		template<typename T>
-		using is_unordered_map_f = std_disambiguation::is_unordered_map_f<T>;
-		template<typename T>
-		using is_unordered_multimap_f = std_disambiguation::is_unordered_multimap_f<T>;
-		template<typename T>
-		using is_stack_f = std_disambiguation::is_stack_f<T>;
-		template<typename T>
-		using is_queue_f = std_disambiguation::is_queue_f<T>;
-		template<typename T>
-		using is_priority_queue_f = std_disambiguation::is_priority_queue_f<T>;
-
-		// kinds of containers
-		// is sequence detects vector or deque or forward_list or list
-		template<typename T>
-		using is_sequence_f = std_disambiguation::is_sequence_f<T>;
-		// is setish detects set or multiset or unordered_set or unordered_multiset
-		template<typename T>
-		using is_setish_f = std_disambiguation::is_setish_f<T>;
-		// is setish detects map or multimap or unordered_map or unordered_multimap
-		template<typename T>
-		using is_mapish_f = std_disambiguation::is_mapish_f<T>;
-		// is associative detects anything that is mapish or setish
-		template<typename T>
-		using is_associative_f = std_disambiguation::is_associative_f<T>;
-		// is_adaptor detects stack or queue or priority_queue
-		template<typename T>
-		using is_adaptor_f = std_disambiguation::is_adaptor_f<T>;
-		// is_indexable is badly named - it detects containers through which you can 
-		// navigate by adding a constant to begin() iterator
-		// all sequences, anything setish, and strings
-		template<typename T>
-		using is_indexable_f = std_disambiguation::is_indexable_f<T>;
-		// is_container detects anything indexable, anything mapish, and all adaptors
-		template<typename T>
-		using is_container_f = std_disambiguation::is_container_f<T>;
-		// a value_grid is a sequence of sequences of strings or non-containers
-		// basically a simple representation of a table
-		// e.g. vector<vector<string>>>, list<vector<double>> etc
-		template<typename T>
-		using is_value_grid_f = std_disambiguation::is_value_grid_f<T>;
-
 
 		// Selectors
 		// Predicates to use a particular implementation of a templated function
 		// for commonly used types.
-// selectors for all the above
-#define __AF_SELECTOR(name)\
-		template<typename T>\
-		using if_##name##_t = std::enable_if_t<is_##name##_t<T>::value, bool>;
 
 		template<typename T>
 		using if_shared_ptr_t = std::enable_if_t<is_shared_ptr_t<T>::value, bool>;

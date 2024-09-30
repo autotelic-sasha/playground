@@ -105,6 +105,32 @@ namespace autotelica {
         template<typename T>\
             constexpr bool is_string_f(T const& t) { return is_string_t<T>(); }
 
+        template<typename T, typename U = void>\
+            struct is_astring_impl : std::false_type {};
+
+        template<typename T>
+        struct is_astring_impl<T, std::enable_if_t<std::is_same< T,
+            std::string>::value>> : std::true_type {};
+
+        template<typename T>
+        struct is_astring_t : is_astring_impl<T>::type {};
+
+        template<typename T>\
+            constexpr bool is_astring_f(T const& t) { return is_astring_t<T>(); }
+
+        template<typename T, typename U = void>\
+            struct is_wstring_impl : std::false_type {};
+
+        template<typename T>
+        struct is_wstring_impl < T, std::enable_if_t < std::is_same< T,
+            std::wstring>::value>> : std::true_type {};
+
+        template<typename T>
+        struct is_wstring_t : is_wstring_impl<T>::type {};
+
+        template<typename T>\
+            constexpr bool is_wstring_f(T const& t) { return is_wstring_t<T>(); }
+
 
         // initializer_list 
         template<typename T, typename U = void>\
