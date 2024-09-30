@@ -538,10 +538,10 @@ struct af_json_handler_ptr_t : public af_json_handler_value_t<target_t> {
 	af_json_handler_ptr_t(
 			target_t* target_, 
 			default_value_t default_ = nullptr,
-			contained_default_value_t contained_default_f_ = nullptr) :
+			contained_default_value_t contained_default_ = nullptr) :
 		base_t(target_, default_),
 		_value_handler(nullptr),
-		_value_default(contained_default_f_){
+		_value_default(contained_default_){
 	}
 
 	bool is_done() const override { 
@@ -766,11 +766,12 @@ struct af_json_handler_pair_t : public af_json_handler_value_t<target_t> {
 	using base_t = af_json_handler_value_t<target_t>;
 	using key_t = typename target_t::first_type;
 	using value_t = typename target_t::second_type;
+	using contained_t = value_t;
 	using key_handler_t = af_json_handler_value_p<key_t>;
 	using value_handler_t = af_json_handler_value_p<value_t>;
 	using current_handler_t = af_json_handler_t;
 	using current_handler_p = af_json_handler_p;
-	using default_value_t = af_json_default_value_impl_p<target_t>;
+	using contained_default_value_t = af_json_default_value_impl_p<contained_t>;
 
 	inline key_t key() { return base_t::is_set()?(&(base_t::_target->first)):nullptr; }
 	inline value_t value() { return base_t::is_set()?(&(base_t::_target->second)):nullptr;}
@@ -781,12 +782,12 @@ struct af_json_handler_pair_t : public af_json_handler_value_t<target_t> {
 
 	af_json_handler_pair_t(
 			target_t* target_,
-			default_value_t value_default_value_f = nullptr) :
+			contained_default_value_t contained_default_ = nullptr) :
 		base_t(target_, nullptr), // maps cannot contain nulls
 		_current_handler(nullptr) {
 
 		_key_handler = af_create_json_handler<key_t>(key(), nullptr);
-		_value_handler = af_create_json_handler<value_t>(value(), value_default_value_f);
+		_value_handler = af_create_json_handler<value_t>(value(), contained_default_);
 	}
 
 	bool is_done() const {
@@ -874,7 +875,7 @@ struct af_json_handler_mappish_t : public af_json_handler_value_t<target_t> {
 	using value_t = typename target_t::mapped_type;
 	using contained_t = typename target_t::value_type;
 	using value_handler_t = af_json_handler_pair_t<contained_t>;
-	using value_default_value_t = af_json_default_value_impl_p<value_t>;
+	using contained_default_value_t = af_json_default_value_impl_p<contained_t>;
 
 	contained_t _current_value;
 	value_handler_t _value_handler;
@@ -882,9 +883,9 @@ struct af_json_handler_mappish_t : public af_json_handler_value_t<target_t> {
 	af_json_handler_mappish_t(
 			target_t* target_, 
 			default_value_t default_ = nullptr,
-			value_default_value_t value_default_f_ = nullptr) :
+		contained_default_value_t contained_default_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(af_create_json_handler<contained_t>(nullptr, value_default_f_)){
+		_value_handler(af_create_json_handler<contained_t>(nullptr, contained_default_)){
 	}
 
 	void reset(target_t* target_) override {
@@ -950,18 +951,18 @@ struct af_json_handler_string_mappish_t : public af_json_handler_value_t<target_
 	using base_t = af_json_handler_value_t<target_t>;
 	using default_value_t = af_json_default_value_impl_p<target_t>;
 	using key_t = typename target_t::key_type; // this is some string type
-	using value_t = typename target_t::mapped_type;
-	using value_handler_t = af_json_handler_value_p<value_t> ;
-	using value_default_value_t = af_json_default_value_impl_p<value_t>;
+	using contained_t = typename target_t::mapped_type;
+	using value_handler_t = af_json_handler_value_p<contained_t> ;
+	using contained_default_value_t = af_json_default_value_impl_p<contained_t>;
 
 	value_handler_t _value_handler;
 
 	af_json_handler_string_mappish_t(
 			target_t* target_, 
 			default_value_t default_ = nullptr,
-			value_default_value_t value_default_f_ = nullptr) :
+			contained_default_value_t contained_default_ = nullptr) :
 		base_t(target_, default_),
-		_value_handler(af_create_json_handler<value_t>(nullptr, value_default_f_)){
+		_value_handler(af_create_json_handler<contained_t>(nullptr, contained_default_)){
 	}
 	
 	void reset(target_t* target_) override {
@@ -1718,28 +1719,6 @@ public:
 		return *this;
 	}
 
-	//json_impl::af_json_handler_p make_json_handler(
-	//		object_t& object,
-	//		json_impl::af_json_default_value_impl_p<object_t> default_ = nullptr) const{
-	//	AF_ASSERT(_done, "Cannot create handlers before object description is done.");
-	//	handlers_t _handlers;
-	//	_handlers.reserve(_member_descriptions.size());
-	//	for (auto const d : _member_descriptions)
-	//		_handlers.push_back({ d->key(), d->make_json_handler(object) });
-
-	//	auto wrap_mfunc = [&](member_function_t f) { 
-	//		return f?[&]() {(object.*f)(); }:std::function<void()>(); };
-
-	//	return std::static_pointer_cast<json_impl::af_json_handler_t>(
-	//		std::make_shared<json_impl::af_json_handler_object_t<object_t>>(
-	//			&object,
-	//			default_,
-	//			wrap_mfunc(_pre_load_f),
-	//			wrap_mfunc(_pre_save_f),
-	//			wrap_mfunc(_post_load_f),
-	//			wrap_mfunc(_post_save_f),
-	//			_handlers));
-	//}
 };
 
 class object_description_t {
