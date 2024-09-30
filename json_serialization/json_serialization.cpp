@@ -43,9 +43,9 @@ struct test2  {
             end_object();
         return description;
     }
-    //inline object_description_p object_description() {
-    //    return type_description().for_object(*this);
-    //}
+    inline object_description_p object_description() {
+        return type_description().for_object(*this);
+    }
 
     //inline json::handler_p get_json_handler(
     //        json::default_value_p default_ = nullptr) {
