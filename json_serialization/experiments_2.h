@@ -132,11 +132,17 @@ namespace serialization {
 		using af_json_default_value_impl_p = std::shared_ptr<af_json_default_value_impl_t<target_t>>;
 	}
 
+	template<typename target_t>
+	struct default_value_description;
+
+	template<typename target_t>
+	using default_description_p = std::shared_ptr <default_value_description<target_t>>;
+
 	namespace json_handlers_factory{
+
 		template<typename target_t>
 		inline json_impl::af_json_handler_p make_object_handler(
-			target_t& target,
-			json_impl::af_json_default_value_impl_p<target_t> default_);
+			target_t& target, default_description_p<target_t> default_);
 	}
 
 
@@ -1456,12 +1462,32 @@ struct default_value_description {
 
 	default_value_description(target_t const& default_value_):_default_value(default_value_){}
 
-	using default_value_description_p = std::shared_ptr<default_value_description<target_t>>;
-
-	static default_value_description_p create(target_t const& v) {
+	static default_description_p<target_t> create(target_t const& v) {
 		return std::make_shared<default_value_description<target_t>>(v);
 	}
 };
+
+namespace json_handlers_factory {
+	template<typename target_t>
+	struct resolve_json_default_t {
+		using default_value_t = json_impl::af_json_default_value_impl_t<target_t>;
+		using default_value_p = json_impl::af_json_default_value_impl_p<target_t>;
+
+		static inline default_value_p make_handler(default_description_p<target_t> const& default_) {
+			return std::make_shared<default_value_t>(default_->_default_value);
+		}
+
+	};
+	template<>
+	struct resolve_json_default_t<void*> {
+		using default_value_p = void*;
+		using default_description_p_ = std::shared_ptr <default_value_description<void*>>;
+
+		static inline default_value_p make_handler(default_description_p_ const& default_) {
+			return nullptr;
+		}
+	};
+}
 
 struct member_description {
 	using key_t = typename json_impl::af_json_types_t::key_t;
@@ -1486,35 +1512,12 @@ struct type_member_description : public member_description {
 
 template<typename object_t, typename target_t, typename target_element_t = void*>
 struct type_member_description_impl : public type_member_description<object_t> {
-public:
 	
 	using base_t = type_member_description<object_t>;
 	using key_t = typename json_impl::af_json_types_t::key_t;
 	using target_p = target_t object_t::*;
 	using target_default_p = std::shared_ptr<default_value_description<target_t>>;
 	using target_element_default_p = std::shared_ptr < default_value_description<target_element_t>>;
-private:
-	template<typename target_t>
-	struct resolve_json_default_t {
-		using default_value_t = json_impl::af_json_default_value_impl_t<target_t>;
-		using default_value_p = json_impl::af_json_default_value_impl_p<target_t>;
-		using default_description_p = std::shared_ptr < default_value_description<target_t>>;
-
-		static inline default_value_p make_handler(default_description_p const& default_) {
-			return std::make_shared<default_value_t>(default_->_default_value);
-		}
-
-	};
-	template<>
-	struct resolve_json_default_t<void*> {
-		using default_value_p = void*;
-		using default_description_p = std::shared_ptr <default_value_description<void*>>;
-
-		static inline default_value_p make_handler(default_description_p const& default_) {
-			return nullptr;
-		}
-	};
-public:
 	target_p const _target;
 	target_default_p const _default_value;
 	target_element_default_p const _element_default_value;
@@ -1533,6 +1536,7 @@ public:
 	}
 
 	json_impl::af_json_handler_p make_json_handler(object_t& object) const override {
+		using namespace json_handlers_factory;
 		target_t* target = &(object.*_target);
 		return std::static_pointer_cast<json_impl::af_json_handler_t>(
 			af_create_json_handler(target,
@@ -1778,7 +1782,7 @@ namespace json_handlers_factory {
 	json_impl::af_json_handler_p make_object_handler(
 		type_description_t const& type_description,
 		object_t& object,
-		json_impl::af_json_default_value_impl_p<object_t> default_ = nullptr) {
+		default_description_p<object_t> default_ = nullptr) {
 		
 		using description_t = type_description_impl_t<object_t>;
 		using member_function_t = typename description_t::member_function_t;
@@ -1795,10 +1799,16 @@ namespace json_handlers_factory {
 		auto wrap_mfunc = [&](member_function_t f) {
 			return f ? [&]() {(object.*f)(); } : std::function<void()>(); };
 
+
+		json_impl::af_json_default_value_impl_p<object_t> default_v =
+			default_ ?
+			resolve_json_default_t<object_t>::make_handler(default_) :
+			nullptr;
+
 		return std::static_pointer_cast<json_impl::af_json_handler_t>(
 			std::make_shared<json_impl::af_json_handler_object_t<object_t>>(
 				&object,
-				default_,
+				default_v,
 				wrap_mfunc(description.pre_load_f()),
 				wrap_mfunc(description.pre_save_f()),
 				wrap_mfunc(description.post_load_f()),
@@ -1846,7 +1856,7 @@ namespace json_handlers_factory {
 	template<typename target_t, if_has_type_description_t<target_t> = true>
 	inline json_impl::af_json_handler_p make_object_handler_impl(
 			target_t& target,
-			json_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+			default_description_p<target_t> default_ = nullptr) {
 
 		type_description_impl_t<target_t> const& type_description_(
 			static_cast<type_description_impl_t<target_t> const&>(target_t::type_description()));
@@ -1856,7 +1866,7 @@ namespace json_handlers_factory {
 	template<typename target_t, if_has_object_description_t<target_t> = true>
 	inline json_impl::af_json_handler_p make_object_handler_impl(
 		target_t& target,
-		json_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		default_description_p<target_t> default_ = nullptr) {
 		
 		auto object_description_ = std::static_pointer_cast<object_description_impl_t<target_t>>(target.object_description());
 		return make_object_handler(
@@ -1868,14 +1878,14 @@ namespace json_handlers_factory {
 	template<typename target_t, if_has_get_json_handler_t<target_t> = true>
 	inline json_impl::af_json_handler_p make_object_handler_impl(
 			target_t& target,
-			json_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+			default_description_p<target_t> default_ = nullptr) {
 		return target.get_json_handler(default_);
 	}
 
 	template<typename target_t, if_error_t<target_t> = true>
 	inline json_impl::af_json_handler_p make_object_handler_impl(
 			target_t& target,
-			json_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+			default_description_p<target_t> default_ = nullptr) {
 		AF_ERROR("Type description is not implemented for type.");
 		return nullptr;
 	}
@@ -1883,7 +1893,7 @@ namespace json_handlers_factory {
 	template<typename target_t>
 	inline json_impl::af_json_handler_p make_object_handler(
 			target_t& target,
-			json_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+			default_description_p<target_t> default_ = nullptr) {
 		return make_object_handler_impl(target, default_);
 	}
 
