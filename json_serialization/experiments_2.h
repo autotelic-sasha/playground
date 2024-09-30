@@ -97,12 +97,38 @@ namespace autotelica{
 namespace serialization {
 	using namespace autotelica::sfinae;
 
+	namespace rjson_impl {
+		struct af_json_handler_t; 
+
+		using af_json_handler_p = std::shared_ptr<af_json_handler_t>;
+		
+		template<typename target_t>
+		struct af_json_handler_value_t;
+
+		template<typename target_t>
+		using af_json_handler_value_p = std::shared_ptr<af_json_handler_value_t<target_t>>;
+
+		class af_json_default_value_t;
+		
+		using af_json_default_value_p = std::shared_ptr<af_json_default_value_t>;
+
+		template<typename target_t>
+		class af_json_default_value_impl_t;
+
+		template<typename target_t>
+		using af_json_default_value_impl_p = std::shared_ptr<af_json_default_value_impl_t<target_t>>;
+	}
+
+	namespace util{
+		template<typename target_t>
+		inline rjson_impl::af_json_handler_p get_handler(
+			target_t& target,
+			rjson_impl::af_json_default_value_impl_p<target_t> default_);
+	}
+
+
 // rapidjson interface implementation
 namespace rjson_impl{
-
-// we use SFINAE a lot here
-using namespace autotelica::std_disambiguation;
-struct af_json_handler_t; // we need the forward declaration to handle the types more prettily
 
 // traits class to name all the types used later
 struct af_json_types_t {
@@ -343,15 +369,6 @@ struct af_json_handler_value_t : public af_json_handler_t {
 };
 
 // SFINAE based type filter
-using af_json_handler_p = std::shared_ptr<af_json_handler_t>;
-
-template<typename target_t>
-using af_json_handler_value_p = std::shared_ptr<af_json_handler_value_t<target_t>>;
-
-using af_json_default_value_p = std::shared_ptr<af_json_default_value_t>;
-
-template<typename target_t>
-using af_json_default_value_impl_p = std::shared_ptr<af_json_default_value_impl_t<target_t>>;
 
 // creator functions all need to follow a certain form
 #define _AF_JSON_DECLARE_HANDLER_CREATOR( HandlerType, Condition ) \
@@ -1142,6 +1159,14 @@ using if_is_serializable_object_t = std::enable_if_t<
 	af_has_object_description<T>::value ||
 	af_has_type_description<T>::value, bool>;
 
+template< typename target_t, if_is_serializable_object_t<target_t> >
+af_json_handler_p af_create_rjson_handler(
+	target_t* target_,
+	af_json_default_value_impl_p<target_t> default_ = nullptr,
+	void* unused_ = nullptr) {
+	return util::get_handler(target_t, default_);
+}
+
 
 } // namespace rjson_impl
 
@@ -1501,14 +1526,14 @@ namespace json {
 namespace util {
 
 
-_AF_DECLARE_HAS_STATIC_MEMBER(type_description);
-_AF_DECLARE_HAS_MEMBER(get_json_handler);
-_AF_DECLARE_HAS_MEMBER(object_description);
-template<typename T>
-using if_is_serializable_object_t = std::enable_if_t<
-	af_has_get_json_handler<T>::value ||
-	af_has_object_description<T>::value ||
-	af_has_type_description<T>::value, bool>;
+	_AF_DECLARE_HAS_STATIC_MEMBER(type_description);
+	_AF_DECLARE_HAS_MEMBER(get_json_handler);
+	_AF_DECLARE_HAS_MEMBER(object_description);
+	template<typename T>
+	using if_is_serializable_object_t = std::enable_if_t<
+		af_has_get_json_handler<T>::value ||
+		af_has_object_description<T>::value ||
+		af_has_type_description<T>::value, bool>;
 
 
 	template<typename T>
@@ -1533,45 +1558,44 @@ using if_is_serializable_object_t = std::enable_if_t<
 		!af_has_type_description<T>::value, bool>;
 
 	template<typename target_t, if_has_get_json_handler_t<target_t> = true>
-	inline rjson_impl::af_json_handler_p get_handler(
+	inline rjson_impl::af_json_handler_p get_handler_impl(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target.get_json_handler(default_);
 	}
 
 	template<typename target_t, if_has_object_description_t<target_t> = true>
-	inline rjson_impl::af_json_handler_p get_handler(
+	inline rjson_impl::af_json_handler_p get_handler_impl(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target.object_description()->create_json_handler(default_);
 	}
 
 	template<typename target_t, if_has_type_description_t<target_t> = true>
-	inline rjson_impl::af_json_handler_p get_handler(
+	inline rjson_impl::af_json_handler_p get_handler_impl(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		return target_t::type_description().for_object(target)->create_json_handler(default_);
 	}
 
 	template<typename target_t, if_error_t<target_t> = true>
-	inline rjson_impl::af_json_handler_p get_handler(
+	inline rjson_impl::af_json_handler_p get_handler_impl(
 			target_t& target,
 			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
 		AF_ERROR("Type description is not implemented for type.");
 		return nullptr;
 	}
 
+	template<typename target_t>
+	inline rjson_impl::af_json_handler_p get_handler(
+			target_t& target,
+			rjson_impl::af_json_default_value_impl_p<target_t> default_ = nullptr) {
+		return get_handler_impl(target, default_);
+	}
 
 }
 
 namespace rjson_impl {
-	template< typename target_t, util::if_is_serializable_object_t<target_t> >
-	af_json_handler_p af_create_rjson_handler(
-		target_t* target_,
-		af_json_default_value_impl_p<target_t> default_ = nullptr,
-		void* unused_ = nullptr) {
-		return util::get_handler(target_t, default_);
-	}
 
 	template<typename stream_t, json::json_encoding encoding>
 	struct rjson_writing;
