@@ -1642,25 +1642,38 @@ namespace member_handlers_factory {
 		typename object_t,
 		typename target_t,
 		makers_enum_t id,
-		std::enable_if_t<id == makers_enum_t::json, bool> = true>
-	inline af_serialization_handler_p make_json_member_handler(
+		typename U>
+	inline af_serialization_handler_p make_member_handler(
 		type_member_description_impl<object_t, target_t> const& description_,
 		object_t& object_) {
-		return json_handlers_factory::make_json_member_handler<object_t, target_t>(
-			description_, object_);
+		AF_ERROR("unkonw member handler type");
 	}
+
+
+
 
 	template<typename object_t, typename target_t>
 	inline maker_function_t<object_t, target_t> get_maker_function(makers_enum_t const id) {
 		switch (id) {
 		case makers_enum_t::json:
-			return make_json_member_handler<object_t, target_t, makers_enum_t::json>;
+			return make_member_handler<object_t, target_t, makers_enum_t::json>;
 		case makers_enum_t::excel:
 		case makers_enum_t::csv:
 		default:
 			AF_ERROR("maker function not implemented.");
 			return nullptr;
 		}
+	}
+	template<
+		typename object_t,
+		typename target_t,
+		makers_enum_t id,
+		std::enable_if_t<id == makers_enum_t::json, bool> = true>
+	inline af_serialization_handler_p make_member_handler(
+		type_member_description_impl<object_t, target_t> const& description_,
+		object_t& object_) {
+		return json_handlers_factory::make_json_member_handler<object_t, target_t>(
+			description_, object_);
 	}
 }
 // type_member_description
