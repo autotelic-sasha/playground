@@ -198,11 +198,6 @@ namespace serialization {
 
 
 	// descriptions forward declarations
-	struct type_description_t;
-
-	template<typename object_t>
-	class type_description_impl_t;
-
 	struct default_value_description;
 	
 	using default_description_p = std::shared_ptr<default_value_description>;
@@ -213,8 +208,29 @@ namespace serialization {
 	template<typename target_t>
 	using default_description_impl_p = std::shared_ptr <default_value_description_impl<target_t>>;
 
+	struct member_description;
+
+	template<typename object_t>
+	struct type_member_description;
+
+	template<typename object_t>
+	using type_member_description_p = std::shared_ptr<type_member_description<object_t>>;
+
 	template<typename object_t, typename target_t>
 	struct type_member_description_impl;
+
+	template<typename object_t, typename target_t>
+	using type_member_description_impl_p = std::shared_ptr< type_member_description_impl<object_t, target_t>>;
+
+	struct type_description_t;
+	
+	using type_description_p = std::shared_ptr<struct type_description_t>;
+
+	template<typename object_t>
+	class type_description_impl_t;
+
+	template<typename object_t>
+	using type_description_impl_p = std::shared_ptr<type_description_impl_t<object_t>>;
 
 	// member_handlers_factory forward declarations
 	namespace member_handlers_factory {
@@ -1197,7 +1213,7 @@ _AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_mappish_t, if_non_string_map_t<
 #else
 _AF_JSON_DECLARE_HANDLER_CREATOR(af_json_handler_mappish_t, if_mapish_t<target_t>)
 #endif 
-//opitimised format for maps with string keys
+//optimised format for maps with string keys
 template<typename target_t>
 struct af_json_handler_string_mappish_t : public af_json_handler_value_t<target_t> {
 
@@ -1796,7 +1812,7 @@ struct type_member_description_impl : public type_member_description<object_t> {
 };
 
 template<typename object_t, typename target_t>
-inline std::shared_ptr<type_member_description<object_t>> create_type_member_description(
+inline type_member_description_p<object_t> create_type_member_description(
 	typename traits::key_t const& key_,
 	target_t object_t::* target_,
 	typename traits::serializable<target_t>::default_t default_,
@@ -1813,7 +1829,7 @@ inline std::shared_ptr<type_member_description<object_t>> create_type_member_des
 			make_default_value_description_impl(contained_default_)));
 }
 template<typename object_t, typename target_t>
-inline std::shared_ptr<type_member_description<object_t>> create_type_member_description(
+inline type_member_description_p<object_t> create_type_member_description(
 	typename traits::key_t const& key_,
 	target_t object_t::* target_
 ) {
@@ -1823,7 +1839,7 @@ inline std::shared_ptr<type_member_description<object_t>> create_type_member_des
 			target_));
 }
 template<typename object_t, typename target_t>
-inline std::shared_ptr<type_member_description<object_t>> create_type_member_description(
+inline type_member_description_p<object_t> create_type_member_description(
 	typename traits::key_t const& key_,
 	target_t object_t::* target_,
 	typename traits::serializable<target_t>::default_t default_
@@ -1847,7 +1863,7 @@ class type_description_impl_t : public type_description_t {
 public:
 	using key_t = typename traits::key_t;
 	using member_function_t = void (object_t::*)();
-	using member_description_p = std::shared_ptr<type_member_description<object_t>>;
+	using member_description_p = type_member_description_p<object_t>;
 	using member_descriptions_t = std::vector<member_description_p>;
 protected:
 	bool _done;
@@ -1960,9 +1976,7 @@ type_description_impl_t<object_t> begin_object() {
 
 namespace member_handlers_factory {
 	enum class makers_enum_t {
-		json,
-		excel,
-		csv
+		json
 	};
 
 	template<
@@ -1982,8 +1996,6 @@ namespace member_handlers_factory {
 		switch (id) {
 		case makers_enum_t::json:
 			return make_member_handler<object_t, target_t, makers_enum_t::json>;
-		case makers_enum_t::excel:
-		case makers_enum_t::csv:
 		default:
 			AF_ERROR("maker function not implemented.");
 			return nullptr;
