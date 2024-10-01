@@ -9,6 +9,16 @@ namespace autotelica {
 		template<typename ... Ts>
 		using if_types_exist = void;
 
+		template<typename T>
+		using if_exists = void;
+
+		template<typename T>
+		using void_t_ = void;
+
+		template<typename T>
+		using select_t = void;
+
+
 		// basic std types
 		template<typename T>
 		using is_shared_ptr_t = std_disambiguation::is_shared_ptr_t<T>;
@@ -198,7 +208,13 @@ namespace autotelica {
 		using if_string_map_t = std::enable_if_t<
 			(is_mapish_t<T>::value && is_string_t<typename T::key_t>::value), bool>;
 
+	
+		// unused marks things as unused, so compilers don't moan
+		template <typename... Args> inline void _unused(Args&&...) {}
+
 	}
+
+
 }
 
 // _AF_DECLARE_HAS_STATIC_MEMBER declares a sfinae predicate 
@@ -208,7 +224,7 @@ namespace autotelica {
 	struct af_has_##function_name##_impl : std::false_type {};\
 	template<typename T>\
 	struct af_has_##function_name##_impl<T, \
-		autotelica::sfinae::if_types_exist<decltype(T::function_name)>> : std::true_type {};\
+		std::is_function<decltype(T::function_name)>> : std::true_type {};\
 	template<typename T>\
 	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
 
