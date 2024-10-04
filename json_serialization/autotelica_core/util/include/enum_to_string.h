@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <type_traits>
 #include "asserts.h"
 #include "string_util.h"
 #include "diagnostic_messages.h"
@@ -9,6 +10,8 @@ namespace autotelica{
 
         template<typename enum_t, typename string_t = std::string>
         struct enum_to_string {
+            static_assert(std::is_enum<enum_t>::value, "Enum to string mapping can only be implemented for enum types.");
+
             using key_t = string_t;
             using char_t = typename string_t::value_type;
             using mapping_t = std::map<key_t, enum_t>;
@@ -185,11 +188,11 @@ namespace autotelica{
     namespace __af_string_translation_##enum_t_namespace{\
         static bool __af_string_translation_##enum_t = autotelica::enum_to_string::enum_to_string<enum_t, string_t>::register_enum_tags(__VA_ARGS__);\
     };\
-    std::ostream& operator<<(std::ostream& out, enum_t const& e) {\
+    inline std::ostream& operator<<(std::ostream& out, enum_t const& e) {\
         out << #enum_t << "::" << autotelica::enum_to_string::to_string(e); \
         return out;\
     }\
-    std::wostream& operator<<(std::wostream& out, enum_t const& e) {\
+    inline std::wostream& operator<<(std::wostream& out, enum_t const& e) {\
         out << #enum_t << "::" << autotelica::enum_to_string::to_wstring(e); \
         return out;\
     }

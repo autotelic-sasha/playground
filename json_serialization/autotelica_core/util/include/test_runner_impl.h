@@ -157,7 +157,7 @@ public:
         std::shared_ptr<error_collector> only_errors;
         std::vector<std::string> errors;
         if (errors_only) {
-            only_errors = std::dynamic_pointer_cast<error_collector>(make_error_collector(errors));
+            only_errors = std::dynamic_pointer_cast<error_collector>(make_error_collector_active(errors));
         }
         else if (!trace_all) {
             messages::configure(trace_messages, trace_warnings, trace_error_text || throw_errors, throw_errors);
@@ -168,11 +168,14 @@ public:
         if (errors_only) {
             if (!errors.empty()) {
                 auto count = errors.size();
-                only_errors->deactivate();//killing it will make it dump errors
+                only_errors->dump();
+                only_errors->deactivate();
+                print::newline();
                 messages::warning("Errors during test run. Total errors found: %.", count);
                 return 1;
             }
-            only_errors->deactivate();//killing it will make it dump errors
+            only_errors->dump();
+            only_errors->deactivate();
             messages::message("All tests completed with no errors.");
             return 0;
         }

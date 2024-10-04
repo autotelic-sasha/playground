@@ -18,7 +18,6 @@ namespace autotelica {
 		template<typename T>
 		using select_t = void;
 
-
 		// basic std types
 		template<typename T>
 		using is_shared_ptr_t = std_disambiguation::is_shared_ptr_t<T>;
@@ -208,13 +207,10 @@ namespace autotelica {
 		using if_string_map_t = std::enable_if_t<
 			(is_mapish_t<T>::value && is_string_t<typename T::key_t>::value), bool>;
 
-	
+
 		// unused marks things as unused, so compilers don't moan
 		template <typename... Args> inline void _unused(Args&&...) {}
-
 	}
-
-
 }
 
 // _AF_DECLARE_HAS_STATIC_MEMBER declares a sfinae predicate 

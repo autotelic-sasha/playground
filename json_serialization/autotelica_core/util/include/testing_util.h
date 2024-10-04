@@ -549,9 +549,23 @@ namespace autotelica {
 				std::string const& file_, 
 				std::string const& class_
 				) {
-				if (_tests.find(name) != _tests.end()) {
-					throw std::runtime_error(
-						string_util::af_format_string("Test runner % is already registered", name));
+				// we look for duplicates, but we are very forgiving of static initialisation issues
+				auto const& existing = _tests.find(name);
+				if (existing != _tests.end()) {
+					if (existing->second._class != class_) {
+						auto error = string_util::af_format_string(
+							"ERROR: Test runner % is already registered with different class name.(first % , now %)",
+							name, existing->second._class, class_);
+						std::cout << error << std::endl;
+						throw std::runtime_error(error);
+					}
+					else if (existing->second._file != file_) {
+						auto error = string_util::af_format_string(
+							"ERROR: Test runner % is already registered with different file name.(first % , now %)",
+							name, existing->second._file, file_);
+						std::cout << error << std::endl;
+						throw std::runtime_error(error);
+					}
 				}
 				_tests[name] = test_record{ runner, file_, class_ };
 			}
@@ -830,6 +844,9 @@ namespace autotelica {
 			void run_recording() const override { af_record(); }
 		};
 
+
+// alas, sometimes we need to pass a comman to macros
+#define AF_COMMA ,		
 // setup the needed boring members of a test set runner class
 #define AF_TEST_SET( test_set_name_ )    \
 	static constexpr char const* test_set_name() { return test_set_name_; } \
