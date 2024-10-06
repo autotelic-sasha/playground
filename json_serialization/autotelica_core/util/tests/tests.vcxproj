@@ -156,6 +156,7 @@
     <ClInclude Include="enum_to_string_examples.h" />
     <ClInclude Include="examples_template.h" />
     <ClInclude Include="macro_magic_examples.h" />
+    <ClInclude Include="sfinae_examples.h" />
     <ClInclude Include="std_disambiguation_examples.h" />
     <ClInclude Include="std_pretty_printing_examples.h" />
     <ClInclude Include="string_util_examples.h" />

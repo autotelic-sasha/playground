@@ -96,7 +96,7 @@ namespace rapidjson { typedef size_t SizeType; }
 namespace autotelica{
 namespace serialization {
 	using namespace autotelica::sfinae; 
-	
+
 	struct af_serialization_handler_t {
 		virtual ~af_serialization_handler_t() {}
 	};
@@ -287,22 +287,24 @@ namespace serialization {
 		using default_value_p = json_impl::af_json_default_value_impl_p<target_t>;
 
 		template<typename target_t, traits::if_has_default<target_t> = true>
-		default_value_p<target_t> make_json_default_handler(default_description_impl_p<target_t> const& default_) {
+		default_value_p<target_t> make_json_default_handler(
+				default_description_impl_p<target_t> const& default_) {
 			if (!default_)
 				return nullptr;
 			return std::make_shared<default_value_t<target_t>>(default_->_default_value);
 		}
 		
 		template<typename target_t, traits::if_has_no_default<target_t> = true>
-		constexpr default_value_p<target_t> make_json_default_handler(default_description_impl_p<target_t> const& default_) {
+		constexpr default_value_p<target_t> make_json_default_handler(
+				default_description_impl_p<target_t> const& default_) {
 			static default_value_p<target_t> no_default = std::make_shared<default_value_t<target_t>>(default_->_default_value);
 			return no_default;
 		}
 
 		template<typename object_t, typename target_t>
 		af_serialization_handler_p make_json_member_handler(
-			type_member_description_impl<object_t, target_t> const& description_,
-			object_t& object_) {
+				type_member_description_impl<object_t, target_t> const& description_,
+				object_t& object_) {
 			using namespace json_handlers_factory;
 			target_t* target = &(object_.*(description_._target));
 			return std::static_pointer_cast<json_impl::af_json_handler_t>(
@@ -314,9 +316,9 @@ namespace serialization {
 
 		template<typename object_t>
 		json_impl::af_json_handler_p make_object_handler(
-			type_description_t const& type_description,
-			object_t& object,
-			default_description_impl_p<object_t> default_ = nullptr) {
+				type_description_t const& type_description,
+				object_t& object,
+				default_description_impl_p<object_t> default_ = nullptr) {
 
 			using description_t = type_description_impl_t<object_t>;
 			using member_function_t = typename description_t::member_function_t;
@@ -349,9 +351,9 @@ namespace serialization {
 
 		template<typename object_t>
 		json_impl::af_json_handler_p make_object_handler(
-			type_description_t const& type_description,
-			object_t& object,
-			default_description_p default_ = nullptr) {
+				type_description_t const& type_description,
+				object_t& object,
+				default_description_p default_ = nullptr) {
 
 			default_description_impl_p<object_t> default_impl(
 				std::static_pointer_cast<default_value_description_impl<object_t>>(default_));
@@ -379,9 +381,8 @@ namespace serialization {
 
 		template<typename target_t, if_has_type_description_t<target_t> = true>
 		inline json_impl::af_json_handler_p make_object_handler_impl(
-			target_t& target,
-			default_description_impl_p<target_t> default_ = nullptr) {
-
+				target_t& target,
+				default_description_impl_p<target_t> default_ = nullptr) {
 			type_description_impl_t<target_t> const& type_description_(
 				static_cast<type_description_impl_t<target_t> const&>(target_t::type_description()));
 			return make_object_handler(type_description_, target, default_);
@@ -389,23 +390,23 @@ namespace serialization {
 
 		template<typename target_t, if_has_get_json_handler_t<target_t> = true>
 		inline json_impl::af_json_handler_p make_object_handler_impl(
-			target_t& target,
-			default_description_impl_p<target_t> default_ = nullptr) {
+				target_t& target,
+				default_description_impl_p<target_t> default_ = nullptr) {
 			return target.get_json_handler(default_);
 		}
 
 		template<typename target_t, if_error_t<target_t> = true>
 		inline json_impl::af_json_handler_p make_object_handler_impl(
-			target_t& target,
-			default_description_impl_p<target_t> default_ = nullptr) {
+				target_t& target,
+				default_description_impl_p<target_t> default_ = nullptr) {
 			AF_ERROR("Type description is not implemented for type.");
 			return nullptr;
 		}
 
 		template<typename target_t>
 		inline json_impl::af_json_handler_p make_object_handler(
-			target_t& target,
-			default_description_impl_p<target_t> default_ = nullptr) {
+				target_t& target,
+				default_description_impl_p<target_t> default_ = nullptr) {
 			return make_object_handler_impl(target, default_);
 		}
 	}
@@ -1454,6 +1455,7 @@ af_json_handler_p af_create_json_handler(
 // public interface for JSON serialization
 namespace json {
 	// TODO: schema validation
+	// TODO: bitset serialization
 	enum class json_encoding {
 		utf8,
 		utf16le,
@@ -1540,8 +1542,8 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 	struct reader {
 		template<typename target_t, typename stream_t>
 		static void from_stream(
-			target_t& target,
-			stream_t& stream) {
+				target_t& target,
+				stream_t& stream) {
 			using namespace rapidjson;
 			using namespace json_impl;
 			using namespace detail;
@@ -1561,21 +1563,21 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 		}
 		template<typename target_t>
 		static void from_string(
-			target_t& target,
-			typename traits::string_t const& json) {
+				target_t& target,
+				typename traits::string_t const& json) {
 			using namespace rapidjson;
 			StringStream ss(json.c_str());
 			from_stream(target, ss);
 		}
 		template<typename target_t>
 		static void from_string(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t const& json) {
+				std::shared_ptr<target_t>& target,
+				typename traits::string_t const& json) {
 			from_string(*target, json);
 		}
 		template<typename target_t>
 		static target_t from_string(
-			typename traits::string_t const& json) {
+				typename traits::string_t const& json) {
 			target_t target;
 			from_string(target, json);
 			return target;
@@ -1584,8 +1586,8 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 
 		template<typename target_t>
 		static void from_file(
-			target_t& target,
-			typename traits::string_t const& path) {
+				target_t& target,
+				typename traits::string_t const& path) {
 			using namespace rapidjson;
 			// rapidjson documentation says this is how to open files
 #ifdef _WIN32
@@ -1601,8 +1603,8 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 		}
 		template<typename target_t>
 		static void from_file(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t const& path) {
+				std::shared_ptr<target_t>& target,
+				typename traits::string_t const& path) {
 			if (!target)
 				target = std::make_shared<target_t>();
 			from_file(*target, path);
@@ -1610,8 +1612,8 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 
 		template<typename target_t>
 		static target_t from_file(
-			typename traits::string_t const& path,
-			bool encoded = false) {
+				typename traits::string_t const& path,
+				bool encoded = false) {
 			target_t target;
 			from_file(target, json, encoded);
 			return target;
@@ -1623,8 +1625,8 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 
 		template<typename target_t, typename writer_t>
 		static void to_writer(
-			target_t& target,
-			writer_t& writer) {
+				target_t& target,
+				writer_t& writer) {
 			using namespace rapidjson;
 			using namespace json_impl;
 			auto handler = json_handlers_factory::make_object_handler(target);
@@ -1634,10 +1636,10 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 
 		template<typename target_t, typename stream_t>
 		static void to_stream(
-			target_t& target,
-			stream_t& stream,
-			bool pretty = false,
-			bool put_bom = false) {
+				target_t& target,
+				stream_t& stream,
+				bool pretty = false,
+				bool put_bom = false) {
 			using namespace rapidjson;
 			using namespace detail;
 
@@ -1653,10 +1655,10 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 		}
 		template<typename target_t>
 		static void to_string(
-			target_t& target,
-			typename traits::string_t& json,
-			bool pretty = false,
-			bool put_bom = false) {
+				target_t& target,
+				typename traits::string_t& json,
+				bool pretty = false,
+				bool put_bom = false) {
 			using namespace rapidjson;
 			StringBuffer ss;
 			to_stream(target, ss, pretty, put_bom);
@@ -1664,37 +1666,37 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 		}
 		template<typename target_t>
 		static void to_string(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t& json,
-			bool pretty = false,
-			bool put_bom = false) {
+				std::shared_ptr<target_t>& target,
+				typename traits::string_t& json,
+				bool pretty = false,
+				bool put_bom = false) {
 			to_string(*target, json, pretty, put_bom);
 		}
 
 		template<typename target_t>
 		static traits::string_t to_string(
-			target_t& target,
-			bool pretty = false,
-			bool put_bom = false) {
+				target_t& target,
+				bool pretty = false,
+				bool put_bom = false) {
 			using namespace rapidjson;
 			StringBuffer ss;
 			to_stream(target, ss, pretty, put_bom);
 			return ss.GetString();
 		}
 		template<typename target_t>
-		static traits::string_t to_string(
-			std::shared_ptr<target_t>& target,
-			bool pretty = false,
-			bool put_bom = false) {
+			static traits::string_t to_string(
+				std::shared_ptr<target_t>& target,
+				bool pretty = false,
+				bool put_bom = false) {
 			return to_string(*target, pretty, put_bom);
 		}
 
 		template<typename target_t>
 		static void to_file(
-			target_t& target,
-			typename traits::string_t& path,
-			bool pretty = false,
-			bool put_bom = false) {
+				target_t& target,
+				typename traits::string_t& path,
+				bool pretty = false,
+				bool put_bom = false) {
 			// rapidjson documentation says this is how to open files
 			using namespace rapidjson;
 #ifdef _WIN32
@@ -1985,8 +1987,8 @@ namespace member_handlers_factory {
 		makers_enum_t id,
 		std::enable_if_t<id == makers_enum_t::json, bool> = true>
 	inline af_serialization_handler_p make_member_handler(
-		type_member_description_impl<object_t, target_t> const& description_,
-		object_t& object_) {
+			type_member_description_impl<object_t, target_t> const& description_,
+			object_t& object_) {
 		return json_handlers_factory::make_json_member_handler<object_t, target_t>(
 			description_, object_);
 	}

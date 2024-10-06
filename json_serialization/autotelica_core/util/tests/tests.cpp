@@ -10,6 +10,7 @@
 #include "string_util_examples.h"
 #include "testing_util_examples.h"
 #include "timing_examples.h"
+#include "sfinae_examples.h"
 
 
 #include "test_runner_impl.h"
