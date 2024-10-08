@@ -149,6 +149,10 @@
   <ItemGroup>
     <ClInclude Include="experiments.h" />
     <ClInclude Include="experiments_2.h" />
+    <ClInclude Include="factory_interface.h" />
+    <ClInclude Include="serializations_factory.h" />
+    <ClInclude Include="serialization_factory_declarations.h" />
+    <ClInclude Include="type_description.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

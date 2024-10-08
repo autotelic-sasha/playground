@@ -12,6 +12,8 @@ namespace autotelica {
 		template<typename T>
 		using if_exists_t = void;
 
+		template<typename T>
+		using select_t = void; // sometimes this makes things more readable
 
 		// Predicates
 		// Useful when composing std like sfinae conditions. 
@@ -20,7 +22,7 @@ namespace autotelica {
 		// conditions with the result of the test exposed via a static boolean constant "value"
 		// (like std meta programming library types do).
 		// 
-		
+
 		// if_t enablest a definition if its argument evaluates to true.
 		template <typename condition_t>
 		using if_t = std::enable_if_t<condition_t::value, bool>;
@@ -31,7 +33,7 @@ namespace autotelica {
 			static const bool value = !(condition_t::value);
 		};
 
-		
+
 		// all_of_t is only true if all the conditions passed to it are true.
 		// In predicate calculus is it equivalend to "all" operator.
 		// With a single argument it evaluates to whatever the value of that argument is.
@@ -118,8 +120,8 @@ namespace autotelica {
 		template<typename T>
 		struct is_cstring_impl<T,
 			if_t<all_of_t<
-				std::is_constructible<std::string, T>,
-				not_t<is_astring_t<T>>
+			std::is_constructible<std::string, T>,
+			not_t<is_astring_t<T>>
 			>>> : std::true_type {};
 
 		template<typename T>
@@ -131,8 +133,8 @@ namespace autotelica {
 		template<typename T>
 		struct is_wcstring_impl<T,
 			if_t<all_of_t<
-				std::is_constructible<std::wstring, T>,
-				not_t<is_wstring_t<T>>
+			std::is_constructible<std::wstring, T>,
+			not_t<is_wstring_t<T>>
 			>>> : std::true_type {};
 
 		template<typename T>
@@ -301,21 +303,21 @@ namespace autotelica {
 		// choose if T is a pointer type
 		template<typename T>
 		using if_pointer_t = if_t<
-			any_of_t<is_shared_ptr_t<T>,std::is_pointer<T>>>;
+			any_of_t<is_shared_ptr_t<T>, std::is_pointer<T>>>;
 
 		// choose if T is a map not indexed by strings
 		template<typename T>
 		using if_non_string_map_t = if_t<
-			 all_of_t<	
-				is_mapish_t<T>,
-				not_t<is_string_t<typename T::key_t>>>>;
+			all_of_t<
+			is_mapish_t<T>,
+			not_t<is_string_t<typename T::key_t>>>>;
 
 		// choose if T is a map indexed by strings
 		template<typename T>
 		using if_string_map_t = if_t<
 			all_of_t<
-				is_mapish_t<T>,
-				is_string_t<typename T::key_t>>>;
+			is_mapish_t<T>,
+			is_string_t<typename T::key_t>>>;
 
 
 		// unused marks things as unused, so compilers don't moan
@@ -327,20 +329,22 @@ namespace autotelica {
 // which is true if it's type parameter has a static function with a given name 
 #define _AF_DECLARE_HAS_STATIC_MEMBER(function_name) \
 	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
+	struct has_static_##function_name##_impl : std::false_type {};\
 	template<typename T>\
-	struct af_has_##function_name##_impl<T, \
+	struct has_static_##function_name##_impl<T, \
 		std::is_function<decltype(T::function_name)>> : std::true_type {};\
 	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
+	struct has_static_##function_name## : has_static_##function_name##_impl<T>::type {};\
+	template<typename T> using if_has_static_##function_name##_t = if_t<has_static_##function_name##<T>>;
 
 // _AF_DECLARE_HAS_MEMBER declares a sfinae predicate 
 // which is true if it's type parameter has a non-static member with a given name
 #define _AF_DECLARE_HAS_MEMBER(function_name) \
 	template<typename T, typename U = void>\
-	struct af_has_##function_name##_impl : std::false_type {};\
+	struct has_##function_name##_impl : std::false_type {};\
 	template<typename T>\
-	struct af_has_##function_name##_impl<T, std::enable_if_t<\
+	struct has_##function_name##_impl<T, std::enable_if_t<\
 		std::is_member_pointer<decltype(&T::function_name)>::value>> : std::true_type {};\
 	template<typename T>\
-	struct af_has_##function_name## : af_has_##function_name##_impl<T>::type {};
+	struct has_##function_name## : has_##function_name##_impl<T>::type {};\
+	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##<T>>;

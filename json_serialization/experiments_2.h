@@ -80,6 +80,8 @@ namespace rapidjson { typedef size_t SizeType; }
 // When Optimised Default Initialisation is turned off, values are not initialised 
 // with defaults during JSON reads.
 // Otherwise they are. 
+
+// TODO: remove this - c++ does a much better job of it. 
 #ifndef		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
 #define		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION false
 #endif
@@ -1822,7 +1824,8 @@ inline type_member_description_p<object_t> create_type_member_description(
 ) {
 	using default_t = typename traits::serializable<target_t>::default_t;
 	using contained_t = typename traits::serializable<target_t>::contained_t;
-
+	// TODO: check if traits say default is not allowed and invoke correct constructor
+	// TODO: check if traits say default is not allowed and invoke correct constructor
 	return std::static_pointer_cast<type_member_description<object_t>>(
 		std::make_shared<type_member_description_impl<object_t, target_t>>(
 			key_,

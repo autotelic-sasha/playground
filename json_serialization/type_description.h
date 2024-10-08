@@ -1,0 +1,319 @@
+#pragma once
+#include "autotelica_core/util/include/sfinae_util.h"
+
+// char type to use for tags and strings
+#ifndef _AF_SERIALIZATION_CHAR_T
+#define _AF_SERIALIZATION_CHAR_T char
+#endif
+
+namespace autotelica {
+	namespace type_description {
+		using namespace autotelica::sfinae;
+		using namespace autotelica::serialization;
+
+		// the api from and object to type_description layers is a single static function:
+		// static type_description_t const& type_description()
+
+		// Type descriptions can be used to produce handlers for many different kinds of 
+		// serialization. 
+		// We also want it to be fast and as much of it compile time deduced as we can make it be. 
+		// So we use static polymorphism a lot (yep, that means sfinae). 
+		// 
+		// Some interaction is always going to be required, and the 
+		// use of static polymorphism means that we need clever mechanics in place to 
+		// be able to extend the framework with new serialization types. 
+		// 
+		// First we need a few concepts:
+		//		We try to keep a list of supported data types to a small, generic set by grouping them into theoretical abstractions. 
+		//			Namespace 'traits' contains a list of sfinae predicates to distinguish all supported groups of types.
+		// 
+		//		Serialization type is a the input/output data format. For example: JSON, CSV, Excel, flatbuffer ...
+		// 
+		//		A handlers is an object that deals with serialization of a given type. 
+		//			They will be implemented using sfinae predicates mentioned above, one for each supported group of types.
+		//			One set of handlers for each serialization type. 
+		// 
+		//		Defaulting is challenging to do generically. To be efficient, we can choose to not serialize 
+		//			anything for the variables that are equal to their default values. We call this 'terse' serialisation. 
+		//			We will assume that all target objects can be default constructed, and that the c++ can do a better job of 
+		//			default initialization than we can. 
+		//			It doesn't always make sense to do support terse serialization, it depends on the serialization type (not 
+		//			all formats have sensible null values, nor do they all want to show them). It should never be an error to 
+		//			ask for terse serialization though, it may just not have any effect.
+		//			The users of our libraries can opt for non-terse serialization when they want to be verbose in their outputs,
+		//			or when they make decisions about default initialisation efficiency. 
+		// 
+		//		Handler makers. When implementing handlers for serialization types, there is a convoluted step that 
+		//			I cannot find a way to avoid without adding a lot more dynamic type resolutions and virtual function calls.
+		//			The types of handlers that need to be created depend on the types of members that they are handling. 
+		//			To be able to rely on static type based dispatching, we make use of a variation of abstract factory pattern. 
+		//			For each serialization kind there should be a way to access a 'maker' function that is templated both on the 
+		//			type of the member being serialized and the object that contains the member. 
+		//			 
+		
+
+		// has_no_default_t is a type tag to flag members that have no default values
+		struct has_no_default_t {};
+		constexpr has_no_default_t has_no_default;
+
+		// default values are a part of member descriptions
+		// the instances are templated on the value type, makes them hard to store
+		struct default_value_t {
+			virtual ~default_value_t() {}
+		};
+		using default_value_p = std::shared_ptr<default_value_t>;
+
+		// to mark that a value has no default, we use a special value default_value_instance_t<has_no_default_t>
+		// it makes it prettier when we write type descriptions and also provides disambiguation 
+		// between null default values and no-default values. 
+		template<typename target_t>
+		struct default_value_instance_t : public default_value_t {
+			target_t const _default_value;
+
+			default_value_instance_t(target_t const& default_value_) :_default_value(default_value_) {}
+		};
+		template<typename target_t>
+		using default_value_instance_p = std::shared_ptr<default_value_instance_t>;
+
+		template<typename target_t, traits::if_has_default_t<target_t> = true>
+		default_value_instance_p<target_t> make_default_value(target_t const& v) {
+			return std::make_shared<default_value_instance_t<target_t>>(v);
+		}
+		// all instances of values with no defaults are the same, so 
+		// we use a static value here, to spare the heap a little 
+		template<typename target_t, traits::if_has_no_default_t<target_t> = true>
+		default_value_instance_p<target_t> make_default_value(target_t const& v) {
+			static default_value_instance_p<target_t> no_default(
+				std::make_shared<default_value_instance_t<target_t>>(v));
+			return no_default;
+		}
+
+		// a member descriptions is a description of a type's data member
+		// it has a key, a default value, and a pointer to member
+		// there's a bit of a hierarchy to hoist the templated instances for storage
+		// In particular, there is a version of abstract factory pattern implementation 
+		// required for each serialization implementation, in order to pass the type information
+		// from the member description to the method creating a handler for a particular data type.
+
+		struct member_description_t {
+			using key_t = typename traits::key_t;
+
+			key_t _key;
+
+			member_description_t(key_t const& key_) :_key(key_) {}
+
+			key_t const& key() const { return _key; }
+
+			virtual ~member_description_t() {}
+		};
+
+		// type_member_description
+		template<typename object_t>
+		struct object_member_description_t : public member_description_t {
+			using key_t = typename traits::key_t;
+
+			object_member_description_t(key_t const& key_) : member_description_t(key_) {}
+
+			virtual serialization_handler_p make_handler(
+				serialization_type_t const serialization_type_v,
+				object_t& object) const = 0;
+
+		};
+
+		template<typename object_t, typename target_t>
+		struct member_description_instance_t : public object_member_description_t<object_t> {
+
+			using base_t = object_member_description_t<object_t>;
+			using key_t = typename traits::key_t;
+			using target_p = target_t object_t::*;
+			using default_t = typename traits::default_types_t<target_t>::value_t;
+			using contained_t = typename traits::default_types_t<target_t>::contained_t;
+			using target_default_p = std::shared_ptr<default_value_description_instance<default_t>>;
+			using target_contained_default_p = std::shared_ptr <default_value_description_impl<contained_t>>;
+
+
+			target_p const _target;
+			target_default_p const _default_value;
+			target_contained_default_p const _contained_default_value;
+
+			member_description_instance(
+				key_t const& key_,
+				target_p target_,
+				target_default_p default_value_ = nullptr,
+				target_contained_default_p contained_default_value_ = nullptr
+			) :
+				base_t(key_),
+				_target(target_),
+				_default_value(default_value_),
+				_contained_default_value(contained_default_value_) {
+
+			}
+
+			serialization_handler_p make_handler(
+					serialization_type_t const serialization_type_v, 
+					object_t& object) const override {
+				
+				target_t* target = &(object_.*(description_._target));
+				default_t const* default_ = _default_value? 
+					&(_default_value->_default_value):nullptr;
+				contained_t const* contained_default_ = _contained_default_value? 
+					&(_contained_default_value->_default_value):nullptr;
+				
+				return make_handler<target_t>(
+					serialization_type_v,
+					target,
+					default_,
+					contained_default_);
+			}
+
+		};
+
+		struct type_description_t {
+			virtual ~type_description_t() {}
+		};
+
+		// type description
+		template<typename object_t>
+		class type_description_impl_t : public type_description_t {
+		public:
+			using key_t = typename traits::key_t;
+			using default_t = typename traits::default_types_t<object_t>::value_t;
+			using member_function_t = void (object_t::*)();
+			using member_description_p = type_member_description_p<object_t>;
+			using member_descriptions_t = std::vector<member_description_p>;
+		protected:
+			bool _done;
+			member_function_t _pre_load_f;
+			member_function_t _pre_save_f;
+			member_function_t _post_load_f;
+			member_function_t _post_save_f;
+			member_descriptions_t _member_descriptions;
+
+			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) = {
+				return f ? [&]() {(object.*f)(); } : nullptr; 
+			}
+
+			inline void validate_key(key_t const& key) {
+#ifdef _AF_JSON_VALIDATE_DUPLICATE_KEYS
+				AF_ASSERT(!key.empty(), "Empty keys are not allowed");
+				auto test_key = [&](member_description_p d) { return !traits::equal_tag(key, d->key()); };
+				for (auto const& d : _member_descriptions) {
+					AF_ASSERT(test_key(d), "Key % is duplicated", key);
+				}
+#endif
+			}
+		public:
+			type_description_impl_t() :
+				_done(false),
+				_pre_load_f(nullptr),
+				_pre_save_f(nullptr),
+				_post_load_f(nullptr),
+				_post_save_f(nullptr)
+			{
+			}
+
+			bool done() const { return _done; }
+			member_function_t const& pre_load_f() const { return _pre_load_f; }
+			member_function_t const& pre_save_f() const { return _pre_save_f; }
+			member_function_t const& post_load_f() const { return _post_load_f; }
+			member_function_t const& post_save_f() const { return _post_save_f; }
+			member_descriptions_t const& member_descriptions() const { return _member_descriptions; }
+
+			inline type_description_impl_t& before_loading(member_function_t& f) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				_pre_load_f = f;
+				return *this;
+			}
+			inline type_description_impl_t& before_saving(member_function_t& f) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				_pre_save_f = f;
+				return *this;
+			}
+			inline type_description_impl_t& after_loading(member_function_t& f) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				_post_load_f = f;
+				return *this;
+			}
+			inline type_description_impl_t& after_saving(member_function_t& f) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				_post_save_f = f;
+				return *this;
+			}
+			template<typename target_t, typename element_t>
+			inline type_description_impl_t& member(
+				key_t const& key_,
+				target_t object_t::* target_,
+				target_t const& default_,
+				element_t const& element_default_
+			) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				validate_key(key_);
+				auto member_description(create_type_member_description<object_t, target_t, element_t>(
+					key_, target_, default_, element_default_));
+				_member_descriptions.push_back(member_description);
+				return *this;
+			}
+			template<typename target_t>
+			inline type_description_impl_t& member(
+				typename traits::key_t const& key_,
+				target_t object_t::* target_,
+				has_no_default_t const& default_ = has_no_default,
+				has_no_default_t const& element_default_ = has_no_contained_default
+			) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				validate_key(key_);
+				auto member_description(create_type_member_description<object_t, target_t>(
+					key_, target_));
+				_member_descriptions.push_back(member_description);
+				return *this;
+			}
+			template<typename target_t>
+			inline type_description_impl_t& member(
+				typename traits::key_t const& key_,
+				target_t object_t::* target_,
+				target_t const& default_,
+				has_no_default_t const& element_default_ = has_no_contained_default
+			) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				validate_key(key_);
+				auto member_description(create_type_member_description<object_t, target_t>(
+					key_, target_, default_));
+				_member_descriptions.push_back(member_description);
+				return *this;
+			}
+			inline type_description_impl_t& end_object() {
+				AF_ASSERT(!_done, "Cannot end_object more than once.");
+				_done = true;
+				return *this;
+			}
+
+			serialization_handler_p make_handler(
+				serialization_type_t const serialization_type_v,
+				object_t& object,
+				default_t const* default_ = nullptr
+			) const {
+				AF_ASSERT(done(), "Cannot create handlers before object description is done.");
+				traits::handlers_t handlers;
+				handlers.reserve(_member_descriptions.size());
+				for (auto const d : _member_descriptions)
+					handlers.push_back({ 
+						d->key(),
+						(d->make_handler(serialization_type_v,object)) });
+
+				return make_object_handler<target_t>(
+					serialization_type_v,
+					object,
+					default_,
+					handlers,
+					wrap_function(object, _pre_load_f),
+					wrap_function(object, _post_load_f),
+					wrap_function(object, _pre_save_f),
+					wrap_function(object, _post_load_f));
+			}
+			
+
+		};
+
+	}
+
+}
