@@ -1,9 +1,8 @@
 #pragma once
-#include "autotelica_core/util/include/sfinae_util.h"
+#include "serializations_factory.h"
 
-// char type to use for tags and strings
-#ifndef _AF_SERIALIZATION_CHAR_T
-#define _AF_SERIALIZATION_CHAR_T char
+#ifndef		_AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS
+#define		_AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS false
 #endif
 
 namespace autotelica {
@@ -174,7 +173,7 @@ namespace autotelica {
 
 		// type description
 		template<typename object_t>
-		class type_description_impl_t : public type_description_t {
+		class type_description_instance_t : public type_description_t {
 		public:
 			using key_t = typename traits::key_t;
 			using default_t = typename traits::default_types_t<object_t>::value_t;
@@ -194,7 +193,7 @@ namespace autotelica {
 			}
 
 			inline void validate_key(key_t const& key) {
-#ifdef _AF_JSON_VALIDATE_DUPLICATE_KEYS
+#ifdef _AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS
 				AF_ASSERT(!key.empty(), "Empty keys are not allowed");
 				auto test_key = [&](member_description_p d) { return !traits::equal_tag(key, d->key()); };
 				for (auto const& d : _member_descriptions) {
@@ -203,7 +202,7 @@ namespace autotelica {
 #endif
 			}
 		public:
-			type_description_impl_t() :
+			type_description_instance_t() :
 				_done(false),
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
@@ -219,28 +218,28 @@ namespace autotelica {
 			member_function_t const& post_save_f() const { return _post_save_f; }
 			member_descriptions_t const& member_descriptions() const { return _member_descriptions; }
 
-			inline type_description_impl_t& before_loading(member_function_t& f) {
+			inline type_description_instance_t& before_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_load_f = f;
 				return *this;
 			}
-			inline type_description_impl_t& before_saving(member_function_t& f) {
+			inline type_description_instance_t& before_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_save_f = f;
 				return *this;
 			}
-			inline type_description_impl_t& after_loading(member_function_t& f) {
+			inline type_description_instance_t& after_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_load_f = f;
 				return *this;
 			}
-			inline type_description_impl_t& after_saving(member_function_t& f) {
+			inline type_description_instance_t& after_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_save_f = f;
 				return *this;
 			}
 			template<typename target_t, typename element_t>
-			inline type_description_impl_t& member(
+			inline type_description_instance_t& member(
 				key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -254,7 +253,7 @@ namespace autotelica {
 				return *this;
 			}
 			template<typename target_t>
-			inline type_description_impl_t& member(
+			inline type_description_instance_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				has_no_default_t const& default_ = has_no_default,
@@ -268,7 +267,7 @@ namespace autotelica {
 				return *this;
 			}
 			template<typename target_t>
-			inline type_description_impl_t& member(
+			inline type_description_instance_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -281,7 +280,7 @@ namespace autotelica {
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
-			inline type_description_impl_t& end_object() {
+			inline type_description_instance_t& end_object() {
 				AF_ASSERT(!_done, "Cannot end_object more than once.");
 				_done = true;
 				return *this;
@@ -310,8 +309,6 @@ namespace autotelica {
 					wrap_function(object, _pre_save_f),
 					wrap_function(object, _post_load_f));
 			}
-			
-
 		};
 
 	}

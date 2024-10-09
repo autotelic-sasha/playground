@@ -52,13 +52,6 @@ namespace rapidjson { typedef size_t SizeType; }
 #define		_AF_JSON_OPTIMISED_STRING_MAPS true
 #endif
 
-// When Optimised Default Initialisation is turned off, values are not initialised 
-// with defaults during JSON reads.
-// Otherwise they are. 
-#ifndef		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
-#define		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION true
-#endif
-
 // Checking if there are duplicate keys in object descriptions.
 #ifndef		_AF_JSON_VALIDATE_DUPLICATE_KEYS
 #define		_AF_JSON_VALIDATE_DUPLICATE_KEYS false
@@ -80,11 +73,6 @@ namespace rapidjson { typedef size_t SizeType; }
 // When Optimised Default Initialisation is turned off, values are not initialised 
 // with defaults during JSON reads.
 // Otherwise they are. 
-
-// TODO: remove this - c++ does a much better job of it. 
-#ifndef		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
-#define		_AF_JSON_OPTIMISED_DEFAULT_INITIALISATION false
-#endif
 
 // Checking if there are duplicate keys in object descriptions.
 #ifndef		_AF_JSON_VALIDATE_DUPLICATE_KEYS
@@ -501,32 +489,16 @@ public:
 template<typename target_t>
 class af_json_default_value_impl_t : public af_json_default_value_t {
 	target_t const _default_value;
-	bool _target_initialised;
 	inline bool set_target(target_t* target_) {
-		if (!_target_initialised) {
-			 *target_ = _default_value;
-			_target_initialised = true;
-		}
+		*target_ = _default_value;
 		return true;
 	}
 public:
 	af_json_default_value_impl_t(target_t const& default_value_) :
-		_default_value(default_value_),
-		_target_initialised(false) {
-	}
-	inline void initialise(target_t* target_){
-#if _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
-		return;
-#elif _AF_JSON_TERSE
-		set_target(target_);
-#endif
+		_default_value(default_value_){
 	}
 	inline bool null(target_t* target_)  {
-#if _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION
-		return true;
-#else
 		return set_target(target_);
-#endif
 	}
 
 	bool should_not_write(target_t const& target_) const {
@@ -537,10 +509,6 @@ public:
 #else
 		return false;
 #endif
-	}
-
-	void reset(target_t* target_) {
-		_target_initialised = false;
 	}
 };
 
@@ -608,8 +576,6 @@ struct af_json_handler_value_t : public af_json_handler_t {
 	}
 	void prepare_for_loading() override {
 		reset(_target);
-		if (_default_h)
-			_default_h->initialise(_target);
 	}
 	inline bool done() { return (_done = true); }
 
@@ -1497,12 +1463,12 @@ namespace json {
 		static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(output_stream_t(stream, put_bom)); }\
 	};
 
-		__AF_JSON_WRITING_TRAIT(utf16le, UTF16LE)
-			__AF_JSON_WRITING_TRAIT(utf16be, UTF16BE)
-			__AF_JSON_WRITING_TRAIT(utf32le, UTF32LE)
-			__AF_JSON_WRITING_TRAIT(utf32be, UTF32BE)
+		__AF_JSON_WRITING_TRAIT(utf16le, UTF16LE);
+		__AF_JSON_WRITING_TRAIT(utf16be, UTF16BE);
+		__AF_JSON_WRITING_TRAIT(utf32le, UTF32LE);
+		__AF_JSON_WRITING_TRAIT(utf32be, UTF32BE);
 
-			template<typename stream_t, json::json_encoding encoding>
+		template<typename stream_t, json::json_encoding encoding>
 		struct json_reading;
 
 		template<typename stream_t>
@@ -1520,12 +1486,12 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 	static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
 };
 
-		__AF_JSON_READING_TRAIT(utf16le, UTF16LE)
-			__AF_JSON_READING_TRAIT(utf16be, UTF16BE)
-			__AF_JSON_READING_TRAIT(utf32le, UTF32LE)
-			__AF_JSON_READING_TRAIT(utf32be, UTF32BE)
+		__AF_JSON_READING_TRAIT(utf16le, UTF16LE);
+		__AF_JSON_READING_TRAIT(utf16be, UTF16BE);
+		__AF_JSON_READING_TRAIT(utf32le, UTF32LE);
+		__AF_JSON_READING_TRAIT(utf32be, UTF32BE);
 
-			template<typename stream_t>
+		template<typename stream_t>
 		struct json_reading<stream_t, json::json_encoding::detect> {
 			using input_stream_t = rapidjson::AutoUTFInputStream<_AF_SERIALIZATION_CHAR_T, stream_t>;
 
@@ -1534,11 +1500,9 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 
 	}
 
-
 	using handler_p = json_impl::af_json_handler_p;
 
 	using default_value_p = json_impl::af_json_default_value_p;
-
 
 	template<json_encoding encoding = json_encoding::utf8>
 	struct reader {

@@ -23,7 +23,7 @@
 // template<typename object_t>
 // static serialization_handler_p make_object_handler(
 //		object_t& object_,
-//		default_value_t<object_t> const* default_,							// nullptr means no default
+//		default_value_t<object_t> const* default_,			// nullptr means no default
 //		handlers_t const& handlers_,
 //		traits::setup_function_t pre_load_f_,				// nullptr means no function	
 //		traits::setup_function_t post_load_f_,				// nullptr means no function	

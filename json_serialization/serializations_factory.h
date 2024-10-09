@@ -4,6 +4,10 @@
 // What kind of strings do you like? The default works for UTF8, why would you want anything else? 
 #ifndef _AF_SERIALIZATION_CHAR_T
 #define _AF_SERIALIZATION_CHAR_T char
+#define _AF_CHAR_CONSTANT(VALUE) VALUE
+// for wide character use, you have to define both of the ones below
+//#define _AF_SERIALIZATION_CHAR_T wchar_t
+//#define _AF_CHAR_CONSTANT(VALUE) L##VALUE
 #endif
 
 namespace autotelica {
@@ -26,6 +30,9 @@ namespace autotelica {
 
 				template<typename target_t>
 				using is_serializable_object_t = has_static_type_description<target_t>;
+				template<typename T>
+				using if_serializable_object_t = if_t<is_serializable_object_t<T>>;
+
 				template<typename target_t>
 				using is_integral_t = std::is_integral<target_t>;
 				template<typename target_t>
@@ -36,11 +43,12 @@ namespace autotelica {
 				template<typename target_t>
 				using if_no_contained_default_t = if_t<
 					any_of_t<
-					is_integral_t<target_t>,
-					is_floating_point_t<target_t>,
-					is_string_t<target_t>,
-					is_enum_t<target_t>,
-					is_serializable_object_t<target_t>
+						is_integral_t<target_t>,
+						is_floating_point_t<target_t>,
+						is_string_t<target_t>,
+						is_enum_t<target_t>,
+						is_pair_t<target_t>,
+						is_serializable_object_t<target_t>
 					>
 				>;
 			}
@@ -50,7 +58,8 @@ namespace autotelica {
 			using char_t = _AF_SERIALIZATION_CHAR_T;
 			using string_t = std::basic_string<char_t>;
 			using key_t = string_t; // type of keys for tagged serialisation formats (json, xml etc)
-		
+			using tag_t = char_t const* const;
+
 			using handlers_t = std::vector<std::pair<traits::key_t, serialization_handler_p>>;
 			using setup_function_t = std::function<void()>;
 			
@@ -69,7 +78,7 @@ namespace autotelica {
 			template<typename target_t>
 			struct default_types_t< target_t, select_t<if_pointer_t<target_t>>> : public std::true_type {
 				using value_t = target_t;
-				using contained_t = typename target_t::element_type;
+				using contained_t = decltype(*(target_t()));
 			};
 
 			template<typename target_t>
