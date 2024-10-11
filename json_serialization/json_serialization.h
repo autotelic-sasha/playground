@@ -1,6 +1,7 @@
 #pragma once
+
 #include "type_description.h"
-#include "serialization_factory.h"
+
 #include "autotelica_core/util/include/asserts.h"
 #include "autotelica_core/util/include/enum_to_string.h"
 #include <string.h>
@@ -34,8 +35,8 @@ namespace rapidjson { typedef size_t SizeType; }
 #if _AF_JSON_OPTIMISED
 
 // In terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_JSON_TERSE
-#define		_AF_JSON_TERSE true
+#ifndef		_AF_SERIALIZATION_TERSE
+#define		_AF_SERIALIZATION_TERSE true
 #endif
 
 // Optimisation of strings maps means that keys in the map are used as JSON keys.
@@ -47,8 +48,8 @@ namespace rapidjson { typedef size_t SizeType; }
 #else
 
 // in terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_JSON_TERSE
-#define		_AF_JSON_TERSE false
+#ifndef		_AF_SERIALIZATION_TERSE
+#define		_AF_SERIALIZATION_TERSE false
 #endif
 
 // Optimisation of strings maps means that keys in the map are used as JSON keys.
@@ -137,49 +138,6 @@ namespace impl {
 		}
 	}
 
-
-	// handling defaults generically is a pain
-	// we have a whole class to do it properly
-	class default_value_t {
-	public:
-		virtual ~default_value_t() {}
-	};
-
-	template<typename target_t>
-	class default_value_impl_t : public default_value_t {
-		target_t const _default_value;
-		inline bool set_target(target_t* target_) {
-			*target_ = _default_value;
-			return true;
-		}
-	public:
-		default_value_impl_t(target_t const& default_value_) :
-			_default_value(default_value_) {
-		}
-		inline bool null(target_t* target_) {
-			return set_target(target_);
-		}
-
-		// TODO: do we need should_not_write?
-		bool should_not_write(target_t const& target_) const {
-			// double negatives here, but makes it easier to read code later
-			// in terse mode, when _target is equal to default, we just don't write it
-#if _AF_JSON_TERSE
-			return (target_ == _default_value);
-#else
-			return false;
-#endif
-		}
-	};
-	template<target_t>
-	using default_value_p = std::shared_ptr<default_value_impl_t<target_t>>;
-
-	template<target_t>
-	inline default_value_p<target_t> make_default(target_t const* target_) {
-		if (!target_) return nullptr;
-		return std::make_shared<default_value_impl_t<target_t>>(*target_);
-	}
-
 	// base class  for rapidjson SAX handlers
 	struct handler_t : public serialization_handler_t {
 		using char_t = traits::char_t;
@@ -220,18 +178,18 @@ namespace impl {
 
 		using char_t = traits::char_t;
 		using base_t = handler_t;
-		using default_t = typename traits::default_types_t<target_t>::value_t;
+		using default_p = traits::default_p<target_t>;
 		// To make construction easier, all instances have to implement a constructor that 
 		// takes a contained default value pointer. Ugly but effective. 
-		using contained_default_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_contained_p = traits::default_contained_p<target_t>;
 
-		target_t* _target; // owned by someone else, don't delete
-		default_value_p<default_t> _default;
-		bool _done;
+		target_t*	_target; // owned by someone else, don't delete
+		default_p	_default;
+		bool		_done;
 
 		handler_value_t(
-			target_t* target_,
-			default_value_p<default_t> default_ = nullptr) :
+				target_t* target_,
+				default_p default_ = nullptr) :
 			_target(target_),
 			_default(default_),
 			_done(false) {
@@ -253,7 +211,7 @@ namespace impl {
 		inline bool done() { return (_done = true); }
 
 		bool is_done() const override { return _done; }
-		bool handles_terse_storage() const override { return _default_h != nullptr; }
+		bool handles_terse_storage() const override { return _default != nullptr; }
 		inline bool is_set() const { return _target != nullptr; }
 
 		inline target_t const& get() const { return *_target; }
@@ -280,11 +238,11 @@ namespace impl {
 
 
 	// hadnlers create other handlers, so we need a forward declaration
-	template<target_t, typename condition_t>
+	template<typename target_t, typename condition_t>
 	handler_value_p<target_t> make_handler(
 		target_t* target_,
-		typename traits::default_types_t<target_t>::value_t const* default_,
-		typename traits::default_types_t<target_t>::contained_t const* contained_default_
+		traits::default_p<target_t> default_,
+		traits::default_contained_p<target_t>contained_default_
 	);
 
 	// handler for integral types
@@ -292,13 +250,13 @@ namespace impl {
 	struct handler_integral_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
 		
 		handler_integral_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
-				default_value_p<contained_default_t> unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
 		}
@@ -321,13 +279,13 @@ namespace impl {
 	struct handler_floating_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
 
 		handler_floating_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
-				default_value_p<contained_default_t> unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
 		}
@@ -349,14 +307,14 @@ namespace impl {
 	struct handler_string_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
 		using char_t = traits::char_t;
 
 		handler_string_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
-				default_value_p<contained_default_t> unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
 		}
@@ -377,16 +335,16 @@ namespace impl {
 	template<typename target_t>
 	struct handler_enum_t : public handler_value_t<target_t> {
 
-		using base_t = af_json_handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
+		using base_t = handler_value_t<target_t>;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
 		using char_t = traits::char_t;
 		using string_t = traits::string_t;
 
 		handler_enum_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
-				default_value_p<contained_default_t> unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
 		}
@@ -411,19 +369,19 @@ namespace impl {
 	struct handler_ptr_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_p<contained_t>;
 
 		value_handler_t _value_handler;
-		default_value_p<contained_default_t> _value_default;
+		default_contained_p _value_default;
 
 		handler_ptr_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
-				default_value_p<contained_default_t> unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p contained_default_ = nullptr) :
 			base_t(target_, default_),
 			_value_handler(nullptr),
 			_value_default(contained_default_) {
@@ -491,9 +449,9 @@ namespace impl {
 	struct handler_sequence_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_p<contained_t>;
 
@@ -501,8 +459,8 @@ namespace impl {
 
 		handler_sequence_t(
 				target_t* target_,
-				default_value_t default_ = nullptr,
-				contained_default_value_t contained_default_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p contained_default_ = nullptr) :
 			base_t(target_, default_),
 			_value_handler(make_handler<contained_t>(nullptr, contained_default_)) {
 		}
@@ -572,9 +530,9 @@ namespace impl {
 	struct handler_setish_t : public handler_sequence_t<target_t> {
 
 		using base_t = handler_sequence_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = typename base_t::contained_t;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_p<contained_t>;
 
@@ -582,8 +540,8 @@ namespace impl {
 
 		handler_setish_t(
 				target_t* target_,
-				default_value_t default_ = nullptr,
-				contained_default_value_t unused_ = nullptr) :
+				default_value_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_, nullptr) {// sets canot contain default values
 			_unused(unused_);
 		}
@@ -646,8 +604,8 @@ namespace impl {
 	struct handler_pair_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
 		using char_t = traits::char_t;
 
 		using key_t = typename target_t::first_type;
@@ -666,8 +624,8 @@ namespace impl {
 
 		handler_pair_t(
 				target_t* target_,
-				default_value_t default_ = nullptr,
-				contained_default_value_t unused_ = nullptr) :
+				default_p default_ = nullptr,
+				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
 			_key_handler = make_handler<key_t>(key(), default_.first);
@@ -716,9 +674,9 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) {
 			if (_current_handler)
 				return delegate_f(&current_handler_t::Key, str, length, copy);
-			if (traits::equal_tag(str, length, pair_tags::tag_key))
+			if (util::equal_tag(str, length, pair_tags::tag_key))
 				_current_handler = _key_handler;
-			else if (traits::equal_tag(str, length, pair_tags::tag_value) == 0)
+			else if (util::equal_tag(str, length, pair_tags::tag_value) == 0)
 				_current_handler = _value_handler;
 			else
 				AF_ERROR("Unknown key value: %", str);
@@ -754,9 +712,9 @@ namespace impl {
 		// TODO: this is so similar to both sequence and settish
 		// perhaps all they need is different construction?
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = typename traits::contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_pair_t<contained_t>;
 		
@@ -765,10 +723,10 @@ namespace impl {
 
 		handler_mappish_t(
 				target_t* target_,
-				default_value_t default_ = nullptr,
-				contained_default_value_t contained_default_ = nullptr) :
+				default_value_p default_ = nullptr,
+				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_hadler<contained_t>(nullptr, contained_default_)) {
+			_value_handler(make_handler<contained_t>(nullptr, contained_default_)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -819,7 +777,7 @@ namespace impl {
 			return delegate_f(&value_handler_t::EndArray, elementCount);
 		}
 
-		void write(af_json_writer_wrapper_t& writer_) const override {
+		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
 			writer_->StartObject();
 			for (auto const& t : base_t::_target) {
@@ -835,9 +793,9 @@ namespace impl {
 	struct handler_string_mappish_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = typename traits::contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = typename target_t::key_type; // this is some string type
 		using value_handler_t = handler_value_p<contained_t>;
@@ -846,10 +804,10 @@ namespace impl {
 
 		handler_string_mappish_t(
 				target_t* target_,
-				default_value_t default_ = nullptr,
-				contained_default_value_t contained_default_ = nullptr) :
+				default_value_p default_ = nullptr,
+				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_handler<contained_t>(nullptr, contained_default_)) {
+			_value_handler(make_handler<contained_t>(nullptr, default_contained_)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -887,7 +845,7 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) {
 			if (!_value_handler->is_set()) {
 				key_t key;
-				traits::assign(&key, str, length);
+				util::assign(&key, str, length);
 				AF_ASSERT(base_t::_target->find(key) == base_t::_target->end(), "Duplicate key found in object (%)", key);
 				_value_handler->reset(value_ptr(key));
 				_value_handler->prepare_for_loading();
@@ -924,9 +882,8 @@ namespace impl {
 	struct handler_object_t : public handler_value_t<target_t> {
 
 		using base_t = handler_value_t<target_t>;
-		using default_t = typename base_t::default_t;
-		using contained_default_t = typename base_t::contained_default_t;
-		using contained_t = typename traits::default_types_t<target_t>::contained_t;
+		using default_p = typename base_t::default_p;
+		using contained_t = typename traits::contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = typename target_t::key_type; // this is some string type
 		
@@ -947,7 +904,7 @@ namespace impl {
 
 		handler_object_t(
 				target_t* target_,
-				default_value_p<default_t> default_ = nullptr,
+				default_p<default_t> default_ = nullptr,
 				pre_load_function_t pre_load_f_ = nullptr,
 				pre_save_function_t pre_save_f_ = nullptr,
 				post_load_function_t post_load_f_ = nullptr,
@@ -962,7 +919,8 @@ namespace impl {
 
 			_handlers.reserve(handlers_.size());
 			for (auto const& h : handlers_)
-				_handlers.push_back({ h.first, std::static_pointer_cast<handler_t>(h.second) });
+				_handlers.push_back(
+					{ h.first, std::static_pointer_cast<handler_t>(h.second) });
 		}
 
 		void prepare_for_loading() override {
@@ -972,7 +930,7 @@ namespace impl {
 		}
 		inline handler_p find_handler(const char_t* const key, size_t length) {
 			for (auto& h : _handlers) {
-				if (traits::equal_tag(key, length, h.first.c_str()))
+				if (util::equal_tag(key, length, h.first.c_str()))
 					return h.second;
 			}
 			return nullptr;
@@ -981,7 +939,7 @@ namespace impl {
 		bool validate_all_loaded() const {
 			for (auto const& h : _handlers) {
 				if (!h.second->is_done())
-					if (!_AF_JSON_TERSE || !h.second->handles_terse_storage())
+					if (!_AF_SERIALIZATION_TERSE || !h.second->handles_terse_storage())
 						return false;
 			}
 			return true;
@@ -1094,31 +1052,32 @@ namespace impl {
 
 	}
 	// creator functions all need to follow a certain form
-	template<target_t, typename handler_traits::handler_types<target_t>::sfinae_condition_t = true>
+	template<typename target_t, typename handler_traits::handler_types<target_t>::sfinae_condition_t = true>
 	handler_value_p<target_t> make_handler(
-		target_t* target_,
-		typename traits::default_types_t<target_t>::value_t const* default_ = nullptr,
-		typename traits::default_types_t<target_t>::contained_t const* contained_default_ = nullptr
+		target_t*								target_,
+		traits::default_p<target_t>				default_,
+		traits::default_contained_p<target_t>	contained_default_
 	) {
-		using handler_type = handler_traits::handler_types<target_t>::handler_type;
+		using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
 
 		return std::make_shared<handler_type>(
 			target_, 
-			make_default(default_), 
-			make_default(contained_default_));
+			default_, 
+			contained_default_);
 	}
 
 	// we need a special maker for objects
-	template<target_t, util::predicates::if_serializable_object_t<target_t> = true>
+	template<typename target_t, util::predicates::if_serializable_object_t<target_t> = true>
 	handler_value_p<target_t> make_handler(
-		target_t* target_,
-		typename traits::default_types_t<target_t>::value_t const* default_ = nullptr,
-		typename traits::default_types_t<target_t>::contained_t const* contained_default_ = nullptr
+		target_t*								target_,
+		traits::default_p<target_t>				default_,
+		traits::default_contained_p<target_t>	contained_default_
 	) {
-		using handler_type = handler_traits::handler_types<target_t>::handler_type;
+		using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
 		auto& description =
-			static_cast<type_description_instance_t<target_t>>(target->type_description());
+			static_cast<type_description_instance_t<target_t>>(target_->type_description());
 
+		// TODO: I don't like this roundtrip for objects, not sure I can get rid of, coz recursion
 		return description.make_handler(
 			serialization_type_t::json,
 			*target_,
@@ -1127,13 +1086,13 @@ namespace impl {
 
 	template<typename object_t>
 	static serialization_handler_p make_object_handler(
-		object_t& object_,
-		default_value_t<object_t> const* default_,							// nullptr means no default
-		handlers_t const& handlers_,
-		traits::setup_function_t pre_load_f_,				// nullptr means no function	
-		traits::setup_function_t post_load_f_,				// nullptr means no function	
-		traits::setup_function_t pre_save_f_,				// nullptr means no function	
-		traits::setup_function_t post_save_f_				// nullptr means no function	
+		object_t&					object_,
+		traits::default_p<object_t> default_,
+		traits::handlers_t const&	handlers_,
+		traits::setup_function_t	pre_load_f_,
+		traits::setup_function_t	post_load_f_,
+		traits::setup_function_t	pre_save_f_,
+		traits::setup_function_t	post_save_f_
 	) {
 		return std::make_shared< handler_object_t>(
 			&object_,
@@ -1150,36 +1109,25 @@ namespace impl {
 } // namespace impl
 
 struct serialization_factory {
-	using namespace autotelica::serialization;
-		
-	template<target_t>
-	using default_value_t =  traits::default_types_t<target_t>::value_t;
-		 
-	template<target_t>
-	using default_contained_t =  traits::default_types_t<target_t>::contained_t;
-		 
-
 
 	template<typename target_t>
 	inline static serialization_handler_p make_handler(
-		target_t* target_,
-		default_value_t<target_t> const* default_value_,				// nullptr means no default
-		default_contained_t<target_t> const* contained_default_value_	// nullptr means no default
+		target_t*					  target_,
+		traits::default_p<target_t>   default_,
+		default_contained_p<target_t> contained_default_
 	) {
-		return impl::make_handler(target_, default_value_, contained_default_value_);
+		return impl::make_handler(target_, default_, contained_default_);
 	}
-		
-		
 		
 	template<typename object_t>
 	inline static serialization_handler_p make_object_handler(
-		object_t& object_,
-		default_value_t<object_t> const* default_,							// nullptr means no default
-		handlers_t const& handlers_,
-		traits::setup_function_t pre_load_f_,				// nullptr means no function	
-		traits::setup_function_t post_load_f_,				// nullptr means no function	
-		traits::setup_function_t pre_save_f_,				// nullptr means no function	
-		traits::setup_function_t post_save_f_				// nullptr means no function	
+		object_t&					object_,
+		traits::default_p<object_t>	default_,
+		traits::handlers_t const&	handlers_,
+		traits::setup_function_t	pre_load_f_,
+		traits::setup_function_t	post_load_f_,
+		traits::setup_function_t	pre_save_f_,
+		traits::setup_function_t	post_save_f_
 	) {
 		return impl::make_object_handler(
 			object_, 
@@ -1205,6 +1153,7 @@ enum class json_encoding {
 
 
 namespace detail {
+
 	// reading and writing traits
 	template<typename stream_t, json_encoding encoding>
 	struct json_writing;
@@ -1250,12 +1199,12 @@ namespace detail {
 	};
 
 #define __AF_JSON_READING_TRAIT(INPUT_ENCODING_ENUM, INPUT_ENCODING_JSON)\
-template<typename stream_t> \
-struct json_reading<stream_t, json_encoding::INPUT_ENCODING_ENUM> {\
-	using input_encoding_t = rapidjson::INPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
-	using input_stream_t = rapidjson::EncodedInputStream<input_encoding_t, stream_t>;\
-	static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
-};
+	template<typename stream_t> \
+	struct json_reading<stream_t, json_encoding::INPUT_ENCODING_ENUM> {\
+		using input_encoding_t = rapidjson::INPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
+		using input_stream_t = rapidjson::EncodedInputStream<input_encoding_t, stream_t>;\
+		static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
+	};
 
 	__AF_JSON_READING_TRAIT(utf16le, UTF16LE);
 	__AF_JSON_READING_TRAIT(utf16be, UTF16BE);
@@ -1278,10 +1227,10 @@ struct reader {
 			target_t& target,
 			stream_t& stream) {
 		using namespace rapidjson;
-		using namespace json_impl;
+		using namespace impl;
 		using namespace detail;
 		Reader reader;
-		auto handler = json_handlers_factory::make_object_handler(target);
+		auto handler = serializations_factory::make_object_handler(target);
 		handler->prepare_for_loading();
 		bool parsed = false;
 		auto actual_stream = json_reading<stream_t, encoding>::input_stream(stream);
@@ -1350,7 +1299,7 @@ struct reader {
 			typename traits::string_t const& path,
 			bool encoded = false) {
 		target_t target;
-		from_file(target, json, encoded);
+		from_file(target, path, encoded);
 		return target;
 	}
 };
@@ -1363,9 +1312,9 @@ struct writer {
 		target_t& target,
 		writer_t& writer) {
 		using namespace rapidjson;
-		using namespace json_impl;
-		auto handler = json_handlers_factory::make_object_handler(target);
-		auto writer_wrapper = af_json_writer_wrapper_impl_t<writer_t>{ writer };
+		using namespace impl;
+		auto handler = serialization_factory::make_object_handler(target);
+		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer };
 		handler->write(writer_wrapper);
 	}
 

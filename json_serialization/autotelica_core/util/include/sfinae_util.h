@@ -332,7 +332,7 @@ namespace autotelica {
 	struct has_static_##function_name##_impl : std::false_type {};\
 	template<typename T>\
 	struct has_static_##function_name##_impl<T, \
-		std::is_function<decltype(T::function_name)>> : std::true_type {};\
+		select_t<std::is_function<decltype(T::function_name)>>> : std::true_type {};\
 	template<typename T>\
 	struct has_static_##function_name## : has_static_##function_name##_impl<T>::type {};\
 	template<typename T> using if_has_static_##function_name##_t = if_t<has_static_##function_name##<T>>;
@@ -343,8 +343,8 @@ namespace autotelica {
 	template<typename T, typename U = void>\
 	struct has_##function_name##_impl : std::false_type {};\
 	template<typename T>\
-	struct has_##function_name##_impl<T, std::enable_if_t<\
-		std::is_member_pointer<decltype(&T::function_name)>::value>> : std::true_type {};\
+	struct has_##function_name##_impl<T, \
+		select_t<std::is_member_pointer<decltype(&T::function_name)>>> : std::true_type {};\
 	template<typename T>\
 	struct has_##function_name## : has_##function_name##_impl<T>::type {};\
 	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##<T>>;

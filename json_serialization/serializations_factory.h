@@ -1,4 +1,6 @@
 #pragma once
+#include <functional>
+#include "autotelica_core/util/include/asserts.h"
 #include "autotelica_core/util/include/sfinae_util.h"
 
 // What kind of strings do you like? The default works for UTF8, why would you want anything else? 
@@ -10,17 +12,53 @@
 //#define _AF_CHAR_CONSTANT(VALUE) L##VALUE
 #endif
 
+// In terse mode, when target value is equal to default, we just don't write it
+#ifndef		_AF_SERIALIZATION_TERSE
+#define		_AF_SERIALIZATION_TERSE false
+#endif
+
 namespace autotelica {
 	namespace serialization {
+
+
+		// has_no_default_t is a type tag to flag members that have no default values
+		struct has_no_default_t {};
+		constexpr has_no_default_t has_no_default;
+
+		// to mark that a value has no default, we use a special value default_value_t<has_no_default_t>
+		// it makes it prettier when we write type descriptions and also provides disambiguation 
+		// between null default values and no-default values. 
+		template<typename target_t>
+		struct default_value_t {
+			target_t const _default_value;
+
+			default_value_t(target_t const& default_value_) :_default_value(default_value_) {}
+
+			inline void set_value(target_t& target_) {
+				target_ = _default_value;
+			}
+
+			// TODO: do we need should_not_write?
+			bool should_not_write(target_t const& target_) const {
+				// double negatives here, but makes it easier to read code later
+				// in terse mode, when _target is equal to default, we just don't write it
+#if _AF_SERIALIZATION_TERSE
+				return (target_ == _default_value);
+#else
+				return false;
+#endif
+			}
+
+		};
+		template<typename target_t>
+		using default_value_p = std::shared_ptr<default_value_t<target_t>>;
 
 		// All handlers must be based on this. 
 		struct serialization_handler_t {
 			virtual ~serialization_handler_t() {}
 		};
-		using serialization_handler_p = std::shared_ptr<af_serialization_handler_t>;
+		using serialization_handler_p = std::shared_ptr<serialization_handler_t>;
 
-
-		
 		namespace util {
 			namespace predicates {
 				using namespace autotelica::sfinae;
@@ -61,10 +99,11 @@ namespace autotelica {
 			using tag_t = char_t const* const;
 
 			using handlers_t = std::vector<std::pair<traits::key_t, serialization_handler_p>>;
+			
 			using setup_function_t = std::function<void()>;
 			
 			using namespace autotelica::sfinae;
-			using namespace predicates;
+			using namespace util::predicates;
 
 			template<typename T, typename U = void>
 			struct default_types_t : public std::false_type {};
@@ -105,6 +144,20 @@ namespace autotelica {
 				using contained_t = typename target_t::mapped_type;
 			};
 
+			template<target_t>
+			using default_t =  default_types_t<target_t>::value_t;
+			
+			template<target_t>
+			using default_p = default_value_p<default_t<target_t>>;
+
+			template<target_t>
+			using default_contained_t =  default_types_t<target_t>::contained_t;
+
+			template<target_t>
+			using default_contained_p = default_value_p<default_t<contained_target_t>>;
+
+
+
 		}
 		namespace util {	
 			// basic operations on keys (comparissons and assignments) 
@@ -113,7 +166,7 @@ namespace autotelica {
 					if (*t != *s) return false;
 				return true;
 			}
-			static inline bool equal_tag(traits::key_t_t const& s, traits::key_t_t const& t) {
+			static inline bool equal_tag(traits::key_t const& s, traits::key_t const& t) {
 				return equal_tag(s.c_str(), s.size(), t.c_str());
 			}
 			static inline void assign(traits::key_t* target, const traits::char_t* src, size_t length) {
@@ -125,31 +178,26 @@ namespace autotelica {
 		// two public static functions:
 		//
 		//  using namespace autotelica::serialization;
-		//
-		//	template<target_t>
-		//	using default_value_t =  traits::default_types_t<target_t>::value_t;
-		// 
-		//	template<target_t>
-		//	using default_contained_t =  traits::default_types_t<target_t>::contained_t;
+		//  using namespace autotelica::serialization::traits;
 		// 
 		//	template<typename target_t>
 		//	static serialization_handler_p make_handler(
-		//		target_t* target_,
-		//		default_value_t<target_t> const* default_value_,				// nullptr means no default
-		//		default_contained_t<target_t> const* contained_default_value_	// nullptr means no default
+		//		target_t*								target_,
+		//		traits::default_p<target_t>				default_,			// nullptr means no default
+		//		traits::default_contained_p<target_t>>	contained_default_	// nullptr means no default
 		//	);
 		//
 		//
 		//
 		// template<typename object_t>
 		// static serialization_handler_p make_object_handler(
-		//		object_t& object_,
-		//		default_value_t<object_t> const* default_,							// nullptr means no default
-		//		handlers_t const& handlers_,
-		//		traits::setup_function_t pre_load_f_,				// nullptr means no function	
-		//		traits::setup_function_t post_load_f_,				// nullptr means no function	
-		//		traits::setup_function_t pre_save_f_,				// nullptr means no function	
-		//		traits::setup_function_t post_save_f_				// nullptr means no function	
+		//		object_t&								object_,
+		//		traits::default_p<target_t>				default_value_,		// nullptr means no default
+		//		handlers_t const&						handlers_,
+		//		traits::setup_function_t				pre_load_f_,	// nullptr means no function	
+		//		traits::setup_function_t				post_load_f_,	// nullptr means no function	
+		//		traits::setup_function_t				pre_save_f_,	// nullptr means no function	
+		//		traits::setup_function_t				post_save_f_	// nullptr means no function	
 		//	);
 		// 
 		// Because types can be recursive, the handler for object types will also need a way to be constructed 
@@ -160,49 +208,46 @@ namespace autotelica {
 			// We use tagged static forwarding, wrapping these two functions in sfinae resolved templates.
 			// It is all a bit messy, but we are going to wrap it into a macro to make it all simple to use.
 #define AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_v, factory_t)\
-	class factory_t;\
 	template<typename target_t, serialization_type_t id, std::enable_if_t<id == serialization_type_v, bool> = true>\
 	inline serialization_handler_p make_handler(\
-		target_t* target_,\
-		traits::default_types_t<target_t>::value_t const* default_value_,\
-		traits::default_types_t<target_t>::contained_t const* contained_default_value_){\
-			return factory_t::make_handler(target_, default_value_, contained_default_value_);\
+		target_t*								target_,\
+		traits::default_p<target_t>				default_,\
+		traits::default_contained_p<target_t>>	contained_default_){\
+			return factory_t::make_handler(target_, default_, contained_default_);\
 		}\
 	template<typename object_t, serialization_type_t id, std::enable_if_t<id == serialization_type_v, bool> = true>\
 	static serialization_handler_p make_object_handler(\
-		object_t& object_,\
-		traits::default_types_t<object_t>::value_t const* default_,\
-		traits::handlers_t const& handlers_,\
-		traits::setup_function_t pre_load_f_,\
-		traits::setup_function_t post_load_f_,\
-		traits::setup_function_t pre_save_f_,\
-		traits::setup_function_t post_save_f_){\
-			return factory_t::make_object_handler(object_, default_, handlers_, pre_load_f_, post_load_f, pre_save_f_, post_save_f);\
+		object_t&					object_,\
+		traits::default_p<object_t>	default_,\
+		traits::handlers_t const&	handlers_,\
+		traits::setup_function_t	pre_load_f_,\
+		traits::setup_function_t	post_load_f_,\
+		traits::setup_function_t	pre_save_f_,\
+		traits::setup_function_t	post_save_f_){\
+			return factory_t::make_object_handler(object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);\
 		}
 		
 		// unknown_handlers_factory is there to catch errors in specifying required handlers
 		struct unknown_handlers_factory {
 			template<typename target_t>
 			static serialization_handler_p make_handler(
-				target_t* target_,
-				traits::default_types_t<target_t>::value_t const* default_value_,				// nullptr means no default
-				traits::default_types_t<target_t>::contained_t const* contained_default_value_	// nullptr means no default
+				target_t*								target_, 
+				traits::default_p<target_t>				default_, 
+				traits::default_contained_p<target_t >> contained_default_
 			) {
 				AF_ERROR("Unknown handler factory was invoked.");
 				return nullptr;
 			}
 
-
-
 			template<typename object_t>
 			static serialization_handler_p make_object_handler(
-				object_t& object_,
-				traits::default_types_t<object_t>::value_t const* default_,							// nullptr means no default
-				traits::handlers_t const& handlers_,
-				traits::setup_function_t pre_load_f_,				// nullptr means no function	
-				traits::setup_function_t post_load_f_,				// nullptr means no function	
-				traits::setup_function_t pre_save_f_,				// nullptr means no function	
-				traits::setup_function_t post_save_f_				// nullptr means no function	
+				object_t&					object_, 
+				traits::default_p<object_t> default_,
+				traits::handlers_t const&	handlers_, 
+				traits::setup_function_t	pre_load_f_, 
+				traits::setup_function_t	post_load_f_,
+				traits::setup_function_t	pre_save_f_, 
+				traits::setup_function_t	post_save_f_
 			) {
 				AF_ERROR("Unknown handler factory was invoked.");
 				return nullptr;
@@ -221,11 +266,11 @@ namespace autotelica {
 				typename target_t,
 				std::enable_if_t<(static_cast<int>(serialization_type_) < 0), bool> = true>
 			inline serialization_handler_p dispatch_make_handler(
-				serialization_type_t const serialization_type_v,
-				target_t* target_,
-				target_t const* default_value_,
-				target_t const* contained_default_value_) {
-
+				serialization_type_t const				serialization_type_v,
+				target_t*								target_,
+				traits::default_p<target_t>				default_,
+				traits::default_contained_p<target_t >> contained_default_
+			) {
 				AF_ERROR("Unrecognised serialisation type value: %", serialization_type_v);
 				return nullptr;
 			}
@@ -235,16 +280,17 @@ namespace autotelica {
 				typename target_t,
 				std::enable_if_t<(static_cast<int>(serialization_type_) >= 0), bool> = true>
 			inline serialization_handler_p dispatch_make_handler(
-				serialization_type_t const serialization_type_v,
-				target_t* target_,
-				target_t const* default_value_,
-				target_t const* contained_default_value_) {
+				serialization_type_t const				serialization_type_v,
+				target_t*								target_,
+				traits::default_p<target_t>				default_,
+				traits::default_contained_p<target_t >> contained_default_
+			) {
 
 				const auto prev = (static_cast<serialization_type_t>(static_cast<int>(serialization_type_) - 1));
 
 				return (serialization_type_v == serialization_type_) ?
-					make_handler<serialization_type_>(target_, default_value_, contained_default_value_) :
-					dispatch_make_handler<prev>(target_, default_value_, contained_default_value_);
+					make_handler<serialization_type_>(target_, default_, contained_default_) :
+					dispatch_make_handler<prev>(target_, default_, contained_default_);
 			}
 
 			template<
@@ -252,14 +298,14 @@ namespace autotelica {
 				typename object_t,
 				std::enable_if_t<(static_cast<int>(serialization_type_) < 0), bool> = true>
 			inline serialization_handler_p dispatch_make_object_handler(
-				serialization_type_t const serialization_type_v,
-				object_t& object_,
-				object_t* default_,							// nullptr means no default
-				handlers_t const& handlers_,
-				setup_function_t pre_load_f_,				// nullptr means no function	
-				setup_function_t post_load_f_,				// nullptr means no function	
-				setup_function_t pre_save_f_,				// nullptr means no function	
-				setup_function_t post_save_f_				// nullptr means no function	
+				serialization_type_t const	 serialization_type_v,
+				object_t&					object_,
+				traits::default_p<object_t> default_,
+				traits::handlers_t const&	handlers_,
+				traits::setup_function_t	pre_load_f_,
+				traits::setup_function_t	post_load_f_,
+				traits::setup_function_t	pre_save_f_,
+				traits::setup_function_t	post_save_f_
 			) {
 				AF_ERROR("Unrecognised serialisation type value: %", serialization_type_v);
 				return nullptr;
@@ -269,52 +315,53 @@ namespace autotelica {
 				typename object_t,
 				std::enable_if_t<(static_cast<int>(serialization_type_) >= 0), bool> = true>
 			inline serialization_handler_p dispatch_make_object_handler(
-				serialization_type_t const serialization_type_v,
-				object_t& object_,
-				object_t* default_,							// nullptr means no default
-				handlers_t const& handlers_,
-				setup_function_t pre_load_f_,				// nullptr means no function	
-				setup_function_t post_load_f_,				// nullptr means no function	
-				setup_function_t pre_save_f_,				// nullptr means no function	
-				setup_function_t post_save_f_				// nullptr means no function	
+				serialization_type_t const	  serialization_type_v,
+				object_t&					 object_,
+				traits::default_p<object_t > default_,
+				traits::handlers_t const&	 handlers_,
+				traits::setup_function_t	 pre_load_f_,
+				traits::setup_function_t	 post_load_f_,
+				traits::setup_function_t	 pre_save_f_,
+				traits::setup_function_t	 post_save_f_
 			) {
 				const auto prev = (static_cast<serialization_type_t>(static_cast<int>(serialization_type_) - 1));
 
 				return (serialization_type_v == serialization_type_) ?
 					make_object_handler<serialization_type_>(
-						object_, default_, handlers, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_) :
+						object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_) :
 					dispatch_make_object_handler<prev>(
-						object_, default_, handlers, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
+						object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
 
 			}
 
 		}
 		
-		template<typename target_t>
-		inline serialization_handler_p make_handler(
-			serialization_type_t const serialization_type_v, 
-			target_t* target_, 
-			traits::default_types_t<target_t>::value_t const* default_value_,
-			traits::default_types_t<target_t>::contained_t const* contained_default_value_
-		) {
-			return impl::dispatch_make_handler<serialization_type_t::unknown>(
-				serialization_type_v, target_, default_value_, contained_default_value_);
-		}
+		namespace serializations_factory {
+			template<typename target_t>
+			inline serialization_handler_p make_handler(
+				serialization_type_t const				serialization_type_v,
+				target_t*								target_,
+				traits::default_p<target_t>				default_,
+				traits::default_contained_p<target_t >> contained_default_
+			) {
+				return impl::dispatch_make_handler<serialization_type_t::unknown>(
+					serialization_type_v, target_, default_, contained_default_);
+			}
 
-		template<typename target_t>
-		inline serialization_handler_p make_object_handler(
-			serialization_type_t const serialization_type_v,
-			object_t& object_,
-			traits::default_types_t<object_t>::value_t const* default_,							// nullptr means no default
-			traits::handlers_t const& handlers_,
-			traits::setup_function_t pre_load_f_,				// nullptr means no function	
-			traits::setup_function_t post_load_f_,				// nullptr means no function	
-			traits::setup_function_t pre_save_f_,				// nullptr means no function	
-			traits::setup_function_t post_save_f_				// nullptr means no function	
-		) {
-			return impl::dispatch_make_object_handler<serialization_type_t::unknown>(
-				object_, default_, handlers, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
+			template<typename object_t>
+			inline serialization_handler_p make_object_handler(
+				serialization_type_t const	serialization_type_v,
+				object_t&					object_,
+				traits::default_p<object_t> default_,
+				traits::handlers_t const&	handlers_,
+				traits::setup_function_t	pre_load_f_,
+				traits::setup_function_t	post_load_f_,
+				traits::setup_function_t	pre_save_f_,
+				traits::setup_function_t	post_save_f_
+			) {
+				return impl::dispatch_make_object_handler<serialization_type_t::unknown>(
+					object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
+			}
 		}
-
 	}
 }

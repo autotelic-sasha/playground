@@ -1,3 +1,4 @@
+#if 0
 #pragma once
 #include "autotelica_core/util/include/sfinae_util.h"
 #include "autotelica_core/util/include/asserts.h"
@@ -42,8 +43,8 @@ namespace rapidjson { typedef size_t SizeType; }
 #if _AF_JSON_OPTIMISED
 
 // In terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_JSON_TERSE
-#define		_AF_JSON_TERSE true
+#ifndef		_AF_SERIALIZATION_TERSE
+#define		_AF_SERIALIZATION_TERSE true
 #endif
 
 // Optimisation of strings maps means that keys in the map are used as JSON keys.
@@ -60,8 +61,8 @@ namespace rapidjson { typedef size_t SizeType; }
 #else
 
 // in terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_JSON_TERSE
-#define		_AF_JSON_TERSE false
+#ifndef		_AF_SERIALIZATION_TERSE
+#define		_AF_SERIALIZATION_TERSE false
 #endif
 
 // Optimisation of strings maps means that keys in the map are used as JSON keys.
@@ -504,7 +505,7 @@ public:
 	bool should_not_write(target_t const& target_) const {
 		// double negatives here, but makes it easier to read code later
 		// in terse mode, when _target is equal to default, we just don't write it
-#if _AF_JSON_TERSE
+#if _AF_SERIALIZATION_TERSE
 		return (target_ == _default_value);
 #else
 		return false;
@@ -1333,7 +1334,7 @@ struct af_json_handler_object_t : public af_json_handler_value_t<target_t> {
 	bool validate_all_loaded() const {
 		for (auto const& h : _handlers) {
 			if (!h.second->is_done())
-				if( !_AF_JSON_TERSE || !h.second->handles_terse_storage())
+				if( !_AF_SERIALIZATION_TERSE || !h.second->handles_terse_storage())
 					return false;
 		}
 		return true;
@@ -1581,7 +1582,7 @@ struct json_reading<stream_t, json::json_encoding::INPUT_ENCODING_ENUM> {\
 				typename traits::string_t const& path,
 				bool encoded = false) {
 			target_t target;
-			from_file(target, json, encoded);
+			from_file(target, path, encoded);
 			return target;
 		}
 	};
@@ -1974,3 +1975,5 @@ namespace member_handlers_factory {
 
 }//namespace serialization
 }//namespace autotelica
+
+#endif

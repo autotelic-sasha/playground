@@ -51,39 +51,28 @@ namespace autotelica {
 		//			 
 		
 
-		// has_no_default_t is a type tag to flag members that have no default values
-		struct has_no_default_t {};
-		constexpr has_no_default_t has_no_default;
 
-		// default values are a part of member descriptions
-		// the instances are templated on the value type, makes them hard to store
-		struct default_value_t {
-			virtual ~default_value_t() {}
-		};
-		using default_value_p = std::shared_ptr<default_value_t>;
 
-		// to mark that a value has no default, we use a special value default_value_instance_t<has_no_default_t>
-		// it makes it prettier when we write type descriptions and also provides disambiguation 
-		// between null default values and no-default values. 
-		template<typename target_t>
-		struct default_value_instance_t : public default_value_t {
-			target_t const _default_value;
+		template<typename T>
+		using if_has_default_t = std::enable_if_t<
+			!std::is_same<has_no_default_t, std::remove_cv<T>>::value,
+			bool>;
 
-			default_value_instance_t(target_t const& default_value_) :_default_value(default_value_) {}
-		};
-		template<typename target_t>
-		using default_value_instance_p = std::shared_ptr<default_value_instance_t>;
+		template<typename T>
+		using if_has_no_default_t = std::enable_if_t<
+			std::is_same<has_no_default_t, std::remove_cv<T>>::value,
+			bool>;
 
-		template<typename target_t, traits::if_has_default_t<target_t> = true>
-		default_value_instance_p<target_t> make_default_value(target_t const& v) {
-			return std::make_shared<default_value_instance_t<target_t>>(v);
+		template<typename target_t, if_has_default_t<target_t> = true>
+		default_value_p<target_t> make_default_value(target_t const& v) {
+			return std::make_shared<default_value_t<target_t>>(v);
 		}
 		// all instances of values with no defaults are the same, so 
 		// we use a static value here, to spare the heap a little 
-		template<typename target_t, traits::if_has_no_default_t<target_t> = true>
-		default_value_instance_p<target_t> make_default_value(target_t const& v) {
-			static default_value_instance_p<target_t> no_default(
-				std::make_shared<default_value_instance_t<target_t>>(v));
+		template<typename target_t, if_has_no_default_t<target_t> = true>
+		default_value_p<target_t> make_default_value(target_t const& v) {
+			static default_value_p<target_t> no_default(
+				std::make_shared<default_value_t<target_t>>(v));
 			return no_default;
 		}
 
@@ -105,6 +94,7 @@ namespace autotelica {
 
 			virtual ~member_description_t() {}
 		};
+		using member_description_p = std::shared_ptr<member_description_t>;
 
 		// type_member_description
 		template<typename object_t>
@@ -119,6 +109,9 @@ namespace autotelica {
 
 		};
 
+		template<typename object_t>
+		using object_member_description_p = std::shared_ptr<object_member_description_t<object_t>>;
+
 		template<typename object_t, typename target_t>
 		struct member_description_instance_t : public object_member_description_t<object_t> {
 
@@ -127,15 +120,14 @@ namespace autotelica {
 			using target_p = target_t object_t::*;
 			using default_t = typename traits::default_types_t<target_t>::value_t;
 			using contained_t = typename traits::default_types_t<target_t>::contained_t;
-			using target_default_p = std::shared_ptr<default_value_description_instance<default_t>>;
-			using target_contained_default_p = std::shared_ptr <default_value_description_impl<contained_t>>;
-
+			using target_default_p = default_value_p<default_t>;
+			using target_contained_default_p = default_value_p<contained_t>;
 
 			target_p const _target;
 			target_default_p const _default_value;
 			target_contained_default_p const _contained_default_value;
 
-			member_description_instance(
+			member_description_instance_t(
 				key_t const& key_,
 				target_p target_,
 				target_default_p default_value_ = nullptr,
@@ -150,15 +142,15 @@ namespace autotelica {
 
 			serialization_handler_p make_handler(
 					serialization_type_t const serialization_type_v, 
-					object_t& object) const override {
+					object_t& object_) const override {
 				
-				target_t* target = &(object_.*(description_._target));
+				target_t* target = &(object_.*(_target));
 				default_t const* default_ = _default_value? 
 					&(_default_value->_default_value):nullptr;
 				contained_t const* contained_default_ = _contained_default_value? 
 					&(_contained_default_value->_default_value):nullptr;
 				
-				return make_handler<target_t>(
+				return serializations_factory::make_handler(
 					serialization_type_v,
 					target,
 					default_,
@@ -166,6 +158,20 @@ namespace autotelica {
 			}
 
 		};
+		
+		template<typename object_t, typename target_t>
+		using member_description_instance_p = std::shared_ptr<member_description_instance_t<object_t, target_t>>;
+
+		template<typename object_t, typename target_t>
+		member_description_instance_p<object_t, target_t> make_member_description(
+			typename member_description_instance_t<object_t, target_t>::key_t const& key_,
+			typename member_description_instance_t<object_t, target_t>::target_p target_,
+			typename member_description_instance_t<object_t, target_t>::target_default_p default_value_ = nullptr,
+			typename member_description_instance_t<object_t, target_t>::target_contained_default_p contained_default_value_ = nullptr
+		) {
+			return std::make_shared<member_description_instance_t<object_t, target_t>>(
+				key_, target_, default_value_, contained_default_value_);
+		}
 
 		struct type_description_t {
 			virtual ~type_description_t() {}
@@ -178,7 +184,7 @@ namespace autotelica {
 			using key_t = typename traits::key_t;
 			using default_t = typename traits::default_types_t<object_t>::value_t;
 			using member_function_t = void (object_t::*)();
-			using member_description_p = type_member_description_p<object_t>;
+			using member_description_p = object_member_description_p<object_t>;
 			using member_descriptions_t = std::vector<member_description_p>;
 		protected:
 			bool _done;
@@ -188,14 +194,14 @@ namespace autotelica {
 			member_function_t _post_save_f;
 			member_descriptions_t _member_descriptions;
 
-			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) = {
+			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) {
 				return f ? [&]() {(object.*f)(); } : nullptr; 
 			}
 
 			inline void validate_key(key_t const& key) {
 #ifdef _AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS
 				AF_ASSERT(!key.empty(), "Empty keys are not allowed");
-				auto test_key = [&](member_description_p d) { return !traits::equal_tag(key, d->key()); };
+				auto test_key = [&](member_description_p d) { return !util::equal_tag(key, d->key()); };
 				for (auto const& d : _member_descriptions) {
 					AF_ASSERT(test_key(d), "Key % is duplicated", key);
 				}
@@ -247,8 +253,8 @@ namespace autotelica {
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(create_type_member_description<object_t, target_t, element_t>(
-					key_, target_, default_, element_default_));
+				auto member_description(make_member_description<object_t, target_t>(
+					key_, target_, &default_, &element_default_));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
@@ -257,29 +263,31 @@ namespace autotelica {
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				has_no_default_t const& default_ = has_no_default,
-				has_no_default_t const& element_default_ = has_no_contained_default
+				has_no_default_t const& element_default_ = has_no_default
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(create_type_member_description<object_t, target_t>(
+				auto member_description(make_member_description<object_t, target_t>(
 					key_, target_));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
+
 			template<typename target_t>
 			inline type_description_instance_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
-				has_no_default_t const& element_default_ = has_no_contained_default
+				has_no_default_t const& element_default_ = has_no_default
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(create_type_member_description<object_t, target_t>(
-					key_, target_, default_));
+				auto member_description(make_member_description<object_t, target_t>(
+					key_, target_, make_default_value(default_)));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
+
 			inline type_description_instance_t& end_object() {
 				AF_ASSERT(!_done, "Cannot end_object more than once.");
 				_done = true;
@@ -299,7 +307,7 @@ namespace autotelica {
 						d->key(),
 						(d->make_handler(serialization_type_v,object)) });
 
-				return make_object_handler<target_t>(
+				return make_object_handler(
 					serialization_type_v,
 					object,
 					default_,
@@ -310,7 +318,10 @@ namespace autotelica {
 					wrap_function(object, _post_load_f));
 			}
 		};
-
+		template<typename object_t>
+		type_description_instance_t<object_t> begin_object() {
+			return type_description_instance_t<object_t>();
+		}
 	}
 
 }

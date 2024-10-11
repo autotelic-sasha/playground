@@ -46,6 +46,8 @@ enum class serialization_type_t : int {
 	unknown // unknown must be the last
 };
 
-AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::json, autotelica::json::serialization_factory);
-AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::unkown, impl::unknown_handlers_factory);
+namespace json { struct serialization_factory; }
+
+AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::json, json::serialization_factory);
+AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::unknown, impl::unknown_handlers_factory);
 
