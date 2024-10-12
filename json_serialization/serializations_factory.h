@@ -2,7 +2,7 @@
 #include <functional>
 #include "autotelica_core/util/include/asserts.h"
 #include "autotelica_core/util/include/sfinae_util.h"
-
+#include "autotelica_core/util/include/enum_to_string.h"
 // What kind of strings do you like? The default works for UTF8, why would you want anything else? 
 #ifndef _AF_SERIALIZATION_CHAR_T
 #define _AF_SERIALIZATION_CHAR_T char
@@ -79,6 +79,12 @@ namespace autotelica {
 				using is_enum_t = std::is_enum<target_t>;
 
 				template<typename target_t>
+				using is_has_no_default_t = std::is_same<has_no_default_t, std::remove_cv_t<target_t>>;
+
+				template<typename target_t>
+				using if_has_no_default_t = if_t<is_has_no_default_t<target_t>>;
+
+				template<typename target_t>
 				using if_no_contained_default_t = if_t<
 					any_of_t<
 						is_integral_t<target_t>,
@@ -141,20 +147,27 @@ namespace autotelica {
 			template<typename target_t>
 			struct default_types_t< target_t, select_t<if_mapish_t<target_t>>> : public std::true_type {
 				using value_t = target_t;
-				using contained_t = typename target_t::mapped_type;
+				using contained_t = typename target_t::value_type;
 			};
 
-			template<target_t>
-			using default_t =  default_types_t<target_t>::value_t;
+			template<typename target_t>
+			struct default_types_t< target_t, select_t<if_has_no_default_t<target_t>> > : public std::true_type {
+				using value_t = has_no_default_t;
+				using contained_t = has_no_default_t;
+			};
+
+
+			template<typename target_t>
+			using default_t = typename default_types_t<target_t>::value_t;
 			
-			template<target_t>
+			template<typename target_t>
 			using default_p = default_value_p<default_t<target_t>>;
 
-			template<target_t>
-			using default_contained_t =  default_types_t<target_t>::contained_t;
+			template<typename target_t>
+			using default_contained_t =  typename default_types_t<target_t>::contained_t;
 
-			template<target_t>
-			using default_contained_p = default_value_p<default_t<contained_target_t>>;
+			template<typename target_t>
+			using default_contained_p = default_value_p<default_contained_t<target_t>>;
 
 
 
@@ -212,8 +225,8 @@ namespace autotelica {
 	inline serialization_handler_p make_handler(\
 		target_t*								target_,\
 		traits::default_p<target_t>				default_,\
-		traits::default_contained_p<target_t>>	contained_default_){\
-			return factory_t::make_handler(target_, default_, contained_default_);\
+		traits::default_contained_p<target_t>	contained_default_){\
+			return make_handler(target_, default_, contained_default_);\
 		}\
 	template<typename object_t, serialization_type_t id, std::enable_if_t<id == serialization_type_v, bool> = true>\
 	static serialization_handler_p make_object_handler(\
@@ -233,7 +246,7 @@ namespace autotelica {
 			static serialization_handler_p make_handler(
 				target_t*								target_, 
 				traits::default_p<target_t>				default_, 
-				traits::default_contained_p<target_t >> contained_default_
+				traits::default_contained_p<target_t> contained_default_
 			) {
 				AF_ERROR("Unknown handler factory was invoked.");
 				return nullptr;
@@ -262,40 +275,40 @@ namespace autotelica {
 		namespace impl {
 			
 			template<
-				serialization_type_t serialization_type_,
 				typename target_t,
+				serialization_type_t serialization_type_,
 				std::enable_if_t<(static_cast<int>(serialization_type_) < 0), bool> = true>
 			inline serialization_handler_p dispatch_make_handler(
 				serialization_type_t const				serialization_type_v,
 				target_t*								target_,
 				traits::default_p<target_t>				default_,
-				traits::default_contained_p<target_t >> contained_default_
+				traits::default_contained_p<target_t> contained_default_
 			) {
 				AF_ERROR("Unrecognised serialisation type value: %", serialization_type_v);
 				return nullptr;
 			}
 
 			template<
-				serialization_type_t serialization_type_,
 				typename target_t,
+				serialization_type_t serialization_type_,
 				std::enable_if_t<(static_cast<int>(serialization_type_) >= 0), bool> = true>
 			inline serialization_handler_p dispatch_make_handler(
 				serialization_type_t const				serialization_type_v,
 				target_t*								target_,
 				traits::default_p<target_t>				default_,
-				traits::default_contained_p<target_t >> contained_default_
+				traits::default_contained_p<target_t> contained_default_
 			) {
 
 				const auto prev = (static_cast<serialization_type_t>(static_cast<int>(serialization_type_) - 1));
 
 				return (serialization_type_v == serialization_type_) ?
-					make_handler<serialization_type_>(target_, default_, contained_default_) :
-					dispatch_make_handler<prev>(target_, default_, contained_default_);
+					make_handler<target_t, serialization_type_>(target_, default_, contained_default_) :
+					dispatch_make_handler<target_t, prev>(serialization_type_v, target_, default_, contained_default_);
 			}
 
 			template<
-				serialization_type_t serialization_type_,
 				typename object_t,
+				serialization_type_t serialization_type_,
 				std::enable_if_t<(static_cast<int>(serialization_type_) < 0), bool> = true>
 			inline serialization_handler_p dispatch_make_object_handler(
 				serialization_type_t const	 serialization_type_v,
@@ -327,9 +340,9 @@ namespace autotelica {
 				const auto prev = (static_cast<serialization_type_t>(static_cast<int>(serialization_type_) - 1));
 
 				return (serialization_type_v == serialization_type_) ?
-					make_object_handler<serialization_type_>(
+					make_object_handler<object_t, serialization_type_>(
 						object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_) :
-					dispatch_make_object_handler<prev>(
+					dispatch_make_object_handler<object_t, prev>(serialization_type_v,
 						object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
 
 			}
@@ -342,9 +355,9 @@ namespace autotelica {
 				serialization_type_t const				serialization_type_v,
 				target_t*								target_,
 				traits::default_p<target_t>				default_,
-				traits::default_contained_p<target_t >> contained_default_
+				traits::default_contained_p<target_t> contained_default_
 			) {
-				return impl::dispatch_make_handler<serialization_type_t::unknown>(
+				return impl::dispatch_make_handler<target_t, serialization_type_t::unknown>(
 					serialization_type_v, target_, default_, contained_default_);
 			}
 
@@ -359,7 +372,7 @@ namespace autotelica {
 				traits::setup_function_t	pre_save_f_,
 				traits::setup_function_t	post_save_f_
 			) {
-				return impl::dispatch_make_object_handler<serialization_type_t::unknown>(
+				return impl::dispatch_make_object_handler<object_t, serialization_type_t::unknown>(serialization_type_v,
 					object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_);
 			}
 		}

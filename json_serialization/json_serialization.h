@@ -540,7 +540,7 @@ namespace impl {
 
 		handler_setish_t(
 				target_t* target_,
-				default_value_p default_ = nullptr,
+				default_p default_ = nullptr,
 				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_, nullptr) {// sets canot contain default values
 			_unused(unused_);
@@ -714,7 +714,7 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using contained_t = typename traits::contained_t<target_t>;
+		using contained_t = typename traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_pair_t<contained_t>;
 		
@@ -723,10 +723,10 @@ namespace impl {
 
 		handler_mappish_t(
 				target_t* target_,
-				default_value_p default_ = nullptr,
+				default_p default_ = nullptr,
 				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_handler<contained_t>(nullptr, contained_default_)) {
+			_value_handler(make_handler<contained_t>(nullptr, default_contained_)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -795,7 +795,7 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using contained_t = typename traits::contained_t<target_t>;
+		using contained_t = typename traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = typename target_t::key_type; // this is some string type
 		using value_handler_t = handler_value_p<contained_t>;
@@ -804,7 +804,7 @@ namespace impl {
 
 		handler_string_mappish_t(
 				target_t* target_,
-				default_value_p default_ = nullptr,
+				default_p default_ = nullptr,
 				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
 			_value_handler(make_handler<contained_t>(nullptr, default_contained_)) {
@@ -883,7 +883,7 @@ namespace impl {
 
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
-		using contained_t = typename traits::contained_t<target_t>;
+		using contained_t = typename traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = typename target_t::key_type; // this is some string type
 		
@@ -904,7 +904,7 @@ namespace impl {
 
 		handler_object_t(
 				target_t* target_,
-				default_p<default_t> default_ = nullptr,
+				default_p default_ = nullptr,
 				pre_load_function_t pre_load_f_ = nullptr,
 				pre_save_function_t pre_save_f_ = nullptr,
 				post_load_function_t post_load_f_ = nullptr,
@@ -1094,7 +1094,7 @@ namespace impl {
 		traits::setup_function_t	pre_save_f_,
 		traits::setup_function_t	post_save_f_
 	) {
-		return std::make_shared< handler_object_t>(
+		return std::make_shared< handler_object_t<object_t> >(
 			&object_,
 			default_,
 			pre_load_f_,
@@ -1108,13 +1108,13 @@ namespace impl {
 
 } // namespace impl
 
-struct serialization_factory {
+namespace serialization_factory {
 
 	template<typename target_t>
 	inline static serialization_handler_p make_handler(
 		target_t*					  target_,
 		traits::default_p<target_t>   default_,
-		default_contained_p<target_t> contained_default_
+		traits::default_contained_p<target_t> contained_default_
 	) {
 		return impl::make_handler(target_, default_, contained_default_);
 	}
@@ -1140,6 +1140,28 @@ struct serialization_factory {
 	}
 };
 
+namespace serialization {
+	template<typename target_t, serialization_type_t id, std::enable_if_t<id == serialization_type_t::json, bool> = true>
+	inline serialization_handler_p make_handler(
+		target_t* target_,
+		traits::default_p<target_t>				default_,
+		traits::default_contained_p<target_t>	contained_default_) {
+		return json::serialization_factory::make_handler(target_, default_, contained_default_);
+	}
+	template<typename object_t, serialization_type_t id, std::enable_if_t<id == serialization_type_t::json, bool> = true>\
+		static serialization_handler_p make_object_handler(
+			object_t& object_,
+			traits::default_p<object_t>	default_,
+			traits::handlers_t const& handlers_,
+			traits::setup_function_t	pre_load_f_,
+			traits::setup_function_t	post_load_f_,
+			traits::setup_function_t	pre_save_f_,
+			traits::setup_function_t	post_save_f_) {
+		return json::serialization_factory::make_object_handler(object_, default_, handlers_, pre_load_f_, post_load_f_, pre_save_f_, post_save_f_); \
+	}
+
+}
+
 // TODO: schema validation
 // TODO: bitset serialization
 enum class json_encoding {
@@ -1152,7 +1174,7 @@ enum class json_encoding {
 };
 
 
-namespace detail {
+namespace impl {
 
 	// reading and writing traits
 	template<typename stream_t, json_encoding encoding>
@@ -1228,7 +1250,6 @@ struct reader {
 			stream_t& stream) {
 		using namespace rapidjson;
 		using namespace impl;
-		using namespace detail;
 		Reader reader;
 		auto handler = serializations_factory::make_object_handler(target);
 		handler->prepare_for_loading();
@@ -1325,7 +1346,7 @@ struct writer {
 		bool pretty = false,
 		bool put_bom = false) {
 		using namespace rapidjson;
-		using namespace detail;
+		using namespace impl;
 
 		using writer_factory_t = json_writing<stream_t, encoding>;
 		if (pretty) {

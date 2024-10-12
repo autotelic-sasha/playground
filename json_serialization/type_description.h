@@ -145,16 +145,12 @@ namespace autotelica {
 					object_t& object_) const override {
 				
 				target_t* target = &(object_.*(_target));
-				default_t const* default_ = _default_value? 
-					&(_default_value->_default_value):nullptr;
-				contained_t const* contained_default_ = _contained_default_value? 
-					&(_contained_default_value->_default_value):nullptr;
-				
+
 				return serializations_factory::make_handler(
 					serialization_type_v,
 					target,
-					default_,
-					contained_default_);
+					_default_value,
+					_contained_default_value);
 			}
 
 		};

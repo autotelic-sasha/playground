@@ -42,12 +42,14 @@
 
 
 enum class serialization_type_t : int {
-	json,
+	json = 0,
 	unknown // unknown must be the last
 };
+AF_ENUM_TO_STRING(serialization_type_t,
+	serialization_type_t::json, "json",
+	serialization_type_t::unknown, "unknown"
+);
 
-namespace json { struct serialization_factory; }
-
-AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::json, json::serialization_factory);
+AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::json, serialization);
 AF_DECLARE_SERIALIZATION_TYPE_FACTORY(serialization_type_t::unknown, impl::unknown_handlers_factory);
 
