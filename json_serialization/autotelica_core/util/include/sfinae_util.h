@@ -329,22 +329,22 @@ namespace autotelica {
 // which is true if it's type parameter has a static function with a given name 
 #define _AF_DECLARE_HAS_STATIC_MEMBER(function_name) \
 	template<typename T, typename U = void>\
-	struct has_static_##function_name##_impl : std::false_type {};\
+	struct has_static_##function_name##_impl_t : std::false_type {};\
 	template<typename T>\
-	struct has_static_##function_name##_impl<T, \
+	struct has_static_##function_name##_impl_t<T, \
 		select_t<std::is_function<decltype(T::function_name)>>> : std::true_type {};\
 	template<typename T>\
-	struct has_static_##function_name## : has_static_##function_name##_impl<T>::type {};\
-	template<typename T> using if_has_static_##function_name##_t = if_t<has_static_##function_name##<T>>;
+	struct has_static_##function_name##_t : has_static_##function_name##_impl_t<T>::type {};\
+	template<typename T> using if_has_static_##function_name##_t = if_t<has_static_##function_name##_t<T>>;
 
 // _AF_DECLARE_HAS_MEMBER declares a sfinae predicate 
 // which is true if it's type parameter has a non-static member with a given name
 #define _AF_DECLARE_HAS_MEMBER(function_name) \
 	template<typename T, typename U = void>\
-	struct has_##function_name##_impl : std::false_type {};\
+	struct has_##function_name##_impl_t : std::false_type {};\
 	template<typename T>\
-	struct has_##function_name##_impl<T, \
+	struct has_##function_name##_impl_t<T, \
 		select_t<std::is_member_pointer<decltype(&T::function_name)>>> : std::true_type {};\
 	template<typename T>\
-	struct has_##function_name## : has_##function_name##_impl<T>::type {};\
-	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##<T>>;
+	struct has_##function_name##_t : has_##function_name##_impl_t<T>::type {};\
+	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##_t<T>>;

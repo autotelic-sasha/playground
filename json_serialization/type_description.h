@@ -83,40 +83,28 @@ namespace autotelica {
 		// required for each serialization implementation, in order to pass the type information
 		// from the member description to the method creating a handler for a particular data type.
 
+		// type_member_description
+		template<typename object_t, typename factory_t>
 		struct member_description_t {
 			using key_t = typename traits::key_t;
 
 			key_t _key;
 
 			member_description_t(key_t const& key_) :_key(key_) {}
-
-			key_t const& key() const { return _key; }
-
 			virtual ~member_description_t() {}
-		};
-		using member_description_p = std::shared_ptr<member_description_t>;
 
-		// type_member_description
-		template<typename object_t>
-		struct object_member_description_t : public member_description_t {
-			using key_t = typename traits::key_t;
-
-			object_member_description_t(key_t const& key_) : member_description_t(key_) {}
-
-			virtual serialization_handler_p make_handler(
-				serialization_type_t const serialization_type_v,
-				object_t& object) const = 0;
+			virtual serialization_handler_p make_handler(object_t& object) const = 0;
 
 		};
 
-		template<typename object_t>
-		using object_member_description_p = std::shared_ptr<object_member_description_t<object_t>>;
+		template<typename object_t, typename factory_t>
+		using member_description_p = std::shared_ptr<member_description_t<object_t, factory_t>>;
 
-		template<typename object_t, typename target_t>
-		struct member_description_instance_t : public object_member_description_t<object_t> {
+		template<typename object_t, typename target_t, typename factory_t>
+		struct member_description_instance_t : public member_description_t<object_t, factory_t> {
 
-			using base_t = object_member_description_t<object_t>;
-			using key_t = typename traits::key_t;
+			using base_t = member_description_t<object_t, factory_t>;
+			using key_t = typename base_t::key_t;
 			using target_p = target_t object_t::*;
 			using default_t = typename traits::default_types_t<target_t>::value_t;
 			using contained_t = typename traits::default_types_t<target_t>::contained_t;
@@ -140,14 +128,11 @@ namespace autotelica {
 
 			}
 
-			serialization_handler_p make_handler(
-					serialization_type_t const serialization_type_v, 
-					object_t& object_) const override {
+			serialization_handler_p make_handler(object_t& object_) const override {
 				
 				target_t* target = &(object_.*(_target));
 
-				return serializations_factory::make_handler(
-					serialization_type_v,
+				return factory_t::make_handler(
 					target,
 					_default_value,
 					_contained_default_value);
@@ -155,33 +140,71 @@ namespace autotelica {
 
 		};
 		
-		template<typename object_t, typename target_t>
-		using member_description_instance_p = std::shared_ptr<member_description_instance_t<object_t, target_t>>;
+		template<typename object_t, typename target_t, typename factory_t>
+		using member_description_instance_p = std::shared_ptr<member_description_instance_t<object_t, target_t, factory_t>>;
 
-		template<typename object_t, typename target_t>
-		member_description_instance_p<object_t, target_t> make_member_description(
-			typename member_description_instance_t<object_t, target_t>::key_t const& key_,
-			typename member_description_instance_t<object_t, target_t>::target_p target_,
-			typename member_description_instance_t<object_t, target_t>::target_default_p default_value_ = nullptr,
-			typename member_description_instance_t<object_t, target_t>::target_contained_default_p contained_default_value_ = nullptr
+		template<typename object_t, typename target_t, typename factory_t >
+		member_description_p<object_t, target_t> make_member_description(
+			typename member_description_instance_t<object_t, target_t, factory_t>::key_t const& key_,
+			typename member_description_instance_t<object_t, target_t, factory_t>::target_p target_,
+			typename member_description_instance_t<object_t, target_t, factory_t>::target_default_p default_value_ = nullptr,
+			typename member_description_instance_t<object_t, target_t, factory_t>::target_contained_default_p contained_default_value_ = nullptr
 		) {
-			return std::make_shared<member_description_instance_t<object_t, target_t>>(
+			return std::make_shared<member_description_instance_t<object_t, target_t, factory_t>>(
 				key_, target_, default_value_, contained_default_value_);
 		}
 
-		struct type_description_t {
-			virtual ~type_description_t() {}
-		};
 
 		// type description
-		template<typename object_t>
-		class type_description_instance_t : public type_description_t {
+		template<typename object_t, typename factory_t>
+		class type_description_t {
 		public:
 			using key_t = typename traits::key_t;
 			using default_t = typename traits::default_types_t<object_t>::value_t;
 			using member_function_t = void (object_t::*)();
-			using member_description_p = object_member_description_p<object_t>;
+			using member_description_p = member_description_p<object_t, factory_t>;
 			using member_descriptions_t = std::vector<member_description_p>;
+
+			class object_description_t {
+				using setup_function_t = traits::setup_function_t;
+				using handlers_t = traits::handlers_t;
+				using default_p = traits::default_p<object_t>;
+
+				object_t& _object;
+				default_p _default;
+				handlers_t _handlers;
+				setup_function_t _pre_load_f;
+				setup_function_t _post_load_f;
+				setup_function_t _pre_save_f;
+				setup_function_t _post_save_f;
+				friend class type_description_t;
+			public:
+
+				object_description_t(
+					object_t& object_,
+					default_p default_,
+					handlers_t& handlers_,
+					setup_function_t pre_load_f_,
+					setup_function_t post_load_f_,
+					setup_function_t pre_save_f_,
+					setup_function_t post_save_f_) :
+					_object(object_), _default(default_), _handlers(handlers_),
+					_pre_load_f(pre_load_f), _post_load_f(post_load_f),
+					_pre_save_f(pre_save_f), _post_save_f(post_save_f) {
+
+				}
+
+				inline object_t& object() { return _object; }
+				inline default_p const& default_() const { return _default; }
+				inline handlers_t const& handlers() const { return _handlers; }
+				inline setup_function_t const& pre_load_f() const { return _pre_load_f; }
+				inline setup_function_t const& post_load_f() const { return _post_load_f; }
+				inline setup_function_t const& pre_save_f() const { return _pre_save_f; }
+				inline setup_function_t const& post_save_f() const { return post_save_f; }
+
+			};
+			using object_description_p = std::shared_ptr<object_description_t>;
+
 		protected:
 			bool _done;
 			member_function_t _pre_load_f;
@@ -204,7 +227,7 @@ namespace autotelica {
 #endif
 			}
 		public:
-			type_description_instance_t() :
+			type_description_t() :
 				_done(false),
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
@@ -220,28 +243,28 @@ namespace autotelica {
 			member_function_t const& post_save_f() const { return _post_save_f; }
 			member_descriptions_t const& member_descriptions() const { return _member_descriptions; }
 
-			inline type_description_instance_t& before_loading(member_function_t& f) {
+			inline type_description_t& before_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_load_f = f;
 				return *this;
 			}
-			inline type_description_instance_t& before_saving(member_function_t& f) {
+			inline type_description_t& before_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_save_f = f;
 				return *this;
 			}
-			inline type_description_instance_t& after_loading(member_function_t& f) {
+			inline type_description_t& after_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_load_f = f;
 				return *this;
 			}
-			inline type_description_instance_t& after_saving(member_function_t& f) {
+			inline type_description_t& after_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_save_f = f;
 				return *this;
 			}
 			template<typename target_t, typename element_t>
-			inline type_description_instance_t& member(
+			inline type_description_t& member(
 				key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -249,13 +272,13 @@ namespace autotelica {
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(make_member_description<object_t, target_t>(
+				auto member_description(make_member_description<object_t, target_t, factory_t>(
 					key_, target_, &default_, &element_default_));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
 			template<typename target_t>
-			inline type_description_instance_t& member(
+			inline type_description_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				has_no_default_t const& default_ = has_no_default,
@@ -263,14 +286,14 @@ namespace autotelica {
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(make_member_description<object_t, target_t>(
+				auto member_description(make_member_description<object_t, target_t, factory_t>(
 					key_, target_));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
 
 			template<typename target_t>
-			inline type_description_instance_t& member(
+			inline type_description_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -278,46 +301,44 @@ namespace autotelica {
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(make_member_description<object_t, target_t>(
+				auto member_description(make_member_description<object_t, target_t, factory_t>(
 					key_, target_, make_default_value(default_)));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
 
-			inline type_description_instance_t& end_object() {
+			inline type_description_t& end_object() {
 				AF_ASSERT(!_done, "Cannot end_object more than once.");
 				_done = true;
 				return *this;
 			}
 
-			serialization_handler_p make_handler(
-				serialization_type_t const serialization_type_v,
+			object_description_p make_object_description(
 				object_t& object,
 				default_t const* default_ = nullptr
 			) const {
-				AF_ASSERT(done(), "Cannot create handlers before object description is done.");
-				traits::handlers_t handlers;
-				handlers.reserve(_member_descriptions.size());
-				for (auto const d : _member_descriptions)
-					handlers.push_back({ 
-						d->key(),
-						(d->make_handler(serialization_type_v,object)) });
-
-				return make_object_handler(
-					serialization_type_v,
+				auto od = std::make_shared<object_description_t>(
 					object,
 					default_,
-					handlers,
+					traits::handlers_t(),
 					wrap_function(object, _pre_load_f),
 					wrap_function(object, _post_load_f),
 					wrap_function(object, _pre_save_f),
-					wrap_function(object, _post_load_f));
+					wrap_function(object, _post_load_f)
+				);
+				od->_handlers.reserve(_member_descriptions.size());
+				for (auto const d : _member_descriptions)
+					od->_handlers.push_back({
+						d->key(),
+						(d->make_handler(object)) });
+				return od;
 			}
-		};
-		template<typename object_t>
-		type_description_instance_t<object_t> begin_object() {
-			return type_description_instance_t<object_t>();
-		}
-	}
 
-}
+		};
+		template<typename object_t, typename factory_t>
+		type_description_t<object_t, factory_t> begin_object() {
+			return type_description_t<object_t, factory_t>();
+		}
+	}// namespace type_description
+
+}// namespace autotelica

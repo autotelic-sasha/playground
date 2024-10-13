@@ -33,9 +33,10 @@ struct test2  {
     bool operator==(test2 const& rhs) const {
         return i == rhs.i;
     }
-    static type_description_t const& type_description() {
+    template<typename serialization_factory_t>
+    static type_description_t<test2, serialization_factory_t>  const& type_description() {
         static auto description = 
-            begin_object<test2>().
+            begin_object<test2, serialization_factory_t>().
                 member("i", &test2::i, 2510).
                 member("d", &test2::d, 1.991).
             end_object();
@@ -69,7 +70,7 @@ int main()
 
     //bool is = std::is_function<decltype(test2::type_description)>::value;
 
-    bool is = has_static_type_description<test2>::value;
+    bool is = has_static_type_description_t<test2>::value;
     test2 t_2(1991);
     //auto js = autotelica::json::writer<>::to_string(t_2);
     //test2 t_22, t_23;
