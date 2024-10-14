@@ -55,29 +55,43 @@ struct test2  {
 
 };
 
-_AF_DECLARE_HAS_STATIC_MEMBER(type_description);
+template<typename target_t, autotelica::serialization::util::predicates::if_static_serializable_t<target_t> = true>
+void f(target_t& t) {
+    std::cout << "YO" << std::endl;
+}
 
 int main()
 {
-    /*test1 t(1991);
-    auto js = json::writer<>::to_string(t);
-    test1 t2, t3;
-    std::cout << js << std::endl;
-    json::reader<>::from_string(t2, js);
-    std::cout << js << std::endl;
-    json::reader<>::from_string(t3, "{}");
-    std::cout << json::writer<>::to_string(t3) << std::endl;*/
+    try {
+        //test1 t(1991);
+        //auto js = json::writer<>::to_string(t);
+        //test1 t2, t3;
+        //std::cout << js << std::endl;
+        //json::reader<>::from_string(t2, js);
+        //std::cout << js << std::endl;
+        //json::reader<>::from_string(t3, "{}");
+        //std::cout << json::writer<>::to_string(t3) << std::endl;*/
+        //autotelica::serialization::traits::default_p<double> a;
+        //bool is = std::is_function<decltype(test2::type_description)>::value;
+        test2 t_2(1991);
+        f(t_2);
 
-    //bool is = std::is_function<decltype(test2::type_description)>::value;
-
-    bool is = has_static_type_description_t<test2>::value;
-    test2 t_2(1991);
-    //auto js = autotelica::json::writer<>::to_string(t_2);
-    //test2 t_22, t_23;
-    //std::cout << js << std::endl;
-    //autotelica::json::reader<>::from_string(t_22, js);
-    //std::cout << js << std::endl;
-    //autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0}");
-    //std::cout << autotelica::json::writer<>::to_string(t_23) << std::endl;
+        //bool is = autotelica::serialization::util::predicates::is_serializable_object_t<test2>::value;
+        //bool is2 = autotelica::serialization::util::predicates::has_object_description_t<test2>::value;
+        //
+        auto js = autotelica::json::writer<>::to_string(t_2);
+        test2 t_22, t_23;
+        std::cout << js << std::endl;
+        autotelica::json::reader<>::from_string(t_22, js);
+        std::cout << js << std::endl;
+        autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0}");
+        std::cout << autotelica::json::writer<>::to_string(t_23) << std::endl;
+    }
+    catch (std::runtime_error& e) {
+        std::cout << "ERROR CAUGHT: " << e.what() << std::endl;
+    }
+    catch (...) {
+        std::cout << "UNKNOWN ERROR CAUGHT " << std::endl;
+    }
 }
 

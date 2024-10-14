@@ -1,5 +1,5 @@
 #pragma once
-#include "serializations_factory.h"
+#include "serialization_util.h"
 
 #ifndef		_AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS
 #define		_AF_SERIALIZATION_VALIDATE_DUPLICATE_KEYS false
@@ -90,6 +90,7 @@ namespace autotelica {
 
 			key_t _key;
 
+			key_t const& key() const { return _key; }
 			member_description_t(key_t const& key_) :_key(key_) {}
 			virtual ~member_description_t() {}
 
@@ -108,8 +109,8 @@ namespace autotelica {
 			using target_p = target_t object_t::*;
 			using default_t = typename traits::default_types_t<target_t>::value_t;
 			using contained_t = typename traits::default_types_t<target_t>::contained_t;
-			using target_default_p = default_value_p<default_t>;
-			using target_contained_default_p = default_value_p<contained_t>;
+			using target_default_p = typename traits::default_p<target_t>;
+			using target_contained_default_p = typename traits::default_contained_p<target_t>;
 
 			target_p const _target;
 			target_default_p const _default_value;
@@ -144,7 +145,7 @@ namespace autotelica {
 		using member_description_instance_p = std::shared_ptr<member_description_instance_t<object_t, target_t, factory_t>>;
 
 		template<typename object_t, typename target_t, typename factory_t >
-		member_description_p<object_t, target_t> make_member_description(
+		member_description_p<object_t, factory_t> make_member_description(
 			typename member_description_instance_t<object_t, target_t, factory_t>::key_t const& key_,
 			typename member_description_instance_t<object_t, target_t, factory_t>::target_p target_,
 			typename member_description_instance_t<object_t, target_t, factory_t>::target_default_p default_value_ = nullptr,
@@ -183,14 +184,14 @@ namespace autotelica {
 				object_description_t(
 					object_t& object_,
 					default_p default_,
-					handlers_t& handlers_,
+					handlers_t const& handlers_,
 					setup_function_t pre_load_f_,
 					setup_function_t post_load_f_,
 					setup_function_t pre_save_f_,
 					setup_function_t post_save_f_) :
 					_object(object_), _default(default_), _handlers(handlers_),
-					_pre_load_f(pre_load_f), _post_load_f(post_load_f),
-					_pre_save_f(pre_save_f), _post_save_f(post_save_f) {
+					_pre_load_f(pre_load_f_), _post_load_f(post_load_f_),
+					_pre_save_f(pre_save_f_), _post_save_f(post_save_f_) {
 
 				}
 
@@ -200,11 +201,28 @@ namespace autotelica {
 				inline setup_function_t const& pre_load_f() const { return _pre_load_f; }
 				inline setup_function_t const& post_load_f() const { return _post_load_f; }
 				inline setup_function_t const& pre_save_f() const { return _pre_save_f; }
-				inline setup_function_t const& post_save_f() const { return post_save_f; }
+				inline setup_function_t const& post_save_f() const { return _post_save_f; }
 
 			};
 			using object_description_p = std::shared_ptr<object_description_t>;
-
+			inline object_description_p make_object_description(
+				object_t& object_,
+				traits::default_p<object_t> default_,
+				traits::handlers_t const& handlers_,
+				traits::setup_function_t pre_load_f_,
+				traits::setup_function_t post_load_f_,
+				traits::setup_function_t pre_save_f_,
+				traits::setup_function_t post_save_f_
+			) const {
+				return std::make_shared<object_description_t>(
+					object_,
+					default_,
+					handlers_,
+					pre_load_f_,
+					post_load_f_,
+					pre_save_f_,
+					post_save_f_);
+			}
 		protected:
 			bool _done;
 			member_function_t _pre_load_f;
@@ -213,8 +231,8 @@ namespace autotelica {
 			member_function_t _post_save_f;
 			member_descriptions_t _member_descriptions;
 
-			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) {
-				return f ? [&]() {(object.*f)(); } : nullptr; 
+			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) const {
+				return f ? [&]() {(object.*f)(); } : traits::setup_function_t();
 			}
 
 			inline void validate_key(key_t const& key) {
@@ -317,14 +335,14 @@ namespace autotelica {
 				object_t& object,
 				default_t const* default_ = nullptr
 			) const {
-				auto od = std::make_shared<object_description_t>(
+				auto od = make_object_description(
 					object,
-					default_,
+					make_default(default_),
 					traits::handlers_t(),
 					wrap_function(object, _pre_load_f),
 					wrap_function(object, _post_load_f),
 					wrap_function(object, _pre_save_f),
-					wrap_function(object, _post_load_f)
+					wrap_function(object, _post_save_f)
 				);
 				od->_handlers.reserve(_member_descriptions.size());
 				for (auto const d : _member_descriptions)

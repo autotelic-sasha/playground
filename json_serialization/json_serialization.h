@@ -218,8 +218,9 @@ namespace impl {
 
 		bool Null()  override {
 			AF_ASSERT(_default, "Unexpected: null read when default value is not provided.");
+			_default->set_value(*_target);
 			done();
-			return _default->null(_target);
+			return true;
 		}
 
 		inline bool should_not_write() const {
@@ -236,25 +237,14 @@ namespace impl {
 	using handler_value_p = std::shared_ptr<handler_value_t<target_t>>;
 
 	// handlers create other handlers, so we need a forward declaration
-	template<typename target_t, typename condition_t>
+	template<typename target_t, typename >
 	handler_value_p<target_t> make_json_handler(
 		target_t* target_,
-		traits::default_p<target_t> default_,
-		traits::default_contained_p<target_t>contained_default_
+		traits::default_p<target_t>				default_,
+		traits::default_contained_p<target_t>	contained_default_
 	);
 	
-	// serialization factory is passed through to the type_description hierarchy
-	struct serialization_factory {
-		template<typename target_t>
-		static inline handler_value_p<target_t> make_handler(
-			target_t* target_,
-			traits::default_p<target_t>				default_ = nullptr,
-			traits::default_contained_p<target_t>	contained_default_ = nullptr
-		) {
-			return impl::make_json_handler(target_, default_, contained_default_);
-		}
-	};
-	
+
 	// handler for integral types
 	template<typename target_t>
 	struct handler_integral_t : public handler_value_t<target_t> {
@@ -895,7 +885,7 @@ namespace impl {
 		using default_p = typename base_t::default_p;
 		using contained_t = typename traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
-		using key_t = typename target_t::key_type; // this is some string type
+		using key_t = traits::key_t; // this is some string type
 		
 
 		using handlers_t = std::vector<std::pair<key_t, handler_p>>;
@@ -1031,15 +1021,13 @@ namespace impl {
 		using namespace serialization::util::predicates;
 
 
-		template<typename target_t, typename condition_t = void>
+		template<typename target_t, typename = void>
 		struct handler_types {
-			using handler_type = void;
-			using sfinae_condition_t = condition_t;
 		};
 
 #define _JSON_HANDLER_TRAIT(HandlerT, ConditionT) \
 		template<typename target_t>\
-		struct handler_types<target_t, ConditionT> {\
+		struct handler_types<target_t, select_t<ConditionT>> {\
 			using handler_type = HandlerT<target_t>;\
 			using sfinae_condition_t = ConditionT;\
 		};
@@ -1078,26 +1066,26 @@ namespace impl {
 			contained_default_);
 	}
 
+	struct serialization_factory;
 	// we need a special makers for objects
 	template<typename target_t, util::predicates::if_static_serializable_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
 		target_t*								target_,
 		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t>	contained_default_ = nullptr
+		traits::default_contained_p<target_t> 	contained_default_ = nullptr
 	) {
 		_unused(contained_default_);
-		using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
 		auto& td = target_->template type_description<serialization_factory>();
-		auto object_description = td.make_object_description(*target_, default_);
+		auto object_description = td.make_object_description(*target_, default_?default_->value():nullptr);
 
 		return std::make_shared< handler_object_t<target_t> >(
 			target_,
 			default_,
-			object_description.pre_load_f(),
-			object_description.post_load_f(),
-			object_description.pre_save_f(),
-			object_description.post_save_f(),
-			object_description.handlers());
+			object_description->pre_load_f(),
+			object_description->post_load_f(),
+			object_description->pre_save_f(),
+			object_description->post_save_f(),
+			object_description->handlers());
 	}
 	template<typename target_t, util::predicates::if_has_object_description_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
@@ -1106,7 +1094,6 @@ namespace impl {
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
 	) {
 		_unused(contained_default_);
-		using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
 		auto object_description = target_->template object_description<serialization_factory>();
 
 		return std::make_shared< handler_object_t<target_t> >(
@@ -1118,6 +1105,20 @@ namespace impl {
 			object_description.post_save_f(),
 			object_description.handlers());
 	}
+
+
+	// serialization factory is passed through to the type_description hierarchy
+	struct serialization_factory {
+		template<typename target_t>
+		static inline handler_value_p<target_t> make_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_ = nullptr,
+			traits::default_contained_p<target_t>	contained_default_ = nullptr
+		) {
+			return make_json_handler<target_t>(target_, default_, contained_default_);
+		}
+	};
+
 
 } // namespace impl
 
@@ -1212,7 +1213,7 @@ struct reader {
 		using namespace rapidjson;
 		using namespace impl;
 		Reader reader;
-		auto handler = impl::make_json_handler(target);
+		auto handler = impl::make_json_handler(&target);
 		handler->prepare_for_loading();
 		bool parsed = false;
 		auto actual_stream = json_reading<stream_t, encoding>::input_stream(stream);
@@ -1295,7 +1296,7 @@ struct writer {
 		writer_t& writer) {
 		using namespace rapidjson;
 		using namespace impl;
-		auto handler = impl::make_json_handler(target);
+		auto handler = impl::make_json_handler(&target);
 		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer };
 		handler->write(writer_wrapper);
 	}
