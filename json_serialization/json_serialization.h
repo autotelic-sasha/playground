@@ -141,9 +141,13 @@ namespace impl {
 	struct handler_t : public serialization_handler_t {
 		using char_t = traits::char_t;
 
+		bool _done;
+		handler_t() :_done(false) {}
 		virtual ~handler_t() {}
+		
+		inline bool set_done(bool done_ = true) { return (_done = done_); }
 		// TODO: do we need is_done?
-		virtual bool is_done() const = 0; // signal to the controller that we are done loading this value
+		inline bool is_done() const { return _done; } // signal to the controller that we are done loading this value
 
 		// TODO: do we need handles_terse_storage?
 		virtual bool handles_terse_storage() const { return false; }
@@ -184,37 +188,35 @@ namespace impl {
 
 		target_t* _target; // owned by someone else, don't delete
 		default_p	_default;
-		bool		_done;
 
 		handler_value_t(
 			target_t* target_,
 			default_p default_ = nullptr) :
 			_target(target_),
-			_default(default_),
-			_done(false) {
+			_default(default_){
 		}
 
 		inline bool set(target_t const& value_) { 
 			AF_ASSERT(_target, "Target is not initialised.");
-			*_target = value_; return done(); 
+			*_target = value_; 
+			return set_done(); 
 		}
 
 		template<typename ConvertibleT>
 		inline bool set(ConvertibleT const& value_) { 
 			AF_ASSERT(_target, "Target is not initialised.");
-			*_target = static_cast<target_t>(value_); return done(); 
+			*_target = static_cast<target_t>(value_); 
+			return set_done();
 		}
 
 		virtual void reset(target_t* target_) {
 			_target = target_;
-			_done = false;
+			set_done(false);
 		}
 		void prepare_for_loading() override {
-			reset(_target);
+			set_done(false);
 		}
-		inline bool done() { return (_done = true); }
 
-		bool is_done() const override { return _done; }
 		bool handles_terse_storage() const override { return _default != nullptr; }
 		inline bool is_set() const { return _target != nullptr; }
 
@@ -224,7 +226,7 @@ namespace impl {
 		bool Null()  override {
 			AF_ASSERT(_default, "Unexpected: null read when default value is not provided.");
 			_default->set_value(*_target);
-			done();
+			set_done();
 			return true;
 		}
 
@@ -324,7 +326,7 @@ namespace impl {
 		// reader part
 		bool String(const char_t* str, size_t length, bool copy) override {
 			util::assign(base_t::_target, str, length);
-			return base_t::done();
+			return base_t::set_done();
 		}
 
 		void write(writer_wrapper_t& writer_) const override {
@@ -355,7 +357,7 @@ namespace impl {
 		bool String(const char_t* str, size_t length, bool copy) override {
 			using namespace autotelica::enum_to_string;
 			*base_t::_target = to_enum<target_t>(str);
-			return base_t::done();
+			return base_t::set_done();
 		}
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
@@ -389,11 +391,6 @@ namespace impl {
 			_value_default(contained_default_) {
 		}
 
-		bool is_done() const override {
-			return base_t::is_done() || // _done is set when null is read
-				(_value_handler && _value_handler->is_done());
-		}
-
 		inline contained_t* value_ptr() {
 			return &(*(*base_t::_target));
 		}
@@ -418,7 +415,8 @@ namespace impl {
 			initialise_target();
 			if (!_value_handler)
 				_value_handler = serialization_factory::make_handler(value_ptr(), _value_default, nullptr); // for shared_ptr this is _target->get(), but this should work for naked pointers too
-			return (_value_handler->*mf)(ps...);
+			bool ret = (_value_handler->*mf)(ps...);
+			base_t::set_done(_value_handler->is_done());
 		}
 
 		bool Null()  override {
@@ -515,7 +513,7 @@ namespace impl {
 		}
 		bool EndArray(size_t elementCount) override {
 			if (!_value_handler->is_set())
-				return base_t::done();
+				return base_t::set_done(); 
 			return delegate_f(&value_handler_t::EndArray, elementCount);
 		}
 
@@ -591,7 +589,7 @@ namespace impl {
 		}
 		bool EndArray(size_t elementCount) override {
 			if (!base_t::_value_handler->is_set())
-				return base_t::done();
+				return base_t::set_done();
 			return delegate_f(&value_handler_t::EndArray, elementCount);
 		}
 	};
@@ -638,9 +636,6 @@ namespace impl {
 			_value_handler = serialization_factory::make_handler(value(), default_.second, nullptr);
 		}
 
-		bool is_done() const {
-			return _key_handler->is_done() && _value_handler->is_done();
-		}
 		void reset(target_t* target_) override {
 			base_t::reset(target_);
 			_key_handler->reset(&key());
@@ -655,8 +650,10 @@ namespace impl {
 		bool delegate_f(bool (current_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			AF_ASSERT(_current_handler, "Unexpected value while reading a map.");
 			bool ret = (_current_handler->*mf)(ps...);
-			if (_current_handler->is_done())
+			if (_current_handler->is_done()) {
+				base_t::set_done(_key_handler->is_done() && _value_handler->is_done());
 				_current_handler = nullptr;
+			}
 			return ret;
 		}
 
@@ -692,7 +689,7 @@ namespace impl {
 		bool EndObject(size_t memberCount) {
 			if (_current_handler)
 				return delegate_f(&current_handler_t::EndObject, memberCount);
-			return base_t::done();
+			return base_t::set_done();
 		}
 
 		bool StartArray() { return delegate_f(&current_handler_t::StartArray); }
@@ -861,7 +858,7 @@ namespace impl {
 		}
 		bool EndObject(size_t memberCount) override {
 			if (!_value_handler->is_set())
-				return base_t::done();
+				return base_t::set_done();
 			return delegate_f(&value_handler_t::EndObject, memberCount);
 		}
 		bool StartArray() override { return delegate_f(&value_handler_t::StartArray); }
@@ -998,7 +995,7 @@ namespace impl {
 			AF_ASSERT(validate_all_loaded(), "Not all object members are loaded.");
 			if (_post_load_f)
 				_post_load_f();
-			return base_t::done();
+			return base_t::set_done();
 		}
 		bool StartArray() override { return delegate_f(&handler_t::StartArray); }
 		bool EndArray(size_t elementCount) override { return delegate_f(&handler_t::EndArray, elementCount); }
