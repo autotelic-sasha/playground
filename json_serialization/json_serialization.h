@@ -476,13 +476,24 @@ namespace impl {
 		using value_handler_p = handler_value_p<contained_t>;
 
 		value_handler_p _value_handler;
+		const bool _as_object; // this is a little bit of a hack, so that we can use this same handler with maps
 
 		handler_sequence_t(
 				target_t* target_,
 				default_p default_ = nullptr,
 				default_contained_p contained_default_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)){
+			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)),
+			_as_object(false){
+		}
+		handler_sequence_t(
+			target_t* target_,
+			bool as_object_,
+			default_p default_ ,
+			default_contained_p contained_default_ ) :
+			base_t(target_, default_),
+			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)),
+			_as_object(as_object_) {
 		}
 
 		void prepare_for_loading() override {
@@ -520,30 +531,47 @@ namespace impl {
 		bool Double(double d) override { return delegate_f(&value_handler_t::Double, d); }
 		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::RawNumber, str, length, copy); }
 		bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
-		bool StartObject() override { return delegate_f(&value_handler_t::StartObject); }
+		bool StartObject() override { 
+			if (_as_object && !base_t::has_started_loading()) {
+				base_t::_target->clear();
+				return true;
+			}
+			return delegate_f(&value_handler_t::StartObject);
+		}
 		bool Key(const char_t* str, size_t length, bool copy) { return delegate_f(&value_handler_t::String, str, length, copy); }
-		bool EndObject(size_t memberCount) override { return delegate_f(&value_handler_t::EndObject, memberCount); }
+		bool EndObject(size_t memberCount) override { 
+			if (_as_object && (!base_t::has_started_loading() || !_value_handler->is_set()))
+				return base_t::set_done();
+
+			return delegate_f(&value_handler_t::EndObject, memberCount); 
+		}
 		bool StartArray() override {
-			if (!base_t::has_started_loading()) {
+			if (!_as_object && !base_t::has_started_loading()) {
 				base_t::_target->clear();
 				return true;
 			}
 			return delegate_f(&value_handler_t::StartArray);
 		}
 		bool EndArray(size_t elementCount) override {
-			if (!base_t::has_started_loading() || !_value_handler->is_set())
+			if (!_as_object && (!base_t::has_started_loading() || !_value_handler->is_set()))
 				return base_t::set_done(); 
 			return delegate_f(&value_handler_t::EndArray, elementCount);
 		}
 		// writing 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
-			writer_.StartArray();
+			if (_as_object)
+				writer_.StartObject();
+			else
+				writer_.StartArray();
 			for (auto& t : *(base_t::_target)) {
 				_value_handler->reset(&t);
 				_value_handler->write(writer_);
 			}
-			writer_.EndArray(base_t::_target->size());
+			if (_as_object)
+				writer_.EndObject(base_t::_target->size());
+			else
+				writer_.EndArray(base_t::_target->size());
 			_value_handler->reset(nullptr);
 		}
 	};
@@ -564,6 +592,14 @@ namespace impl {
 				default_p default_ = nullptr,
 				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {// sets canot contain default values
+			_unused(unused_);
+		}
+		handler_setish_t(
+			target_t* target_,
+			bool as_object_,
+			default_p default_ ,
+			default_contained_p unused_ ) :
+			base_t(target_, as_object_, default_, nullptr) {// sets canot contain default values
 			_unused(unused_);
 		}
 
@@ -802,20 +838,8 @@ namespace impl {
 			target_t* target_,
 			default_p default_ = nullptr,
 			default_contained_p unused_ = nullptr) :
-			base_t(target_, default_) {// mapps canot contain default values
+			base_t(target_, true, default_, nullptr) {// mapps canot contain default values
 			_unused(unused_);
-		}
-
-		// writing 
-		void write(writer_wrapper_t& writer_) const override {
-			if (base_t::should_not_write()) return;
-			writer_->StartObject();
-			for (auto& t : *(base_t::_target)) {
-				base_t::_value_handler->reset(&t);
-				base_t::_value_handler->write(writer_);
-			}
-			writer_->EndObject(base_t::_target->size());
-			base_t::_value_handler->reset(nullptr);
 		}
 
 	};
