@@ -1,5 +1,5 @@
 #include <iostream>
-// #define _AF_JSON_OPTIMISED true
+#define _AF_JSON_OPTIMISED true
 // #define _AF_JSON_OPTIMISED_STRING_MAPS
 // #define _AF_JSON_OPTIMISED_DEFAULT_INITIALISATION false
 // #define _AF_JSON_VALIDATE_DUPLICATE_KEYS

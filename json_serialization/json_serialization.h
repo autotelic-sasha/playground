@@ -1,24 +1,4 @@
 #pragma once
-
-#include "type_description.h"
-
-#include "autotelica_core/util/include/asserts.h"
-#include "autotelica_core/util/include/enum_to_string.h"
-#include <string.h>
-#include <cstdint>
-// for some reason, probably good, rapidjson uses their own size_t
-// we are going to just make that size_type
-#define RAPIDJSON_NO_SIZETYPEDEFINE
-namespace rapidjson { typedef size_t SizeType; }
-#include "rapidjson/encodings.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/encodedstream.h"
-#include "rapidjson/reader.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/writer.h"
-
 // Default optmisation settings are all optimised.
 // To make it all more verbose, define _AF_JSON_VERBOSE
 #ifdef _AF_JSON_VERBOSE
@@ -59,6 +39,26 @@ namespace rapidjson { typedef size_t SizeType; }
 #endif
 
 #endif
+#include "type_description.h"
+
+#include "autotelica_core/util/include/asserts.h"
+#include "autotelica_core/util/include/enum_to_string.h"
+#include <string.h>
+#include <cstdint>
+// for some reason, probably good, rapidjson uses their own size_t
+// we are going to just make that size_type
+#define RAPIDJSON_NO_SIZETYPEDEFINE
+namespace rapidjson { typedef size_t SizeType; }
+#include "rapidjson/encodings.h"
+#include "rapidjson/error/en.h"
+#include "rapidjson/encodedstream.h"
+#include "rapidjson/reader.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/writer.h"
+
+
 
 namespace autotelica {
 namespace json {

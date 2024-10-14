@@ -35,7 +35,7 @@ namespace autotelica {
             static constexpr auto at_line = "; at line ";
             static constexpr auto rbracket = ")";
             static constexpr auto assertion = "Assertion ";
-            static constexpr auto failed = "failed.";
+            static constexpr auto failed = " failed. ";
             static constexpr auto failed_to_open_file = "ERROR: failed to open file: ";
             static constexpr auto tracing_to_file = "ERROR: failed to open file: ";
             
@@ -79,7 +79,7 @@ namespace autotelica {
             static constexpr auto at_line = L"; at line ";
             static constexpr auto rbracket = L")";
             static constexpr auto assertion = L"Assertion ";
-            static constexpr auto failed = L"failed.";
+            static constexpr auto failed = L" failed. ";
             static constexpr auto failed_to_open_file = L"ERROR: failed to open file: ";
             static constexpr auto tracing_to_file = L"Tracing to file: ";
 
