@@ -28,8 +28,12 @@ using namespace autotelica::type_description;
 struct test2  {
     int i;
     double d;
+    std::vector<int> ints;
 
-    test2(int i_ = 0, double d_ = 0) :i(i_), d(d_) {}
+    test2(
+        int i_ = 0, 
+        double d_ = 0,
+        std::vector<int> const& ints_ = {7,8}) :i(i_), d(d_), ints(ints_) {}
     bool operator==(test2 const& rhs) const {
         return i == rhs.i;
     }
@@ -39,6 +43,7 @@ struct test2  {
             begin_object<test2, serialization_factory_t>().
                 member("i", &test2::i, 2510).
                 member("d", &test2::d, 1.991).
+                member("ints", &test2::ints, {1,2,3}).
             end_object();
         return description;
     }
@@ -84,7 +89,7 @@ int main()
         std::cout << js << std::endl;
         autotelica::json::reader<>::from_string(t_22, js);
         std::cout << js << std::endl;
-        autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0}");
+        autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0, \"ints\":null}");
         std::cout << autotelica::json::writer<>::to_string(t_23) << std::endl;
     }
     catch (std::runtime_error& e) {

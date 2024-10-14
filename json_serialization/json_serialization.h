@@ -192,13 +192,18 @@ namespace impl {
 			_target(target_),
 			_default(default_),
 			_done(false) {
-			AF_ASSERT(_target, "Target is not initialised.");
 		}
 
-		inline bool set(target_t const& value_) { *_target = value_; return done(); }
+		inline bool set(target_t const& value_) { 
+			AF_ASSERT(_target, "Target is not initialised.");
+			*_target = value_; return done(); 
+		}
 
 		template<typename ConvertibleT>
-		inline bool set(ConvertibleT const& value_) { *_target = static_cast<target_t>(value_); return done(); }
+		inline bool set(ConvertibleT const& value_) { 
+			AF_ASSERT(_target, "Target is not initialised.");
+			*_target = static_cast<target_t>(value_); return done(); 
+		}
 
 		virtual void reset(target_t* target_) {
 			_target = target_;
@@ -236,14 +241,11 @@ namespace impl {
 	template<typename target_t>
 	using handler_value_p = std::shared_ptr<handler_value_t<target_t>>;
 
+
+
 	// handlers create other handlers, so we need a forward declaration
-	template<typename target_t, typename >
-	handler_value_p<target_t> make_json_handler(
-		target_t* target_,
-		traits::default_p<target_t>				default_,
-		traits::default_contained_p<target_t>	contained_default_
-	);
-	
+	struct serialization_factory;
+
 
 	// handler for integral types
 	template<typename target_t>
@@ -404,7 +406,7 @@ namespace impl {
 			if (_value_handler)
 				_value_handler->reset(value_ptr());
 			else
-				_value_handler = make_json_handler(value_ptr(), _value_default);
+				_value_handler = serialization_factory::make_handler(value_ptr(), _value_default, nullptr);
 		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
@@ -415,7 +417,7 @@ namespace impl {
 		bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			initialise_target();
 			if (!_value_handler)
-				_value_handler = make_json_handler(value_ptr(), _value_default); // for shared_ptr this is _target->get(), but this should work for naked pointers too
+				_value_handler = serialization_factory::make_handler(value_ptr(), _value_default, nullptr); // for shared_ptr this is _target->get(), but this should work for naked pointers too
 			return (_value_handler->*mf)(ps...);
 		}
 
@@ -453,16 +455,20 @@ namespace impl {
 		using default_contained_p = typename base_t::default_contained_p;
 		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
-		using value_handler_t = handler_value_p<contained_t>;
+		using value_handler_t = handler_value_t<contained_t>;
+		using value_handler_p = handler_value_p<contained_t>;
 
-		value_handler_t _value_handler;
+		value_handler_p _value_handler;
 
 		handler_sequence_t(
 				target_t* target_,
 				default_p default_ = nullptr,
 				default_contained_p contained_default_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_json_handler<contained_t>(nullptr, contained_default_)) {
+			_value_handler(
+				serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)){
+				
+				//make_json_handler<contained_t>(nullptr, contained_default_, nullptr)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -470,7 +476,7 @@ namespace impl {
 			_value_handler->reset(nullptr);
 		}
 		inline void set_next() {
-			base_t::_target->emplace_back({});
+			base_t::_target->emplace_back();
 			contained_t& ret(base_t::_target->back());
 			_value_handler->reset(&ret);
 			_value_handler->prepare_for_loading();
@@ -479,7 +485,7 @@ namespace impl {
 		inline bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			if (!_value_handler->is_set())
 				set_next();
-			bool ret = (_value_handler->*mf)(ps...);
+			bool ret = ((*_value_handler).*mf)(ps...);
 			if (_value_handler->is_done())
 				_value_handler->reset(nullptr);
 			return ret;
@@ -502,7 +508,7 @@ namespace impl {
 		bool EndObject(size_t memberCount) override { return delegate_f(&value_handler_t::EndObject, memberCount); }
 		bool StartArray() override {
 			if (!_value_handler->is_set()) {
-				set_next();
+				base_t::_target->clear();
 				return true;
 			}
 			return delegate_f(&value_handler_t::StartArray);
@@ -515,12 +521,12 @@ namespace impl {
 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
-			writer_->StartArray();
-			for (auto const& t : base_t::_target) {
+			writer_.StartArray();
+			for (auto& t : *(base_t::_target)) {
 				_value_handler->reset(&t);
 				_value_handler->write(writer_);
 			}
-			writer_->EndArray();
+			writer_.EndArray(base_t::_target->size());
 			_value_handler->reset(nullptr);
 		}
 	};
@@ -628,8 +634,8 @@ namespace impl {
 				default_contained_p unused_ = nullptr) :
 			base_t(target_, default_) {
 			_unused(unused_);
-			_key_handler = make_json_handler<key_t>(key(), default_.first);
-			_value_handler = make_json_handler<value_t>(value(), default_.second);
+			_key_handler = serialization_factory::make_handler<key_t>(key(), default_.first, nullptr);
+			_value_handler = serialization_factory::make_handler(value(), default_.second, nullptr);
 		}
 
 		bool is_done() const {
@@ -726,7 +732,7 @@ namespace impl {
 				default_p default_ = nullptr,
 				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_json_handler<contained_t>(nullptr, default_contained_)) {
+			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, default_contained_, nullptr)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -807,7 +813,7 @@ namespace impl {
 				default_p default_ = nullptr,
 				default_contained_p default_contained_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(make_json_handler<contained_t>(nullptr, default_contained_)) {
+			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, default_contained_, nullptr)) {
 		}
 
 		void reset(target_t* target_) override {
@@ -1066,7 +1072,6 @@ namespace impl {
 			contained_default_);
 	}
 
-	struct serialization_factory;
 	// we need a special makers for objects
 	template<typename target_t, util::predicates::if_static_serializable_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
@@ -1087,6 +1092,9 @@ namespace impl {
 			object_description->post_save_f(),
 			object_description->handlers());
 	}
+
+	// optimised version of making, for many small objects we want to avoid hitting the heap too much
+	// TODO: test and add a version that deals with optimisation that creates entire json handlers
 	template<typename target_t, util::predicates::if_has_object_description_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
 		target_t* target_,
