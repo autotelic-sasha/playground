@@ -422,22 +422,25 @@ namespace impl {
 			_value_default(contained_default_){
 		}
 
-
-		inline contained_t* value_ptr() {
-			return &(*(*base_t::_target));// for shared_ptr this is _target->get(), but this should work for naked pointers too
-		}
-		inline void initialise_loading() {
-			if (!(*base_t::_target))
-				*base_t::_target = target_t(new contained_t());
-			if (!_value_handler || _value_handler->_target != value_ptr())
-				_value_handler = serialization_factory::make_handler(value_ptr(), _value_default, nullptr); 
-			base_t::set_started_loading();
-		}
-
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
 			if (_value_handler)
 				_value_handler->prepare_for_loading();
+		}
+
+		inline contained_t* value_ptr() {
+			return &(*(*base_t::_target));// for shared_ptr this is _target->get(), but this should work for naked pointers too
+		}
+		inline void initialise_handler() const {
+			if (!_value_handler || _value_handler->_target != value_ptr())
+				const_cast<handler_ptr_t*>(this)->_value_handler =
+					serialization_factory::make_handler(value_ptr(), _value_default, nullptr);
+		}
+		inline void initialise_loading() {
+			if (!(*base_t::_target))
+				*base_t::_target = target_t(new contained_t());
+			initialise_handler();
+			base_t::set_started_loading();
 		}
 
 		template<typename... ParamsT>
@@ -469,6 +472,7 @@ namespace impl {
 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
+			initialise_handler();
 			_value_handler->write(writer_);
 		}
 	};
@@ -599,10 +603,110 @@ namespace impl {
 		}
 	};
 
-	// handling maps needs a bit of work
-	// general maps are stored as arrays of pair objects: { "key" : key_value, "value" : value_value }
-	// there is an optimisation for string maps
-	// first we need an intermediate handler for these objects
+
+	// pairs can be stored more efficiently if the first type is a string
+	// we will add a special handler for this
+
+	template<typename target_t>
+	struct handler_string_pair_t : public handler_delegating_t<target_t> {
+		using base_t = handler_delegating_t<target_t>;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = traits::default_contained_t<target_t>;
+		using char_t = traits::char_t;
+		using key_t = traits::key_t;
+		using value_t = typename target_t::second_type;
+		using value_handler_t = handler_value_p<value_t>;
+
+		using key_p = traits::key_t*;
+		using value_p = typename target_t::second_type*;
+
+		inline key_p key() { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
+		inline value_p value() { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
+		
+		value_handler_t _value_handler;
+
+		handler_string_pair_t(
+			target_t* target_,
+			default_p default_ = nullptr,
+			default_contained_p unused_ = nullptr) :
+				base_t(target_, default_),
+				_value_handler(nullptr) {
+			_unused(unused_);
+		}
+		void prepare_for_loading() override {
+			base_t::prepare_for_loading();
+			if(key())
+				key()->clear();
+			if (_value_handler)
+				_value_handler->prepare_for_loading();
+		}
+
+		inline void initialise_handler() const {
+			if (!_value_handler || _value_handler->_target != value())
+				const_cast<handler_sequence_t*>(this)->_value_handler =
+					serialization_factory::make_handler(value(), nullptr, nullptr);
+		}
+		inline void initialise_loading() {
+			initialise_handler();
+			base_t::set_started_loading();
+		}
+		template<typename... ParamsT>
+		bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
+			AF_ASSERT(base_t::has_started_loading(), "Reading value before the key in a string pair.");
+			bool ret = (_value_handler->*mf)(ps...);
+			base_t::set_done(_value_handler->is_done());
+			return ret;
+		}
+
+		bool Null()  override {
+			if (base_t::has_started_loading()) // if we are already reading the contained value, delegate
+				return _value_handler->Null();
+			return base_t::Null();
+		}
+		bool Bool(bool b) override { return delegate_f(&value_handler_t::Bool, b); }
+		bool Int(int i) override { return delegate_f(&value_handler_t::Int, i); }
+		bool Uint(unsigned i) override { return delegate_f(&value_handler_t::Uint, i); }
+		bool Int64(int64_t i) override { return delegate_f(&value_handler_t::Int64, i); }
+		bool Uint64(uint64_t i) override { return delegate_f(&value_handler_t::Uint64, i); }
+		bool Double(double d) override { return delegate_f(&value_handler_t::Double, d); }
+		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::RawNumber, str, length, copy); }
+		bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
+		bool StartObject()  override { 
+			if (base_t::has_started_loading())
+				return delegate_f(&value_handler_t::StartObject); 
+			return true;
+		}
+		bool Key(const char_t* str, size_t length, bool copy) override { 
+			if (base_t::has_started_loading())
+				return delegate_f(&value_handler_t::Key, str, length, copy); 
+			util::assign(key(), str, length);
+			initialise_loading();
+			return true;
+		}
+		bool EndObject(size_t memberCount)  override { 
+			if (base_t::is_done())
+				return true;
+			return delegate_f(&value_handler_t::EndObject, memberCount); 
+		}
+		bool StartArray() override { return delegate_f(&value_handler_t::StartArray); }
+		bool EndArray(size_t elementCount)  override { return delegate_f(&value_handler_t::EndArray, elementCount); }
+
+		void write(writer_wrapper_t& writer_) const override {
+			if (base_t::should_not_write()) return;
+			initialise_handler();
+			writer_->StartObject();
+			writing::write(*key(), writer_);
+			if (_value_handler->will_write()) 
+				_value_handler->write(writer_);
+			else
+				writer_->Null();
+			writer_->EndObject();
+		}
+
+	};
+
+
 	namespace pair_tags {
 		static traits::tag_t tag_key = _AF_CHAR_CONSTANT("key");
 		static traits::tag_t tag_value = _AF_CHAR_CONSTANT("value");

@@ -319,6 +319,21 @@ namespace autotelica {
 			is_mapish_t<T>,
 			is_string_t<typename T::key_t>>>;
 
+		// choose if T is a pair where first type is not a string 
+		template<typename T>
+		using if_non_string_pair_t = if_t<
+			all_of_t<
+			is_pair_t<T>,
+			not_t<is_string_t<typename T::first_type>>>>;
+
+		// choose if T is a pair where first type is a string 
+		template<typename T>
+		using if_string_pair_t = if_t<
+			all_of_t<
+			is_pair_t<T>,
+			is_string_t<typename T::first_type>>>;
+
+
 
 		// unused marks things as unused, so compilers don't moan
 		template <typename... Args> inline void _unused(Args&&...) {}
