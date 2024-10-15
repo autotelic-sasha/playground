@@ -40,6 +40,7 @@ namespace rapidjson { typedef size_t SizeType; }
 #define _AF_JSON_READ_BUFFER_SIZE 4*65535
 #endif
 
+
 #if _AF_JSON_OPTIMISED
 
 // In terse mode, when target value is equal to default, we just don't write it

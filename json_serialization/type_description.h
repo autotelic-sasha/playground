@@ -28,7 +28,7 @@ namespace autotelica {
 		// 
 		//		Serialization type is a the input/output data format. For example: JSON, CSV, Excel, flatbuffer ...
 		// 
-		//		A handlers is an object that deals with serialization of a given type. 
+		//		A handler is an object that deals with serialization of a given type. 
 		//			They will be implemented using sfinae predicates mentioned above, one for each supported group of types.
 		//			One set of handlers for each serialization type. 
 		// 

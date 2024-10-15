@@ -1,22 +1,7 @@
 #pragma once
-// Default optmisation settings are all optimised.
-// To make it all more verbose, define _AF_JSON_VERBOSE
-#ifdef _AF_JSON_VERBOSE
-#define _AF_JSON_OPTIMISED false
-#endif
-
-#ifndef _AF_JSON_OPTIMISED
-#define _AF_JSON_OPTIMISED true
-#endif
 
 #ifndef _AF_JSON_READ_BUFFER_SIZE 
 #define _AF_JSON_READ_BUFFER_SIZE 4*65535
-#endif
-#if _AF_JSON_OPTIMISED
-
-// In terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_SERIALIZATION_TERSE
-#define		_AF_SERIALIZATION_TERSE true
 #endif
 
 // Optimisation of strings maps means that keys in the map are used as JSON keys.
@@ -25,20 +10,6 @@
 #define		_AF_JSON_OPTIMISED_STRING_MAPS true
 #endif
 
-#else
-
-// in terse mode, when target value is equal to default, we just don't write it
-#ifndef		_AF_SERIALIZATION_TERSE
-#define		_AF_SERIALIZATION_TERSE false
-#endif
-
-// Optimisation of strings maps means that keys in the map are used as JSON keys.
-// Otherwise they are written with "key", "value" pairs like other maps.
-#ifndef		_AF_JSON_OPTIMISED_STRING_MAPS
-#define		_AF_JSON_OPTIMISED_STRING_MAPS false
-#endif
-
-#endif
 #include "type_description.h"
 
 #include "autotelica_core/util/include/asserts.h"
@@ -65,6 +36,15 @@ namespace json {
 	using namespace serialization;
 	using namespace type_description;
 	using namespace sfinae;
+
+	enum class json_encoding {
+		utf8,
+		utf16le,
+		utf16be,
+		utf32le,
+		utf32be,
+		detect
+	};
 
 namespace impl {
 	// rapidjson has this weird thing about writers - there's no hierarchy
@@ -148,9 +128,6 @@ namespace impl {
 		inline bool set_done(bool done_ = true) { return (_done = done_); }
 		inline bool is_done() const { return _done; } // signal to the controller that we are done loading this value
 
-		// TODO: do we need handles_terse_storage?
-		virtual bool handles_terse_storage() const { return false; }
-		// TOTO: do we need prepare_for_loading?
 		virtual void prepare_for_loading() {
 			set_done(false);
 		}
@@ -170,8 +147,12 @@ namespace impl {
 		virtual bool StartArray() { AF_ERROR("Array start was not expected."); return false; }
 		virtual bool EndArray(size_t elementCount) { AF_ERROR("Array end was not expected."); return false; }
 
-		virtual bool will_write() const = 0; // we need to know if the value will actually be written
-		// for terse mode
+		virtual bool Missing(traits::key_t const& key) { AF_ERROR("Missing was not expected (key %).", key); return false; }
+
+		// we need to know if the value will actually be written when writing objects
+		// for terse mode to work as expected
+		virtual bool will_write() const = 0; 
+
 		virtual void write(writer_wrapper_t& writer_) const = 0;
 	};
 	using handler_p = std::shared_ptr<handler_t>;
@@ -216,26 +197,41 @@ namespace impl {
 			prepare_for_loading();
 		}
 
-		bool handles_terse_storage() const override { return _default != nullptr; }
 		inline bool is_set() const { return _target != nullptr; }
 
 		inline target_t const& get() const { return *_target; }
 		inline target_t& get() { return *_target; }
-
-		bool Null()  override {
-			AF_ASSERT(_default, "Unexpected: null read when default value is not provided.");
-			_default->set_value(*_target);
+		inline bool set_default() {
+			if (_default)
+				_default->set_value(*_target);
 			set_done();
 			return true;
 		}
+		bool Missing(traits::key_t const& key) override {
+#if !_AF_SERIALIZATION_TERSE		
+			AF_ASSERT(_default, "Value for key & is missing when default value is not provided.", key);
+#endif
+			return set_default();
+		}
+
+		bool Null()  override {
+#if !_AF_SERIALIZATION_TERSE			
+			AF_ASSERT(_default, "Unexpected: null read when default value is not provided.");
+#endif
+			return set_default();
+		}
 
 		inline bool should_not_write() const {
+#if _AF_SERIALIZATION_TERSE && !_AF_VERBOSE_WRITES_ALWAYS
 			return (
 				_default &&
-				_default->should_not_write(*_target));
+				_default->equal_to_default(*_target));// double negatives are fun
+#else
+			return false;
+#endif
 		}
 		bool will_write() const override {
-			// double negative, but makes code later easer to read
+			// double double negative, yay!
 			return !should_not_write();
 		}
 	};
@@ -700,10 +696,10 @@ namespace impl {
 			writer_->StartObject();
 			writing::write(*key(), writer_);
 			_value_handler->reset(value());
-			if (_value_handler->will_write()) 
-				_value_handler->write(writer_);
-			else
+			if(_value_handler->should_not_write())
 				writer_->Null();
+			else
+				_value_handler->write(writer_);
 			writer_->EndObject();
 		}
 
@@ -815,12 +811,17 @@ namespace impl {
 			_key_handler->reset(key());
 			_value_handler->reset(value());
 			writer_->StartObject();
-			if (_value_handler->will_write()) {
-				writer_->Key(pair_tags::tag_key);
+			writer_->Key(pair_tags::tag_key);
+			if (_key_handler->should_not_write()) 
+				writer_->Null();
+			else
 				_key_handler->write(writer_);
-				writer_->Key(pair_tags::tag_value);
+			
+			writer_->Key(pair_tags::tag_value);
+			if (_value_handler->should_not_write())
+				writer_->Null();
+			else
 				_value_handler->write(writer_);
-			}
 			writer_->EndObject();
 		}
 	};
@@ -904,13 +905,16 @@ namespace impl {
 			return nullptr;
 		}
 
-		bool validate_all_loaded() const {
+		inline bool validate_all_loaded() {
+#if _AF_SERIALIZATION_TERSE
+			return true;
+#else
 			for (auto const& h : _handlers) {
 				if (!h.second->is_done())
-					if (!_AF_SERIALIZATION_TERSE || !h.second->handles_terse_storage())
-						return false;
+					h.second->Missing(h.first);
 			}
 			return true;
+#endif
 		}
 
 		template<typename... ParamsT>
@@ -952,7 +956,7 @@ namespace impl {
 		bool EndObject(size_t memberCount) override {
 			if (_current_handler)
 				return _current_handler->EndObject(memberCount);
-			AF_ASSERT(validate_all_loaded(), "Not all object members are loaded.");
+			validate_all_loaded();
 			if (_post_load_f)
 				_post_load_f();
 			return base_t::set_done();
@@ -966,10 +970,15 @@ namespace impl {
 			if (base_t::should_not_write()) return;
 			writer_.StartObject();
 			for (auto const& h : _handlers) {
+#if _AF_SERIALIZATION_TERSE && !_AF_VERBOSE_WRITES_ALWAYS
 				if (h.second->will_write()) {
 					writer_.Key(h.first.c_str(), h.first.size(), false);
 					h.second->write(writer_);
 				}
+#else
+				writer_.Key(h.first.c_str(), h.first.size(), false);
+				h.second->write(writer_);
+#endif
 			}
 			writer_.EndObject(_handlers.size());
 			if (_post_save_f)
@@ -1085,44 +1094,34 @@ namespace impl {
 	};
 
 
-} // namespace impl
 
 
 
 // TODO: schema validation
-// TODO: bitset serialization
-enum class json_encoding {
-	utf8,
-	utf16le,
-	utf16be,
-	utf32le,
-	utf32be,
-	detect
-};
+// TODO: bitset and maybe tuples serialization
 
 
-namespace impl {
+	namespace encoding {
+		// reading and writing traits
+		template<typename stream_t, json_encoding encoding>
+		struct writing;
 
-	// reading and writing traits
-	template<typename stream_t, json_encoding encoding>
-	struct json_writing;
+		template<typename stream_t> // source is always utf8
+		struct writing<stream_t, json_encoding::utf8> {
+			using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
+			using output_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
+			using output_stream_t = stream_t;
+			using writer_t = rapidjson::Writer<output_stream_t, input_encoding_t>;
+			using pretty_writer_t = rapidjson::PrettyWriter<output_stream_t, input_encoding_t>;
+			using reader_stream_t = stream_t;
 
-	template<typename stream_t> // source is always utf8
-	struct json_writing<stream_t, json_encoding::utf8> {
-		using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
-		using output_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
-		using output_stream_t = stream_t;
-		using writer_t = rapidjson::Writer<output_stream_t, input_encoding_t>;
-		using pretty_writer_t = rapidjson::PrettyWriter<output_stream_t, input_encoding_t>;
-		using reader_stream_t = stream_t;
-
-		static inline writer_t writer(stream_t& stream, bool put_bom = false) { return writer_t(stream); }
-		static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(stream); }
-	};
+			static inline writer_t writer(stream_t& stream, bool put_bom = false) { return writer_t(stream); }
+			static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(stream); }
+		};
 
 #define __AF_JSON_WRITING_TRAIT(OUTPUT_ENCODING_ENUM, OUTPUT_ENCODING_JSON)\
 	template<typename stream_t> \
-	struct json_writing<stream_t, json_encoding::OUTPUT_ENCODING_ENUM> {\
+	struct writing<stream_t, json_encoding::OUTPUT_ENCODING_ENUM> {\
 		using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;\
 		using output_encoding_t = rapidjson::OUTPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
 		using output_stream_t = rapidjson::EncodedOutputStream<output_encoding_t, stream_t>;\
@@ -1132,40 +1131,41 @@ namespace impl {
 		static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(output_stream_t(stream, put_bom)); }\
 	};
 
-	__AF_JSON_WRITING_TRAIT(utf16le, UTF16LE);
-	__AF_JSON_WRITING_TRAIT(utf16be, UTF16BE);
-	__AF_JSON_WRITING_TRAIT(utf32le, UTF32LE);
-	__AF_JSON_WRITING_TRAIT(utf32be, UTF32BE);
+		__AF_JSON_WRITING_TRAIT(utf16le, UTF16LE);
+		__AF_JSON_WRITING_TRAIT(utf16be, UTF16BE);
+		__AF_JSON_WRITING_TRAIT(utf32le, UTF32LE);
+		__AF_JSON_WRITING_TRAIT(utf32be, UTF32BE);
 
-	template<typename stream_t, json_encoding encoding>
-	struct json_reading;
+		template<typename stream_t, json_encoding encoding>
+		struct reading;
 
-	template<typename stream_t>
-	struct json_reading<stream_t, json_encoding::utf8> {
-		using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
-		using input_stream_t = stream_t;
-		static inline input_stream_t input_stream(stream_t& stream) { return stream; }
-	};
+		template<typename stream_t>
+		struct reading<stream_t, json_encoding::utf8> {
+			using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
+			using input_stream_t = stream_t;
+			static inline input_stream_t input_stream(stream_t& stream) { return stream; }
+		};
 
 #define __AF_JSON_READING_TRAIT(INPUT_ENCODING_ENUM, INPUT_ENCODING_JSON)\
 	template<typename stream_t> \
-	struct json_reading<stream_t, json_encoding::INPUT_ENCODING_ENUM> {\
+	struct reading<stream_t, json_encoding::INPUT_ENCODING_ENUM> {\
 		using input_encoding_t = rapidjson::INPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
 		using input_stream_t = rapidjson::EncodedInputStream<input_encoding_t, stream_t>;\
 		static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
 	};
 
-	__AF_JSON_READING_TRAIT(utf16le, UTF16LE);
-	__AF_JSON_READING_TRAIT(utf16be, UTF16BE);
-	__AF_JSON_READING_TRAIT(utf32le, UTF32LE);
-	__AF_JSON_READING_TRAIT(utf32be, UTF32BE);
+		__AF_JSON_READING_TRAIT(utf16le, UTF16LE);
+		__AF_JSON_READING_TRAIT(utf16be, UTF16BE);
+		__AF_JSON_READING_TRAIT(utf32le, UTF32LE);
+		__AF_JSON_READING_TRAIT(utf32be, UTF32BE);
 
-	template<typename stream_t>
-	struct json_reading<stream_t, json_encoding::detect> {
-		using input_stream_t = rapidjson::AutoUTFInputStream<_AF_SERIALIZATION_CHAR_T, stream_t>;
+		template<typename stream_t>
+		struct reading<stream_t, json_encoding::detect> {
+			using input_stream_t = rapidjson::AutoUTFInputStream<_AF_SERIALIZATION_CHAR_T, stream_t>;
 
-		static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }
-	};
+			static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }
+		};
+	}
 }
 
 
@@ -1181,7 +1181,7 @@ struct reader {
 		auto handler = impl::make_json_handler(&target);
 		handler->prepare_for_loading();
 		bool parsed = false;
-		auto actual_stream = json_reading<stream_t, encoding>::input_stream(stream);
+		auto actual_stream = encoding::reading<stream_t, encoding>::input_stream(stream);
 		parsed = reader.Parse(actual_stream, *handler);
 
 		if (!parsed) {
@@ -1275,7 +1275,7 @@ struct writer {
 		using namespace rapidjson;
 		using namespace impl;
 
-		using writer_factory_t = json_writing<stream_t, encoding>;
+		using writer_factory_t = encoding::writing<stream_t, encoding>;
 		if (pretty) {
 			auto writer = writer_factory_t::pretty_writer(stream, put_bom);
 			to_writer(target, writer);
