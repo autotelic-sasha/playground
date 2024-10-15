@@ -990,7 +990,7 @@ namespace impl {
 
 
 	namespace handler_traits {
-		using namespace serialization::util::predicates;
+		using namespace serialization::traits::predicates;
 
 
 		template<typename target_t, typename = void>
@@ -1039,7 +1039,22 @@ namespace impl {
 	}
 
 	// we need a special makers for objects
-	template<typename target_t, util::predicates::if_static_serializable_t<target_t> = true>
+	template<typename target_t, typename object_description_t>
+	inline handler_value_p<target_t> make_object_json_handler(
+			target_t*					target_,
+			traits::default_p<target_t>	default_,
+			object_description_t const& object_description_) {
+		return std::make_shared< handler_object_t<target_t> >(
+			target_,
+			default_,
+			object_description_.pre_load_f(),
+			object_description_.post_load_f(),
+			object_description_.pre_save_f(),
+			object_description_.post_save_f(),
+			object_description_.handlers());
+	}
+
+	template<typename target_t, traits::predicates::if_use_type_description_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
 		target_t*								target_,
 		traits::default_p<target_t>				default_ = nullptr,
@@ -1049,19 +1064,12 @@ namespace impl {
 		auto& td = target_->template type_description<serialization_factory>();
 		auto object_description = td.make_object_description(*target_, default_?default_->value():nullptr);
 
-		return std::make_shared< handler_object_t<target_t> >(
-			target_,
-			default_,
-			object_description->pre_load_f(),
-			object_description->post_load_f(),
-			object_description->pre_save_f(),
-			object_description->post_save_f(),
-			object_description->handlers());
+		return make_object_json_handler(target_, default_, *object_description);
 	}
 
 	// optimised version of making, for many small objects we want to avoid hitting the heap too much
 	// TODO: test and add a version that deals with optimisation that creates entire json handlers
-	template<typename target_t, util::predicates::if_has_object_description_t<target_t> = true>
+	template<typename target_t, traits::predicates::if_use_object_description_t<target_t> = true>
 	handler_value_p<target_t> make_json_handler(
 		target_t* target_,
 		traits::default_p<target_t>				default_ = nullptr,
@@ -1069,17 +1077,22 @@ namespace impl {
 	) {
 		_unused(contained_default_);
 		auto object_description = target_->template object_description<serialization_factory>();
-
-		return std::make_shared< handler_object_t<target_t> >(
-			target_,
-			default_,
-			object_description.pre_load_f(),
-			object_description.post_load_f(),
-			object_description.pre_save_f(),
-			object_description.post_save_f(),
-			object_description.handlers());
+		
+		return make_object_json_handler(target_, default_, *object_description);
 	}
+	template<typename target_t, traits::predicates::if_use_type_description_factory_t<target_t> = true>
+	handler_value_p<target_t> make_json_handler(
+		target_t* target_,
+		traits::default_p<target_t>				default_ = nullptr,
+		traits::default_contained_p<target_t>	contained_default_ = nullptr
+	) {
+		_unused(contained_default_);
+		auto factory = target_->type_description_factory();
+		auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
+		auto object_description = object_factory.template object_description<serialization_factory>();
 
+		return make_object_json_handler(target_, default_, *object_description);
+	}
 
 	// serialization factory is passed through to the type_description hierarchy
 	struct serialization_factory {

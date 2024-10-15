@@ -147,8 +147,6 @@
     <ClCompile Include="json_serialization.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="experiments.h" />
-    <ClInclude Include="experiments_2.h" />
     <ClInclude Include="json_serialization.h" />
     <ClInclude Include="serialization_util.h" />
     <ClInclude Include="type_description.h" />

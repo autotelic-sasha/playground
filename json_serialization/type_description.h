@@ -52,30 +52,6 @@ namespace autotelica {
 		
 
 
-
-		template<typename T>
-		using if_has_default_t = std::enable_if_t<
-			!std::is_same<has_no_default_t, std::remove_cv<T>>::value,
-			bool>;
-
-		template<typename T>
-		using if_has_no_default_t = std::enable_if_t<
-			std::is_same<has_no_default_t, std::remove_cv<T>>::value,
-			bool>;
-
-		template<typename target_t, if_has_default_t<target_t> = true>
-		default_value_p<target_t> make_default_value(target_t const& v) {
-			return std::make_shared<default_value_t<target_t>>(v);
-		}
-		// all instances of values with no defaults are the same, so 
-		// we use a static value here, to spare the heap a little 
-		template<typename target_t, if_has_no_default_t<target_t> = true>
-		default_value_p<target_t> make_default_value(target_t const& v) {
-			static default_value_p<target_t> no_default(
-				std::make_shared<default_value_t<target_t>>(v));
-			return no_default;
-		}
-
 		// a member descriptions is a description of a type's data member
 		// it has a key, a default value, and a pointer to member
 		// there's a bit of a hierarchy to hoist the templated instances for storage
@@ -107,8 +83,6 @@ namespace autotelica {
 			using base_t = member_description_t<object_t, factory_t>;
 			using key_t = typename base_t::key_t;
 			using target_p = target_t object_t::*;
-			using default_t = typename traits::default_types_t<target_t>::value_t;
-			using contained_t = typename traits::default_types_t<target_t>::contained_t;
 			using target_default_p = typename traits::default_p<target_t>;
 			using target_contained_default_p = typename traits::default_contained_p<target_t>;
 
@@ -157,11 +131,16 @@ namespace autotelica {
 
 
 		// type description
+		struct type_description_base_t {
+			virtual ~type_description_base_t() {}
+		};
+
+
 		template<typename object_t, typename factory_t>
-		class type_description_t {
+		class type_description_t : public type_description_base_t {
 		public:
 			using key_t = typename traits::key_t;
-			using default_t = typename traits::default_types_t<object_t>::value_t;
+			using default_t = typename traits::default_t<object_t>;
 			using member_function_t = void (object_t::*)();
 			using member_description_p = member_description_p<object_t, factory_t>;
 			using member_descriptions_t = std::vector<member_description_p>;
@@ -204,7 +183,9 @@ namespace autotelica {
 				inline setup_function_t const& post_save_f() const { return _post_save_f; }
 
 			};
+			
 			using object_description_p = std::shared_ptr<object_description_t>;
+			
 			inline object_description_p make_object_description(
 				object_t& object_,
 				traits::default_p<object_t> default_,
@@ -253,6 +234,7 @@ namespace autotelica {
 				_post_save_f(nullptr)
 			{
 			}
+			
 
 			bool done() const { return _done; }
 			member_function_t const& pre_load_f() const { return _pre_load_f; }
@@ -337,7 +319,7 @@ namespace autotelica {
 			) const {
 				auto od = make_object_description(
 					object,
-					make_default(default_),
+					make_default_value(*default_),
 					traits::handlers_t(),
 					wrap_function(object, _pre_load_f),
 					wrap_function(object, _post_load_f),
@@ -353,10 +335,58 @@ namespace autotelica {
 			}
 
 		};
+		
 		template<typename object_t, typename factory_t>
 		type_description_t<object_t, factory_t> begin_object() {
 			return type_description_t<object_t, factory_t>();
 		}
+
+		struct type_description_factory_t {
+			virtual ~type_description_factory_t();
+		};
+
+		using type_description_factory_p = std::shared_ptr<type_description_factory_t>;
+
+		// serializable objects should implement:
+		// virtual type_description_factory_p type_description_factory(){ 
+		//		return make_type_description_factory(*this);
+		// }
+		// Of course, instances of the factory can be cached.
+
+		template<typename object_t>
+		class type_description_factory_instance_t : public type_description_factory_t {
+			object_t& _object;
+		public:
+			type_description_factory_instance_t(object_t& object_) : _object(object_) {}
+
+			template<typename factory_t>
+			using object_description_p = typename type_description_t<object_t, factory_t>::object_description_p;
+
+			template<typename factory_t>
+			inline type_description_t<object_t, factory_t> const& type_description() const {
+				return object_t::template type_description<factory_t>();
+			}
+
+			using has_object_description_t = traits::predicates::has_object_description_t<object_t>;
+			using if_has_object_description_t = if_t<has_object_description_t>;
+			using if_does_not_have_object_description_t = if_t<not_t<has_object_description_t>>;
+
+
+			template<typename factory_t, if_does_not_have_object_description_t >
+			inline object_description_p<factory_t> const& object_description() const {
+					return type_description<factory_t>().make_object_description(_object);
+			}
+			template<typename factory_t, if_has_object_description_t >
+			inline object_description_p<factory_t> const& object_description() const {
+				return object_t::template type_description<factory_t>();
+			}
+		};
+
+		template<typename object_t>
+		type_description_factory_p make_type_description_factory(object_t& object) {
+			return std::make_shared<type_description_factory_instance_t<object_t>>(object);
+		}
+
 	}// namespace type_description
 
 }// namespace autotelica

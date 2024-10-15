@@ -60,11 +60,6 @@ struct test2  {
 
 };
 
-template<typename target_t, autotelica::serialization::util::predicates::if_static_serializable_t<target_t> = true>
-void f(target_t& t) {
-    std::cout << "YO" << std::endl;
-}
-
 int main()
 {
     try {
@@ -79,7 +74,6 @@ int main()
         //autotelica::serialization::traits::default_p<double> a;
         //bool is = std::is_function<decltype(test2::type_description)>::value;
         test2 t_2(1991);
-        f(t_2);
 
         //bool is = autotelica::serialization::util::predicates::is_serializable_object_t<test2>::value;
         //bool is2 = autotelica::serialization::util::predicates::has_object_description_t<test2>::value;
