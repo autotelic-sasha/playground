@@ -133,6 +133,8 @@ namespace autotelica {
 		// type description
 		struct type_description_base_t {
 			virtual ~type_description_base_t() {}
+
+			virtual void append_handlers(traits::handlers_t& handlers_) const = 0;
 		};
 
 
@@ -211,7 +213,12 @@ namespace autotelica {
 			member_function_t _post_load_f;
 			member_function_t _post_save_f;
 			member_descriptions_t _member_descriptions;
-
+			object_t* _temporary_object_cache;// used for handling hierarchies
+			type_description_base_t const* _base_description;
+			
+			inline void set_temporary_object_cache(object_t* object) const {
+				const_cast<type_description_t*>(this)->_temporary_object_cache = object;
+			}
 			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) const {
 				return f ? [&]() {(object.*f)(); } : traits::setup_function_t();
 			}
@@ -231,7 +238,9 @@ namespace autotelica {
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
 				_post_load_f(nullptr),
-				_post_save_f(nullptr)
+				_post_save_f(nullptr),
+				_temporary_object_cache(nullptr),
+				_base_description(nullptr)
 			{
 			}
 			
@@ -306,6 +315,12 @@ namespace autotelica {
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
+			template<typename base_object_t>
+			inline type_description_t& base_type() {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				AF_ASSERT(!_base_description, "Sorry, multiple inheritance is not supported. Only one base type description can be supplied.");
+				_base_description = &(base_object_t::type_description());
+			}
 
 			inline type_description_t& end_object() {
 				AF_ASSERT(!_done, "Cannot end_object more than once.");
@@ -313,6 +328,20 @@ namespace autotelica {
 				return *this;
 			}
 
+			inline void append_local_handlers(traits::handlers_t& handlers_) const {
+				if (_base_description)
+					_base_description->append_handlers(handlers_);
+
+				handlers_.reserve(handlers_.size() + _member_descriptions.size());
+				for (auto const d : _member_descriptions)
+					handlers_.push_back({
+						d->key(),
+						(d->make_handler(*_temporary_object_cache)) });
+			}
+			void append_handlers(traits::handlers_t& handlers_) const override {
+				append_local_handlers(handlers_);
+			}
+			
 			object_description_p make_object_description(
 				object_t& object,
 				default_t const* default_ = nullptr
@@ -326,11 +355,9 @@ namespace autotelica {
 					wrap_function(object, _pre_save_f),
 					wrap_function(object, _post_save_f)
 				);
-				od->_handlers.reserve(_member_descriptions.size());
-				for (auto const d : _member_descriptions)
-					od->_handlers.push_back({
-						d->key(),
-						(d->make_handler(object)) });
+				set_temporary_object_cache(&object);
+				append_local_handlers(od->_handlers);
+				set_temporary_object_cache(nullptr);
 				return od;
 			}
 
