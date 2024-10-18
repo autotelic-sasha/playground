@@ -177,6 +177,8 @@ namespace autotelica {
 		using is_queue_t = std_disambiguation::is_queue_t<T>;
 		template<typename T>
 		using is_priority_queue_t = std_disambiguation::is_priority_queue_t<T>;
+		template<typename T>
+		using is_bitset_t = std_disambiguation::is_bitset_t<T>;
 
 		// kinds of containers
 		// is sequence detects vector or deque or forward_list or list
@@ -305,33 +307,38 @@ namespace autotelica {
 		using if_pointer_t = if_t<
 			any_of_t<is_shared_ptr_t<T>, std::is_pointer<T>>>;
 
+		// choose if T is a bitset
+		template<typename T>
+		using if_bitset_t = if_t<is_bitset_t<T>>;
+
+
 		// choose if T is a map not indexed by strings
 		template<typename T>
 		using if_non_string_map_t = if_t<
 			all_of_t<
-			is_mapish_t<T>,
-			not_t<is_string_t<typename T::key_t>>>>;
+				is_mapish_t<T>,
+				not_t<is_string_t<typename T::key_t>>>>;
 
 		// choose if T is a map indexed by strings
 		template<typename T>
 		using if_string_map_t = if_t<
 			all_of_t<
-			is_mapish_t<T>,
-			is_string_t<typename T::key_t>>>;
+				is_mapish_t<T>,
+				is_string_t<typename T::key_t>>>;
 
 		// choose if T is a pair where first type is not a string 
 		template<typename T>
 		using if_non_string_pair_t = if_t<
 			all_of_t<
-			is_pair_t<T>,
-			not_t<is_string_t<typename T::first_type>>>>;
+				is_pair_t<T>,
+				not_t<is_string_t<typename T::first_type>>>>;
 
 		// choose if T is a pair where first type is a string 
 		template<typename T>
 		using if_string_pair_t = if_t<
 			all_of_t<
-			is_pair_t<T>,
-			is_string_t<typename T::first_type>>>;
+				is_pair_t<T>,
+				is_string_t<typename T::first_type>>>;
 
 
 

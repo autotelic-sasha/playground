@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS 
+
 #include <iostream>
 #define _AF_JSON_OPTIMISED true
 // #define _AF_JSON_OPTIMISED_STRING_MAPS
@@ -7,36 +9,39 @@
 #include "json_serialization.h"
 
 using namespace autotelica::type_description;
+using namespace autotelica::json;
+/*struct test1 : public af_serializable {
+    int i;
+    object_description_p _description;
 
-//struct test1 : public af_serializable {
-//    int i;
-//    object_description_p _description;
-//
-//    test1(int i_ = 0) :i(i_) {}
-//    bool operator==(test1 const& rhs) const {
-//        return i == rhs.i;
-//    }
-//    object_description_p object_description() override {
-//        if (!_description) {
-//            _description = begin_object(*this).
-//                member("i", i, 2510).
-//                end_object();
-//        }
-//        return _description;
-//    }
-//};
+    test1(int i_ = 0) :i(i_) {}
+    bool operator==(test1 const& rhs) const {
+        return i == rhs.i;
+    }
+    object_description_p object_description() override {
+        if (!_description) {
+            _description = begin_object(*this).
+                member("i", i, 2510).
+                end_object();
+        }
+        return _description;
+    }
+};*/
 struct test2  {
     int i;
     double d;
     std::vector<int> ints;
+    json_handler_p<test2> _handler_cache;
 
     test2(
         int i_ = 0, 
         double d_ = 0,
-        std::vector<int> const& ints_ = {7,8}) :i(i_), d(d_), ints(ints_) {}
+        std::vector<int> const& ints_ = {7,8}) :
+            i(i_), d(d_), ints(ints_), _handler_cache(nullptr){}
     bool operator==(test2 const& rhs) const {
         return i == rhs.i;
     }
+
     template<typename serialization_factory_t>
     static type_description_t<test2, serialization_factory_t>  const& type_description() {
         static auto description = 
@@ -48,15 +53,25 @@ struct test2  {
         return description;
     }
 
-    //inline json::handler_p get_json_handler(
-    //        default_description_p default_ = nullptr) {
-    //    if (!_json_handler_cached || _default_value_cached != default_) {
-    //        _json_handler_cached = json_handlers_factory::make_object_handler(
-    //            type_description(), *this, default_);
-    //        _default_value_cached = default_;
-    //    }
-    //    return _json_handler_cached;
+    AF_IMPLEMENTS_TYPE_DESCRIPTION_FACTORY;
+
+    //virtual type_description_factory_p type_description_factory() {
+    //    return make_type_description_factory(*this);
     //}
+
+    virtual json_handler_p<test2> json_handler(
+            default_p<test2> default_ = nullptr) {
+
+        if (!_handler_cache)
+            _handler_cache = make_json_handler_from_type_description(
+                    this, 
+                    default_, 
+                    type_description<impl::serialization_factory>());
+        else // TODO: if you don't do weird stuff, this is probably unnecessary, defaults should be per instance
+            _handler_cache->set_default(default_);
+
+        return _handler_cache;
+    }
 
 };
 

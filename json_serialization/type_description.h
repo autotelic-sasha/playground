@@ -348,7 +348,7 @@ namespace autotelica {
 			) const {
 				auto od = make_object_description(
 					object,
-					make_default_value(*default_),
+					default_?make_default_value(*default_):nullptr,
 					traits::handlers_t(),
 					wrap_function(object, _pre_load_f),
 					wrap_function(object, _post_load_f),
@@ -369,7 +369,7 @@ namespace autotelica {
 		}
 
 		struct type_description_factory_t {
-			virtual ~type_description_factory_t();
+			virtual ~type_description_factory_t() {}
 		};
 
 		using type_description_factory_p = std::shared_ptr<type_description_factory_t>;
@@ -379,6 +379,16 @@ namespace autotelica {
 		//		return make_type_description_factory(*this);
 		// }
 		// Of course, instances of the factory can be cached.
+
+		template<typename object_t, typename factory_t, if_t<traits::predicates::has_object_description_t<object_t>> = true>
+		typename type_description_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
+			return object.template object_description<factory_t>();
+		}
+
+		template<typename object_t, typename factory_t, if_t<not_t<traits::predicates::has_object_description_t<object_t>>> = true>
+		typename type_description_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
+			return object_t::template type_description<factory_t>().make_object_description(object);
+		}
 
 		template<typename object_t>
 		class type_description_factory_instance_t : public type_description_factory_t {
@@ -394,24 +404,20 @@ namespace autotelica {
 				return object_t::template type_description<factory_t>();
 			}
 
-			using has_object_description_t = traits::predicates::has_object_description_t<object_t>;
-			using if_has_object_description_t = if_t<has_object_description_t>;
-			using if_does_not_have_object_description_t = if_t<not_t<has_object_description_t>>;
-
-
-			template<typename factory_t, if_does_not_have_object_description_t >
-			inline object_description_p<factory_t> const& object_description() const {
-					return type_description<factory_t>().make_object_description(_object);
-			}
-			template<typename factory_t, if_has_object_description_t >
-			inline object_description_p<factory_t> const& object_description() const {
-				return object_t::template type_description<factory_t>();
+			template<typename factory_t >
+			inline object_description_p<factory_t> object_description() const {
+				return create_object_description<object_t, factory_t>(_object);
 			}
 		};
 
 		template<typename object_t>
 		type_description_factory_p make_type_description_factory(object_t& object) {
 			return std::make_shared<type_description_factory_instance_t<object_t>>(object);
+		}
+
+#define AF_IMPLEMENTS_TYPE_DESCRIPTION_FACTORY \
+    virtual type_description_factory_p type_description_factory() {\
+		return make_type_description_factory(*this);\
 		}
 
 	}// namespace type_description

@@ -1,5 +1,7 @@
 #pragma once
 
+#pragma warning(disable:4267)
+
 #ifndef _AF_JSON_READ_BUFFER_SIZE 
 #define _AF_JSON_READ_BUFFER_SIZE 4*65535
 #endif
@@ -14,6 +16,7 @@
 
 #include "autotelica_core/util/include/asserts.h"
 #include "autotelica_core/util/include/enum_to_string.h"
+#include "autotelica_core/util/include/string_util.h"
 #include <string.h>
 #include <cstdint>
 // for some reason, probably good, rapidjson uses their own size_t
@@ -28,7 +31,7 @@ namespace rapidjson { typedef size_t SizeType; }
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/writer.h"
-
+#include "rapidjson/schema.h"
 
 
 namespace autotelica {
@@ -183,7 +186,9 @@ namespace impl {
 			*_target = value_; 
 			return set_done(); 
 		}
-
+		inline void set_default(default_p default_) {
+			_default = default_;
+		}
 		template<typename ConvertibleT>
 		inline bool set(ConvertibleT const& value_) { 
 			AF_ASSERT(_target, "Target is not initialised.");
@@ -269,6 +274,34 @@ namespace impl {
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
 			writing::write(*base_t::_target, writer_);
+		}
+
+	};
+
+	// handler for bitsets
+	template<typename target_t>
+	struct handler_bitset_t : public handler_value_t<target_t> {
+
+		using base_t = handler_value_t<target_t>;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+
+		handler_bitset_t(
+			target_t* target_,
+			default_p default_ = nullptr,
+			default_contained_p unused_ = nullptr) :
+			base_t(target_, default_) {
+			_unused(unused_);
+		}
+
+		bool Int(int i)  override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
+		bool Uint(unsigned i)  override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
+		bool Int64(int64_t i)  override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
+		bool Uint64(uint64_t i) override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
+
+		void write(writer_wrapper_t& writer_) const override {
+			if (base_t::should_not_write()) return;
+			writing::write(base_t::_target->to_ulong(), writer_);
 		}
 
 	};
@@ -1006,6 +1039,7 @@ namespace impl {
 
 
 		_JSON_HANDLER_TRAIT(handler_integral_t, if_integral_t<target_t>);
+		_JSON_HANDLER_TRAIT(handler_bitset_t, if_bitset_t<target_t>);
 		_JSON_HANDLER_TRAIT(handler_floating_t, if_floating_point_t<target_t>);
 		_JSON_HANDLER_TRAIT(handler_string_t, if_string_t<target_t>);
 		_JSON_HANDLER_TRAIT(handler_enum_t, if_enum_t<target_t>);
@@ -1040,7 +1074,7 @@ namespace impl {
 
 	// we need a special makers for objects
 	template<typename target_t, typename object_description_t>
-	inline handler_value_p<target_t> make_object_json_handler(
+	inline handler_value_p<target_t> from_object_description(
 			target_t*					target_,
 			traits::default_p<target_t>	default_,
 			object_description_t const& object_description_) {
@@ -1053,24 +1087,81 @@ namespace impl {
 			object_description_.post_save_f(),
 			object_description_.handlers());
 	}
+	
+	template<typename target_t, typename type_description_t>
+	inline handler_value_p<target_t> from_type_description(
+		target_t* target_,
+		traits::default_p<target_t>	default_,
+		type_description_t const& type_description_) {
+		auto object_description = 
+			type_description_.make_object_description(*target_, default_ ? default_->value() : nullptr);
+		return from_object_description(target_, default_, *object_description);
+	}
 
-	template<typename target_t, traits::predicates::if_use_type_description_t<target_t> = true>
-	handler_value_p<target_t> make_json_handler(
+	namespace predicates {
+		using namespace traits::predicates;
+		
+		_AF_DECLARE_HAS_MEMBER(json_handler);
+		// predicates for choosing the right way to access type description
+		template<typename target_t>
+		using if_use_json_handler_t = if_t<
+			has_json_handler_t<target_t>
+		>;
+
+
+		template<typename target_t>
+		using if_use_type_description_factory_t = if_t<
+			all_of_t<
+				not_t<has_json_handler_t<target_t>>,
+				has_type_description_factory_t<target_t>
+			>
+		>;
+
+		template<typename target_t>
+		using if_use_object_description_t = if_t<
+			all_of_t<
+				not_t<has_json_handler_t<target_t>>,
+				not_t<has_type_description_factory_t<target_t>>,
+				has_object_description_t<target_t>
+			>
+		>;
+
+		template<typename target_t>
+		using if_use_type_description_t = if_t<
+			all_of_t<
+				not_t<has_json_handler_t<target_t>>,
+				not_t<has_type_description_factory_t<target_t>>,
+				not_t<has_object_description_t<target_t>>,
+				has_type_description_t<target_t>
+			>
+		>;
+	}
+
+	template<typename target_t, predicates::if_use_json_handler_t<target_t> = true>
+	inline handler_value_p<target_t> make_json_handler(
+		target_t* target_,
+		traits::default_p<target_t>				default_ = nullptr,
+		traits::default_contained_p<target_t> 	contained_default_ = nullptr
+	) {
+		_unused(contained_default_);
+		return target_->json_handler(default_);
+	}
+
+	template<typename target_t, predicates::if_use_type_description_t<target_t> = true>
+	inline handler_value_p<target_t> make_json_handler(
 		target_t*								target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t> 	contained_default_ = nullptr
 	) {
 		_unused(contained_default_);
 		auto& td = target_->template type_description<serialization_factory>();
-		auto object_description = td.make_object_description(*target_, default_?default_->value():nullptr);
 
-		return make_object_json_handler(target_, default_, *object_description);
+		return from_type_description(target_, default_, td);
 	}
 
 	// optimised version of making, for many small objects we want to avoid hitting the heap too much
-	// TODO: test and add a version that deals with optimisation that creates entire json handlers
-	template<typename target_t, traits::predicates::if_use_object_description_t<target_t> = true>
-	handler_value_p<target_t> make_json_handler(
+	template<typename target_t, predicates::if_use_object_description_t<target_t> = true>
+	inline handler_value_p<target_t> make_json_handler(
 		target_t* target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
@@ -1078,10 +1169,10 @@ namespace impl {
 		_unused(contained_default_);
 		auto object_description = target_->template object_description<serialization_factory>();
 		
-		return make_object_json_handler(target_, default_, *object_description);
+		return from_object_description(target_, default_, *object_description);
 	}
-	template<typename target_t, traits::predicates::if_use_type_description_factory_t<target_t> = true>
-	handler_value_p<target_t> make_json_handler(
+	template<typename target_t, predicates::if_use_type_description_factory_t<target_t> = true>
+	inline handler_value_p<target_t> make_json_handler(
 		target_t* target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
@@ -1089,9 +1180,9 @@ namespace impl {
 		_unused(contained_default_);
 		auto factory = target_->type_description_factory();
 		auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
-		auto object_description = object_factory.template object_description<serialization_factory>();
+		auto object_description = object_factory->template object_description<serialization_factory>();
 
-		return make_object_json_handler(target_, default_, *object_description);
+		return from_object_description(target_, default_, *object_description);
 	}
 
 	// serialization factory is passed through to the type_description hierarchy
@@ -1106,15 +1197,9 @@ namespace impl {
 		}
 	};
 
+// TODO: maybe tuple, variant, ranges ...  serialization 
 
-
-
-
-// TODO: schema validation
-// TODO: bitset and maybe tuples serialization
-
-
-	namespace encoding {
+	namespace encoding_traits {
 		// reading and writing traits
 		template<typename stream_t, json_encoding encoding>
 		struct writing;
@@ -1126,10 +1211,13 @@ namespace impl {
 			using output_stream_t = stream_t;
 			using writer_t = rapidjson::Writer<output_stream_t, input_encoding_t>;
 			using pretty_writer_t = rapidjson::PrettyWriter<output_stream_t, input_encoding_t>;
-			using reader_stream_t = stream_t;
+			using schema_t = rapidjson::SchemaDocument;
+			using validating_writer_t = rapidjson::GenericSchemaValidator<schema_t, writer_t>;
+			using validating_pretty_writer_t = rapidjson::GenericSchemaValidator<rapidjson::SchemaDocument, pretty_writer_t>;
 
 			static inline writer_t writer(stream_t& stream, bool put_bom = false) { return writer_t(stream); }
 			static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(stream); }
+
 		};
 
 #define __AF_JSON_WRITING_TRAIT(OUTPUT_ENCODING_ENUM, OUTPUT_ENCODING_JSON)\
@@ -1139,10 +1227,13 @@ namespace impl {
 		using output_encoding_t = rapidjson::OUTPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
 		using output_stream_t = rapidjson::EncodedOutputStream<output_encoding_t, stream_t>;\
 		using writer_t = rapidjson::Writer< output_stream_t, input_encoding_t, output_encoding_t>;\
-		using pretty_writer_t = rapidjson::Writer< output_stream_t, input_encoding_t, output_encoding_t>;\
+		using pretty_writer_t = rapidjson::PrettyWriter< output_stream_t, input_encoding_t, output_encoding_t>;\
+		using schema_t = rapidjson::SchemaDocument;\
+		using validating_writer_t = rapidjson::GenericSchemaValidator<schema_t, writer_t>;\
+		using validating_pretty_writer_t = rapidjson::GenericSchemaValidator<schema_t, pretty_writer_t>;\
 		static inline writer_t writer(stream_t& stream, bool put_bom = false) { return writer_t(output_stream_t(stream, put_bom)); }\
 		static inline pretty_writer_t pretty_writer(stream_t& stream, bool put_bom = false) { return pretty_writer_t(output_stream_t(stream, put_bom)); }\
-	};
+		};
 
 		__AF_JSON_WRITING_TRAIT(utf16le, UTF16LE);
 		__AF_JSON_WRITING_TRAIT(utf16be, UTF16BE);
@@ -1156,6 +1247,7 @@ namespace impl {
 		struct reading<stream_t, json_encoding::utf8> {
 			using input_encoding_t = rapidjson::UTF8<_AF_SERIALIZATION_CHAR_T>;
 			using input_stream_t = stream_t;
+			using schema_t = rapidjson::SchemaDocument;
 			static inline input_stream_t input_stream(stream_t& stream) { return stream; }
 		};
 
@@ -1164,6 +1256,7 @@ namespace impl {
 	struct reading<stream_t, json_encoding::INPUT_ENCODING_ENUM> {\
 		using input_encoding_t = rapidjson::INPUT_ENCODING_JSON<_AF_SERIALIZATION_CHAR_T>;\
 		using input_stream_t = rapidjson::EncodedInputStream<input_encoding_t, stream_t>;\
+		using schema_t = rapidjson::SchemaDocument;\
 		static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }\
 	};
 
@@ -1179,193 +1272,440 @@ namespace impl {
 			static inline input_stream_t input_stream(stream_t& stream) { return input_stream_t(stream); }
 		};
 	}
+
+	class json_file {
+		using read_stream_t = rapidjson::FileReadStream;
+		using write_stream_t = rapidjson::FileWriteStream;
+#ifdef _WIN32
+		const char* const write_flags = "wb";
+		const char* const read_flags = "rb";
+#else
+		const char* const write_flags = "w";
+		const char* const read_flags = "r";
+#endif		
+		char _buffer[_AF_JSON_READ_BUFFER_SIZE];
+		FILE* _fp;
+		bool const _reading;
+	public:
+		json_file(typename traits::string_t const& path_, bool reading_) : _reading(reading_) {
+			if (_reading)
+				_fp = fopen(path_.c_str(), read_flags);
+			else
+				_fp = fopen(path_.c_str(), write_flags);
+
+		}
+
+		inline read_stream_t&& read_stream() {
+			AF_ASSERT(_reading, "File was open for writing but a read stream is reaquired.");
+			return read_stream_t(_fp, _buffer, sizeof(_buffer));
+		}
+		inline write_stream_t&& write_stream() {
+			AF_ASSERT(!_reading, "File was open for reading but a write stream is reaquired.");
+			return write_stream_t(_fp, _buffer, sizeof(_buffer));
+		}
+		~json_file() {
+			fclose(_fp);
+		}
+	};
+} // namespace impl
+
+template<typename target_t>
+using json_handler_p = impl::handler_value_p<target_t>;
+
+template<typename target_t>
+using default_p = traits::default_p<target_t>;
+
+template<typename target_t, typename type_description_t>
+inline json_handler_p<target_t> make_json_handler_from_type_description(
+		target_t* target_,
+		traits::default_p<target_t>	default_,
+		type_description_t const& type_description_) {
+	return impl::from_type_description(target_, default_, type_description_);
 }
 
 
-template<json_encoding encoding = json_encoding::utf8>
-struct reader {
-	template<typename target_t, typename stream_t>
-	static void from_stream(
-			target_t& target,
-			stream_t& stream) {
+template<json_encoding encoding_v = json_encoding::utf8>
+struct dom {
+	
+	using document_t = rapidjson::Document;
+	
+	template<typename stream_t>
+	static document_t from_stream(stream_t& stream_) {
+		using namespace impl;
+		using namespace rapidjson;
+		document_t d;
+		auto actual_stream = encoding_traits::reading<stream_t, encoding_v>::input_stream(stream_);
+		d.ParseStream(actual_stream);
+		if (d.HasParseError()) {
+			AF_ERROR("Error parsing JSON schema. Error is: % (near %)",
+				GetParseError_En(d.GetParseError()), static_cast<unsigned>(d.GetErrorOffset()));
+		}
+		return d;
+	}
+
+	inline static document_t from_string(typename traits::string_t const& schema_) {
+		using namespace rapidjson;
+		StringStream ss(schema_.c_str());
+		return from_stream(ss);
+	}
+
+	inline static document_t from_file(typename traits::string_t const& path_) {
+		impl::json_file file(path_, true);
+		auto stream = file.read_stream();
+		return from_stream(stream);
+	}
+
+};
+
+static inline void report_parsing_error(rapidjson::Reader const& reader) {
+	using namespace rapidjson;
+	ParseErrorCode e = reader.GetParseErrorCode();
+	size_t o = reader.GetErrorOffset();
+	AF_ERROR("Error parsing JSON. Error is: % (near %)",
+		GetParseError_En(e), o);
+}
+template<json_encoding encoding_v = json_encoding::utf8>
+class schema {
+public:
+	using dom_t = dom<encoding_v>;
+	using schema_t = rapidjson::SchemaDocument;
+	using resolver_base_t = rapidjson::IRemoteSchemaDocumentProvider;
+	using validator_t = rapidjson::SchemaValidator;
+
+	template<typename handler_t>
+	using handler_validator_t = rapidjson::GenericSchemaValidator<schema_t, handler_t>;
+
+private:
+	class schema_ref_resolver : public resolver_base_t {
+		std::string _root;
+		std::vector<schema_t*> _ref_schemas;
+		
+		inline std::string normalize_path(std::string const& path) const {
+			using namespace string_util;
+			return replace(path, "\\", "/");
+		}
+		std::string extract_local_path(std::string const& path) const {
+			using namespace string_util;
+			const std::string file_uri_prefix("file://");
+			std::string ret = normalize_path(path);
+			if (starts_with(path, file_uri_prefix))
+				ret = ret.substr(file_uri_prefix.size());
+			return ret;
+		}
+
+		std::string construct_full_path(std::string const& path) const {
+			using namespace string_util;
+			std::string ret = extract_local_path(path);
+			AF_ASSERT(!ret.empty(), "Empty path referenced.");
+			if (_root.empty())
+				return ret;
+			if (starts_with(ret, "/") ||
+				(ret.size() > 1 && ret[1] == ':')
+				)// absolute path
+				return ret;
+			if (ends_with(_root, "/"))
+				return _root + ret;
+			return _root + "/" + ret;
+		}
+	public:
+		schema_ref_resolver(std::string const& root_) : _root(normalize_path(root_)){}
+		~schema_ref_resolver() {
+			for (auto sd : _ref_schemas)
+				delete sd;
+		}
+		virtual const schema_t* GetRemoteDocument(const char* uri, size_t length) {
+			// Resolve the uri and returns a pointer to that schema.
+			auto full_path = construct_full_path(uri);
+			schema_t* ret(new schema_t(dom<encoding_v>::from_file(full_path), 
+				full_path.c_str(), full_path.size(),
+				this));
+			_ref_schemas.push_back(ret);
+			return ret;
+		}
+	};
+
+	schema_ref_resolver _resolver;
+	schema_t _schema;
+	validator_t _validator;
+
+	schema(typename dom_t::document_t document, std::string const& root_ = "") : 
+		_resolver(root_),
+		_schema(document, &_resolver),
+		_validator(_schema)
+	{}
+
+
+	template<typename validator_tt>
+	static void check_validation_errors(validator_tt const& validator_) {
 		using namespace rapidjson;
 		using namespace impl;
+		if (validator_.IsValid()) {
+			return;
+		}
+		StringBuffer sb;
+		auto writer = encoding_traits::writing<StringBuffer, encoding_v>::pretty_writer(sb);
+		validator_.GetError().Accept(writer);
+		AF_WARNING_T(typename traits::string_t, "Validation failed:\n%", sb.GetString());
+		AF_ERROR("JSON Validation Error");
+	}
+	inline void check_errors() const {
+		check_validation_errors(_validator);
+	}
+	template<typename stream_t>
+	void validate_stream(stream_t& stream) {
+		using namespace rapidjson;
+		using namespace impl;
+		auto actual_stream = encoding_traits::reading<stream_t, encoding_v>::input_stream(stream);
 		Reader reader;
-		auto handler = impl::make_json_handler(&target);
-		handler->prepare_for_loading();
-		bool parsed = false;
-		auto actual_stream = encoding::reading<stream_t, encoding>::input_stream(stream);
-		parsed = reader.Parse(actual_stream, *handler);
-
-		if (!parsed) {
+		_validator.Reset();
+		if (!reader.Parse(actual_stream, _validator)) {
 			ParseErrorCode e = reader.GetParseErrorCode();
 			size_t o = reader.GetErrorOffset();
-			AF_ERROR("Error parsing JSON. Error is: % (at %)",
+			AF_ERROR("Error parsing JSON during validation. Error is: % (near %)",
 				GetParseError_En(e), o);
+		}
+		check_errors(_validator);
+	}
+
+public:
+
+	inline schema_t const& get_schema() const { return _schema; }
+	inline schema_t& get_schema() { return _schema; }
+	inline validator_t validator() const { return _validator; }
+
+	template<typename stream_t>
+	inline static std::shared_ptr<schema> from_stream(stream_t& stream, std::string const& root_ = "") {
+		return std::make_shared<schema_t>(dom_t::from_stream(stream), root_);
+	}
+	template<typename stream_t>
+	inline static std::shared_ptr<schema> from_string(typename traits::string_t const& schema_, std::string const& root_ = "") {
+		return std::make_shared<schema_t>(dom_t::from_string(schema_), root_);
+	}
+	template<typename stream_t>
+	inline static std::shared_ptr<schema> from_file(typename traits::string_t const& path_, std::string const& root_ = "") {
+		return std::make_shared<schema_t>(dom_t::from_file(path_), root_);
+	}
+
+	template<typename stream_t, typename handler_t>
+	void parse_with_validation(stream_t& stream_, handler_t& handler_) {
+		using namespace rapidjson;
+		using namespace impl;
+		handler_validator_t<handler_t > validator(_schema, handler_);
+		Reader reader;
+		if (reader.Parse(stream_, validator))
+			report_parsing_error(reader);
+		check_validation_errors(validator);
+	}
+	void validate_string(typename traits::string_t const& json_) {
+		using namespace rapidjson;
+		StringStream ss(json.c_str());
+		validate_stream(ss);
+	}
+	void validate_file(typename traits::string_t const& path_) {
+		impl::json_file file(path_, true);
+		auto stream = file.read_stream();
+		validate_stream(stream);
+	}
+};
+template<json_encoding encoding_v = json_envoding::utf8>
+using schema_p = std::shared_ptr<schema<encoding_v>>;
+
+template<json_encoding encoding_v = json_encoding::utf8>
+struct reader {
+
+
+	template<typename target_t, typename stream_t>
+	static void from_stream(
+			target_t& target_,
+			stream_t& stream_,
+			schema_p<encoding_v> schema_ = nullptr) {
+		using namespace rapidjson;
+		using namespace impl;
+		
+		Reader reader;
+		auto handler = impl::make_json_handler(&target_);
+		handler->prepare_for_loading();
+		using reader_factory_t = encoding_traits::reading<stream_t, encoding_v>;
+		auto actual_stream = reader_factory_t::input_stream(stream_);
+		if (schema_) {
+			schema_->parse_with_validation(actual_stream, *handler);
+		}
+		else {
+			Reader reader;
+			if (reader.Parse(actual_stream, *handler))
+				report_parsing_error(reader);
 		}
 	}
 
 	template<typename target_t>
 	inline static void from_string(
-			target_t& target,
-			typename traits::string_t const& json) {
+			target_t& target_,
+			typename traits::string_t const& json_,
+			schema_p<encoding_v> schema_ = nullptr) {
 		using namespace rapidjson;
-		StringStream ss(json.c_str());
-		from_stream(target, ss);
+		StringStream ss(json_.c_str());
+		from_stream(target_, ss, schema_);
 	}
 
 	template<typename target_t>
 	inline static void from_string(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t const& json) {
-		from_string(*target, json);
+			std::shared_ptr<target_t>& target_,
+			typename traits::string_t const& json_,
+			schema_p<encoding_v> schema_ = nullptr) {
+		from_string(*target_, json_, schema_);
 	}
 
 	template<typename target_t>
 	inline static target_t from_string(
-			typename traits::string_t const& json) {
+			typename traits::string_t const& json_,
+			schema_p<encoding_v> schema_ = nullptr) {
 		target_t target;
-		from_string(target, json);
+		from_string(target, json_, schema_);
 		return target;
 	}
 
 	template<typename target_t>
 	inline static void from_file(
-			target_t& target,
-			typename traits::string_t const& path) {
-		using namespace rapidjson;
-		// rapidjson documentation says this is how to open files
-#ifdef _WIN32
-		const char* const file_flags = "rb";
-#else
-		const char* const file_flags = "r";
-#endif
-		FILE* fp = fopen(path.c_str(), file_flags);
-		char readBuffer[_AF_JSON_READ_BUFFER_SIZE];
-		FileReadStream fs(fp, readBuffer, sizeof(readBuffer));
-		from_stream(target, fs);
-		fclose(fp);
+			target_t& target_,
+			typename traits::string_t const& path_,
+			schema_p<encoding_v> schema_ = nullptr) {
+		impl::json_file file(path_, true);
+		auto stream = file.read_stream();
+		from_stream(target_, stream, schema_);
 	}
 	template<typename target_t>
 	inline static void from_file(
-		std::shared_ptr<target_t>& target,
-		typename traits::string_t const& path) {
-		if (!target)
-			target = std::make_shared<target_t>();
-		from_file(*target, path);
+			std::shared_ptr<target_t>& target_,
+			typename traits::string_t const& path_,
+			schema_p<encoding_v> schema_ = nullptr) {
+		if (!target_)
+			target_ = std::make_shared<target_t>();
+		from_file(*target_, path_, schema_);
 	}
 
 	template<typename target_t>
 	inline static target_t from_file(
-			typename traits::string_t const& path,
-			bool encoded = false) {
+			typename traits::string_t const& path_,
+			bool encoded_ = false,
+			schema_p<encoding_v> schema_ = nullptr) {
 		target_t target;
-		from_file(target, path, encoded);
+		from_file(target, path_, encoded_, schema_);
 		return target;
 	}
 };
 
-template<json_encoding encoding = json_encoding::utf8>
+template<json_encoding encoding_v = json_encoding::utf8>
 struct writer {
 
 	template<typename target_t, typename writer_t>
 	static void to_writer(
-		target_t& target,
-		writer_t& writer) {
+		target_t& target_,
+		writer_t& writer_) {
 		using namespace rapidjson;
 		using namespace impl;
-		auto handler = impl::make_json_handler(&target);
-		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer };
+		auto handler = impl::make_json_handler(&target_);
+		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer_ };
 		handler->write(writer_wrapper);
 	}
 
 	template<typename target_t, typename stream_t>
 	static void to_stream(
-		target_t& target,
-		stream_t& stream,
-		bool pretty = false,
-		bool put_bom = false) {
+		target_t& target_,
+		stream_t& stream_,
+		bool pretty_ = false,
+		schema_p<encoding_v> schema_ = nullptr, 
+		bool put_bom_ = false) {
 		using namespace rapidjson;
 		using namespace impl;
 
-		using writer_factory_t = encoding::writing<stream_t, encoding>;
-		if (pretty) {
-			auto writer = writer_factory_t::pretty_writer(stream, put_bom);
-			to_writer(target, writer);
+		using writer_factory_t = encoding_traits::writing<stream_t, encoding_v>;
+		if (pretty_) {
+			auto writer = writer_factory_t::pretty_writer(stream_, put_bom_);
+			if (schema_) {
+				typename writer_factory_t::validating_pretty_writer_t v_writer(
+					schema_->get_schema(), writer);
+				to_writer(target_, v_writer);
+			}
+			else
+				to_writer(target_, writer);
 		}
 		else {
-			auto writer = writer_factory_t::writer(stream, put_bom);
-			to_writer(target, writer);
+			auto writer = writer_factory_t::writer(stream_, put_bom_);
+			if (schema_) {
+				typename writer_factory_t::validating_writer_t v_writer(
+					schema_->get_schema(), writer);
+				to_writer(target_, v_writer);
+			}
+			else
+				to_writer(target_, writer);
 		}
 	}
 
 	template<typename target_t>
 	inline static void to_string(
-			target_t& target,
-			typename traits::string_t& json,
-			bool pretty = false,
-			bool put_bom = false) {
+			target_t& target_,
+			typename traits::string_t& json_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
 		using namespace rapidjson;
 		StringBuffer ss;
-		to_stream(target, ss, pretty, put_bom);
+		to_stream(target_, ss, pretty_, schema_, put_bom_);
 		json = ss.GetString();
 	}
 
 	template<typename target_t>
 	inline static void to_string(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t& json,
-			bool pretty = false,
-			bool put_bom = false) {
-		to_string(*target, json, pretty, put_bom);
+			std::shared_ptr<target_t>& target_,
+			typename traits::string_t& json_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
+		to_string(*target_, json_, pretty_, schema_, put_bom_);
 	}
 
 	template<typename target_t>
 	inline static traits::string_t to_string(
-			target_t& target,
-			bool pretty = false,
-			bool put_bom = false) {
+			target_t& target_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
 		using namespace rapidjson;
 		StringBuffer ss;
-		to_stream(target, ss, pretty, put_bom);
+		to_stream(target_, ss, pretty_, schema_, put_bom_);
 		return ss.GetString();
 	}
 
 	template<typename target_t>
 	inline static traits::string_t to_string(
-			std::shared_ptr<target_t>& target,
-			bool pretty = false,
-			bool put_bom = false) {
-		return to_string(*target, pretty, put_bom);
+			std::shared_ptr<target_t>& target_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
+		return to_string(*target_, pretty_, schema_, put_bom_);
 	}
 
 	template<typename target_t>
 	static void to_file(
-			target_t& target,
-			typename traits::string_t& path,
-			bool pretty = false,
-			bool put_bom = false) {
+			target_t& target_,
+			typename traits::string_t const& path_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
 		// rapidjson documentation says this is how to open files
-		using namespace rapidjson;
-#ifdef _WIN32
-		const char* const file_flags = "wb";
-#else
-		const char* const file_flags = "w";
-#endif
-		FILE* fp = fopen(path.c_str(), file_flags);
-		char writeBuffer[_AF_JSON_READ_BUFFER_SIZE];
-		FileWriteStream fs(fp, writeBuffer, sizeof(writeBuffer));
-		to_stream(target, fs, pretty, put_bom);
-		fclose(fp);
+		impl::json_file file(path_, false);
+		auto stream = file.write_stream();
+		to_stream(target_, stream, pretty_, schema_, put_bom_);
 	}
 
 	template<typename target_t>
 	inline static void to_file(
-			std::shared_ptr<target_t>& target,
-			typename traits::string_t& path,
-			bool pretty = false,
-			bool put_bom = false) {
-		to_file(*target, path, pretty, put_bom);
+			std::shared_ptr<target_t>& target_,
+			typename traits::string_t& path_,
+			bool pretty_ = false,
+			schema_p<encoding_v> schema_ = nullptr,
+			bool put_bom_ = false) {
+		to_file(*target_, path_, pretty_, schema_, put_bom_);
 	}
 };
 
