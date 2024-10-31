@@ -427,15 +427,15 @@ namespace autotelica {
 		}
 
 #define AF_IMPLEMENTS_TYPE_DESCRIPTION_FACTORY \
-    virtual type_description_factory_p type_description_factory() {\
-		return make_type_description_factory(*this);\
+    virtual autotelica::type_description::type_description_factory_p type_description_factory() {\
+		return autotelica::type_description::make_type_description_factory(*this);\
 		}
 
 #define AF_IMPLEMENTS_CACHED_TYPE_DESCRIPTION_FACTORY \
-    type_description_factory_p __type_description_factory_cache;\
-	virtual type_description_factory_p type_description_factory() {\
+    autotelica::type_description::type_description_factory_p __type_description_factory_cache;\
+	virtual autotelica::type_description::type_description_factory_p type_description_factory() {\
 		if(!__type_description_factory_cache)\
-			__type_description_factory_cache = make_type_description_factory(*this); \
+			__type_description_factory_cache = autotelica::type_description::make_type_description_factory(*this); \
 		return __type_description_factory_cache;\
 		}
 

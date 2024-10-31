@@ -28,31 +28,6 @@ using namespace autotelica::json;
     }
 };*/
 
-template<typename impl_t>
-struct json_handler_cache {
-    json_handler_p<impl_t> _handler_cache;
-
-    json_handler_cache() : _handler_cache(nullptr){}
-
-    inline json_handler_p<impl_t> json_handler_cached(impl_t* that_, default_value_p<impl_t> default_ = nullptr) {
-        if (!_handler_cache)
-            _handler_cache = make_json_handler_from_type_description(
-                that_, default_,
-                impl_t::template type_description<json_serialization_factory>());
-        else // TODO: if you don't do weird stuff, this is probably unnecessary, defaults should be per instance
-            _handler_cache->set_default(default_);
-        return _handler_cache;
-    }
-
-    inline json_handler_p<impl_t> operator()(impl_t* that_, default_value_p<impl_t> default_ = nullptr) {
-        return json_handler_cached(that_, default_);
-    }
-};
-#define AF_IMPLEMENTS_JSON_HANDLER_CACHE(TYPE) \
-    json_handler_cache<TYPE> _handler_cache;\
-    virtual json_handler_p<TYPE> json_handler(default_p<TYPE> default_ = nullptr) {\
-        return _handler_cache(this, default_);\
-    }
 
 struct test2 {//} : public json_handler_cache<test2> {
     int i;
@@ -84,7 +59,7 @@ struct test2 {//} : public json_handler_cache<test2> {
     }
 
     AF_IMPLEMENTS_CACHED_TYPE_DESCRIPTION_FACTORY;
-    //AF_IMPLEMENTS_JSON_HANDLER_CACHE(test2);
+    AF_IMPLEMENTS_JSON_HANDLER_CACHE(test2);
 
     //virtual traits::string_t to_json_string(
     //        bool pretty_ = false,

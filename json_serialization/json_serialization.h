@@ -1095,7 +1095,7 @@ namespace impl {
 		type_description_inst_t const& type_description_) {
 
 		auto object_description = 
-			type_description_.to_impl<target_t>.make_object_description(*target_, default_ ? default_->value() : nullptr);
+			type_description_.to_impl<target_t>().make_object_description(*target_, default_ ? default_->value() : nullptr);
 		return from_object_description(target_, default_, *object_description);
 	}
 
@@ -1334,6 +1334,31 @@ inline json_handler_p<target_t> make_json_handler_from_type_description(
 		type_description_t const& type_description_) {
 	return impl::from_type_description(target_, default_, type_description_);
 }
+
+template<typename impl_t>
+struct json_handler_cache {
+	json_handler_p<impl_t> _handler_cache;
+
+	json_handler_cache() : _handler_cache(nullptr) {}
+
+	inline json_handler_p<impl_t> operator()(impl_t* that_, default_value_p<impl_t> default_ = nullptr) {
+		if (!_handler_cache)
+			_handler_cache = make_json_handler_from_type_description(
+				that_, default_,
+				impl_t::template type_description<json_serialization_factory>());
+		else // TODO: if you don't do weird stuff, this is probably unnecessary, defaults should be per instance
+			_handler_cache->set_default(default_);
+		return _handler_cache;
+	}
+
+};
+#define AF_IMPLEMENTS_JSON_HANDLER_CACHE(TYPE) \
+    autotelica::json::json_handler_cache<TYPE> __handler_cache;\
+    virtual autotelica::json::json_handler_p<TYPE> json_handler(default_p<TYPE> default_ = nullptr) {\
+        return __handler_cache(this, default_);\
+    }
+
+
 
 template<json_encoding encoding_v = json_encoding::utf8>
 struct dom {
