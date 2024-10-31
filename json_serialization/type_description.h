@@ -131,15 +131,26 @@ namespace autotelica {
 
 
 		// type description
-		struct type_description_base_t {
-			virtual ~type_description_base_t() {}
+		// forward declaration is needed for static casting to work
+		template<typename object_t, typename factory_t>
+		class type_description_impl_t;
+
+		template<typename factory_t>
+		struct type_description_t {
+
+			virtual ~type_description_t() {}
 
 			virtual void append_handlers(traits::handlers_t& handlers_) const = 0;
+
+			template<typename target_t>
+			inline type_description_impl_t<target_t, factory_t> const& to_impl() const {
+				return static_cast<type_description_impl_t<target_t, factory_t> const&>(*this);
+			}
 		};
 
 
 		template<typename object_t, typename factory_t>
-		class type_description_t : public type_description_base_t {
+		class type_description_impl_t : public type_description_t<factory_t> {
 		public:
 			using key_t = typename traits::key_t;
 			using default_t = typename traits::default_t<object_t>;
@@ -159,7 +170,7 @@ namespace autotelica {
 				setup_function_t _post_load_f;
 				setup_function_t _pre_save_f;
 				setup_function_t _post_save_f;
-				friend class type_description_t;
+				friend class type_description_impl_t;
 			public:
 
 				object_description_t(
@@ -214,10 +225,10 @@ namespace autotelica {
 			member_function_t _post_save_f;
 			member_descriptions_t _member_descriptions;
 			object_t* _temporary_object_cache;// used for handling hierarchies
-			type_description_base_t const* _base_description;
+			type_description_t<factory_t> const* _base_description;
 			
 			inline void set_temporary_object_cache(object_t* object) const {
-				const_cast<type_description_t*>(this)->_temporary_object_cache = object;
+				const_cast<type_description_impl_t*>(this)->_temporary_object_cache = object;
 			}
 			inline traits::setup_function_t wrap_function(object_t& object, member_function_t f) const {
 				return f ? [&]() {(object.*f)(); } : traits::setup_function_t();
@@ -233,7 +244,7 @@ namespace autotelica {
 #endif
 			}
 		public:
-			type_description_t() :
+			type_description_impl_t() :
 				_done(false),
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
@@ -252,28 +263,28 @@ namespace autotelica {
 			member_function_t const& post_save_f() const { return _post_save_f; }
 			member_descriptions_t const& member_descriptions() const { return _member_descriptions; }
 
-			inline type_description_t& before_loading(member_function_t& f) {
+			inline type_description_impl_t& before_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_load_f = f;
 				return *this;
 			}
-			inline type_description_t& before_saving(member_function_t& f) {
+			inline type_description_impl_t& before_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_pre_save_f = f;
 				return *this;
 			}
-			inline type_description_t& after_loading(member_function_t& f) {
+			inline type_description_impl_t& after_loading(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_load_f = f;
 				return *this;
 			}
-			inline type_description_t& after_saving(member_function_t& f) {
+			inline type_description_impl_t& after_saving(member_function_t& f) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				_post_save_f = f;
 				return *this;
 			}
 			template<typename target_t, typename element_t>
-			inline type_description_t& member(
+			inline type_description_impl_t& member(
 				key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -287,7 +298,7 @@ namespace autotelica {
 				return *this;
 			}
 			template<typename target_t>
-			inline type_description_t& member(
+			inline type_description_impl_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				has_no_default_t const& default_ = has_no_default,
@@ -302,7 +313,7 @@ namespace autotelica {
 			}
 
 			template<typename target_t>
-			inline type_description_t& member(
+			inline type_description_impl_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_,
 				target_t const& default_,
@@ -316,13 +327,13 @@ namespace autotelica {
 				return *this;
 			}
 			template<typename base_object_t>
-			inline type_description_t& base_type() {
+			inline type_description_impl_t& base_type() {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				AF_ASSERT(!_base_description, "Sorry, multiple inheritance is not supported. Only one base type description can be supplied.");
 				_base_description = &(base_object_t::type_description());
 			}
 
-			inline type_description_t& end_object() {
+			inline type_description_impl_t& end_object() {
 				AF_ASSERT(!_done, "Cannot end_object more than once.");
 				_done = true;
 				return *this;
@@ -364,8 +375,8 @@ namespace autotelica {
 		};
 		
 		template<typename object_t, typename factory_t>
-		type_description_t<object_t, factory_t> begin_object() {
-			return type_description_t<object_t, factory_t>();
+		type_description_impl_t<object_t, factory_t> begin_object() {
+			return type_description_impl_t<object_t, factory_t>();
 		}
 
 		struct type_description_factory_t {
@@ -381,13 +392,13 @@ namespace autotelica {
 		// Of course, instances of the factory can be cached.
 
 		template<typename object_t, typename factory_t, if_t<traits::predicates::has_object_description_t<object_t>> = true>
-		typename type_description_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
+		typename type_description_impl_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
 			return object.template object_description<factory_t>();
 		}
 
 		template<typename object_t, typename factory_t, if_t<not_t<traits::predicates::has_object_description_t<object_t>>> = true>
-		typename type_description_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
-			return object_t::template type_description<factory_t>().make_object_description(object);
+		typename type_description_impl_t<object_t, factory_t>::object_description_p create_object_description(object_t& object) {
+			return object_t::template type_description<factory_t>().to_impl<object_t>().make_object_description(object);
 		}
 
 		template<typename object_t>
@@ -397,11 +408,11 @@ namespace autotelica {
 			type_description_factory_instance_t(object_t& object_) : _object(object_) {}
 
 			template<typename factory_t>
-			using object_description_p = typename type_description_t<object_t, factory_t>::object_description_p;
+			using object_description_p = typename type_description_impl_t<object_t, factory_t>::object_description_p;
 
 			template<typename factory_t>
-			inline type_description_t<object_t, factory_t> const& type_description() const {
-				return object_t::template type_description<factory_t>();
+			inline type_description_impl_t<object_t, factory_t> const& type_description() const {
+				return object_t::template type_description<factory_t>().to_impl<object_t>();
 			}
 
 			template<typename factory_t >
@@ -420,6 +431,15 @@ namespace autotelica {
 		return make_type_description_factory(*this);\
 		}
 
-	}// namespace type_description
+#define AF_IMPLEMENTS_CACHED_TYPE_DESCRIPTION_FACTORY \
+    type_description_factory_p __type_description_factory_cache;\
+	virtual type_description_factory_p type_description_factory() {\
+		if(!__type_description_factory_cache)\
+			__type_description_factory_cache = make_type_description_factory(*this); \
+		return __type_description_factory_cache;\
+		}
+
+}// namespace type_description
+
 
 }// namespace autotelica

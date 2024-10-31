@@ -1088,13 +1088,14 @@ namespace impl {
 			object_description_.handlers());
 	}
 	
-	template<typename target_t, typename type_description_t>
+	template<typename target_t, typename type_description_inst_t>
 	inline handler_value_p<target_t> from_type_description(
 		target_t* target_,
 		traits::default_p<target_t>	default_,
-		type_description_t const& type_description_) {
+		type_description_inst_t const& type_description_) {
+
 		auto object_description = 
-			type_description_.make_object_description(*target_, default_ ? default_->value() : nullptr);
+			type_description_.to_impl<target_t>.make_object_description(*target_, default_ ? default_->value() : nullptr);
 		return from_object_description(target_, default_, *object_description);
 	}
 
@@ -1307,6 +1308,15 @@ namespace impl {
 			fclose(_fp);
 		}
 	};
+
+	static void report_parsing_error(rapidjson::Reader const& reader) {
+		using namespace rapidjson;
+		ParseErrorCode e = reader.GetParseErrorCode();
+		size_t o = reader.GetErrorOffset();
+		AF_ERROR("Error parsing JSON. Error is: % (near %)",
+			GetParseError_En(e), o);
+	}
+
 } // namespace impl
 
 template<typename target_t>
@@ -1315,6 +1325,8 @@ using json_handler_p = impl::handler_value_p<target_t>;
 template<typename target_t>
 using default_p = traits::default_p<target_t>;
 
+using json_serialization_factory = impl::serialization_factory;
+
 template<typename target_t, typename type_description_t>
 inline json_handler_p<target_t> make_json_handler_from_type_description(
 		target_t* target_,
@@ -1322,7 +1334,6 @@ inline json_handler_p<target_t> make_json_handler_from_type_description(
 		type_description_t const& type_description_) {
 	return impl::from_type_description(target_, default_, type_description_);
 }
-
 
 template<json_encoding encoding_v = json_encoding::utf8>
 struct dom {
@@ -1357,13 +1368,6 @@ struct dom {
 
 };
 
-static inline void report_parsing_error(rapidjson::Reader const& reader) {
-	using namespace rapidjson;
-	ParseErrorCode e = reader.GetParseErrorCode();
-	size_t o = reader.GetErrorOffset();
-	AF_ERROR("Error parsing JSON. Error is: % (near %)",
-		GetParseError_En(e), o);
-}
 template<json_encoding encoding_v = json_encoding::utf8>
 class schema {
 public:
@@ -1493,7 +1497,7 @@ public:
 		handler_validator_t<handler_t > validator(_schema, handler_);
 		Reader reader;
 		if (reader.Parse(stream_, validator))
-			report_parsing_error(reader);
+			impl::report_parsing_error(reader);
 		check_validation_errors(validator);
 	}
 	void validate_string(typename traits::string_t const& json_) {
@@ -1532,8 +1536,8 @@ struct reader {
 		}
 		else {
 			Reader reader;
-			if (reader.Parse(actual_stream, *handler))
-				report_parsing_error(reader);
+			if (!reader.Parse(actual_stream, *handler))
+				impl::report_parsing_error(reader);
 		}
 	}
 
@@ -1707,6 +1711,7 @@ struct writer {
 			bool put_bom_ = false) {
 		to_file(*target_, path_, pretty_, schema_, put_bom_);
 	}
+
 };
 
 } // namespace json
