@@ -12,6 +12,11 @@
 #define		_AF_JSON_OPTIMISED_STRING_MAPS true
 #endif
 
+// Often we don't care for class tags in objects, and then they are just dead weight.
+#ifndef		_AF_JSON_USE_CLASS_TAGS
+#define		_AF_JSON_USE_CLASS_TAGS true
+#endif
+
 #include "type_description.h"
 
 #include "autotelica_core/util/include/asserts.h"
@@ -176,7 +181,7 @@ namespace impl {
 
 		handler_value_t(
 			target_t* target_,
-			default_p default_ = nullptr) :
+			default_p default_) :
 			_target(target_),
 			_default(default_){
 		}
@@ -256,13 +261,16 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		
+		using initializer_function_t = traits::initializer_function_t;
+
 		handler_integral_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t unused2_) :
 			base_t(target_, default_) {
-			_unused(unused_);
+			_unused(unused_, unused2_);
+
 		}
 
 		bool Bool(bool b)  override { return base_t::set(b); }
@@ -285,13 +293,15 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 
 		handler_bitset_t(
-			target_t* target_,
-			default_p default_ = nullptr,
-			default_contained_p unused_ = nullptr) :
+				target_t* target_,
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t unused2_) :
 			base_t(target_, default_) {
-			_unused(unused_);
+			_unused(unused_, unusued2_);
 		}
 
 		bool Int(int i)  override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
@@ -313,13 +323,15 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 
 		handler_floating_t(
 				target_t* target_,
 				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
+				default_contained_p unused_ = nullptr,
+				initializer_function_t unused2_ = nullptr) :
 			base_t(target_, default_) {
-			_unused(unused_);
+			_unused(unused_, unusued2_);
 		}
 
 		bool Double(double d) override { return base_t::set(d); }
@@ -341,14 +353,16 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 
 		handler_string_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t unused2_) :
 			base_t(target_, default_) {
-			_unused(unused_);
+			_unused(unused_, unused2_);
 		}
 
 		// reader part
@@ -370,15 +384,17 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 		using string_t = traits::string_t;
 
 		handler_enum_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t unused2_) :
 			base_t(target_, default_) {
-			_unused(unused_);
+			_unused(unused_, unused2_);
 		}
 
 		// reader part
@@ -410,7 +426,7 @@ namespace impl {
 
 		handler_delegating_t(
 			target_t* target_,
-			default_p default_ = nullptr) :
+			default_p default_) :
 			base_t(target_, default_),
 			_started_loading(false) {
 
@@ -433,6 +449,7 @@ namespace impl {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_p<contained_t>;
@@ -441,17 +458,14 @@ namespace impl {
 
 		handler_ptr_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p contained_default_ = nullptr) :
+				default_p default_,
+				default_contained_p contained_default_,
+				initializer_function_t initializer_f_) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler(value_ptr(), contained_default_, nullptr)){
-		}
-
-		void prepare_for_loading() override {
-			if (!(*base_t::_target))
-				*base_t::_target = target_t(new contained_t());
-			base_t::prepare_for_loading();
-			_value_handler->reset(base_t::_target);
+			_value_handler(
+				std::static_pointer_cast<value_handler_t>(
+					serialization_factory::make_handler(
+						value_ptr(), contained_default_, nullptr, initializer_f_))){
 		}
 
 		inline contained_t* value_ptr() {
@@ -499,6 +513,7 @@ namespace impl {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = typename target_t::value_type;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_t<contained_t>;
@@ -510,18 +525,22 @@ namespace impl {
 		handler_sequence_t(
 				target_t* target_,
 				default_p default_ = nullptr,
-				default_contained_p contained_default_ = nullptr) :
+				default_contained_p contained_default_ = nullptr,
+				initializer_function_t initializer_f_ = nullptr) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)),
+			_value_handler(serialization_factory::make_handler<contained_t>(
+				nullptr, contained_default_, nullptr, initializer_f_)),
 			_as_object(false){
 		}
 		handler_sequence_t(
-			target_t* target_,
-			bool as_object_,
-			default_p default_ ,
-			default_contained_p contained_default_ ) :
+				target_t* target_,
+				bool as_object_,
+				default_p default_ ,
+				default_contained_p contained_default_,
+				initializer_function_t initializer_f_) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler<contained_t>(nullptr, contained_default_, nullptr)),
+			_value_handler(serialization_factory::make_handler<contained_t>(
+				nullptr, contained_default_, nullptr, initializer_f_)),
 			_as_object(as_object_) {
 		}
 
@@ -612,23 +631,26 @@ namespace impl {
 		using base_t = handler_sequence_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = typename target_t::value_type;
 
 		contained_t _current_value;
 
 		handler_setish_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
-			base_t(target_, default_) {// sets canot contain default values
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t initializer_f_) :
+			base_t(target_, default_, nullptr, initializer_f_) {// sets canot contain default values
 			_unused(unused_);
 		}
 		handler_setish_t(
-			target_t* target_,
-			bool as_object_,
-			default_p default_ ,
-			default_contained_p unused_ ) :
-			base_t(target_, as_object_, default_, nullptr) {// sets canot contain default values
+				target_t* target_,
+				bool as_object_,
+				default_p default_ ,
+				default_contained_p unused_,
+				initializer_function_t initializer_f_) :
+			base_t(target_, as_object_, default_, nullptr, initializer_f_) {// sets canot contain default values
 			_unused(unused_);
 		}
 
@@ -651,6 +673,7 @@ namespace impl {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = traits::key_t;
@@ -666,12 +689,13 @@ namespace impl {
 		value_handler_t _value_handler;
 
 		handler_string_pair_t(
-			target_t* target_,
-			default_p default_ = nullptr,
-			default_contained_p unused_ = nullptr) :
-				base_t(target_, default_),
-				_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr)) {
-			_unused(unused_);
+				target_t* target_,
+				default_p default_,
+				default_contained_p unused_,
+				initializer_function_t initializer_f_) :
+			base_t(target_, default_),
+			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, initializer_f_)) {
+				_unused(unused_);
 		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
@@ -739,9 +763,17 @@ namespace impl {
 	};
 
 
-	namespace pair_tags {
+	namespace standard_tags {
+		// I know what you're thinking, hardcoding the count of strings ... 
+		// it's not my fault that C++ 11 can't to this as constexpr. 
 		static traits::tag_t tag_key = _AF_CHAR_CONSTANT("key");
+		static const size_t tag_key_sz = 3;
 		static traits::tag_t tag_value = _AF_CHAR_CONSTANT("value");
+		static const size_t tag_value_sz = 5;
+		static traits::tag_t tag_class_name = _AF_CHAR_CONSTANT("class_name");
+		static const size_t tag_class_name_sz = 10;
+		static traits::tag_t tag_class_id = _AF_CHAR_CONSTANT("class_id");
+		static const size_t tag_class_id_sz = 8;
 	};
 
 	// handling pairs
@@ -751,6 +783,7 @@ namespace impl {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 
 		using key_t = typename target_t::first_type;
@@ -770,11 +803,12 @@ namespace impl {
 
 		handler_pair_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr) :
+				default_p default_ ,
+				default_contained_p unused_,
+				initializer_function_t initializer_f_) :
 			base_t(target_, default_),
-			_key_handler(serialization_factory::make_handler(value(), nullptr, nullptr)),
-			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr)),
+			_key_handler(serialization_factory::make_handler(value(), nullptr, nullptr, nullptr)),
+			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, initializer_f_)),
 			_current_handler(nullptr),
 			_loaded_key(false){
 			
@@ -821,9 +855,9 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) {
 			if (_current_handler)
 				return delegate_f(&current_handler_t::Key, str, length, copy);
-			if (util::equal_tag(str, length, pair_tags::tag_key))
+			if (util::equal_tag(str, length, standard_tags::tag_key))
 				_current_handler = _key_handler;
-			else if (util::equal_tag(str, length, pair_tags::tag_value) == 0)
+			else if (util::equal_tag(str, length, standard_tags::tag_value) == 0)
 				_current_handler = _value_handler;
 			else
 				AF_ERROR("Unknown key value: %", str);
@@ -844,13 +878,13 @@ namespace impl {
 			_key_handler->reset(key());
 			_value_handler->reset(value());
 			writer_->StartObject();
-			writer_->Key(pair_tags::tag_key);
+			writer_->Key(standard_tags::tag_key, standard_tags::tag_key_sz, false);
 			if (_key_handler->should_not_write()) 
 				writer_->Null();
 			else
 				_key_handler->write(writer_);
 			
-			writer_->Key(pair_tags::tag_value);
+			writer_->Key(standard_tags::tag_value, standard_tags::tag_value_sz, false);
 			if (_value_handler->should_not_write())
 				writer_->Null();
 			else
@@ -867,12 +901,14 @@ namespace impl {
 		using base_t = handler_setish_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
+		using initializer_function_t = traits::initializer_function_t;
 
 		handler_mapish_t(
 			target_t* target_,
-			default_p default_ = nullptr,
-			default_contained_p unused_ = nullptr) :
-			base_t(target_, true, default_, nullptr) {// mapps canot contain default values
+			default_p default_,
+			default_contained_p unused_, 
+			initializer_function_t initializer_f_) :
+			base_t(target_, true, default_, nullptr, initializer_f_) {// mapps canot contain default values
 			_unused(unused_);
 		}
 
@@ -886,6 +922,7 @@ namespace impl {
 		using default_p = typename base_t::default_p;
 		using contained_t = typename traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
+		using string_t = traits::string_t;
 		using key_t = traits::key_t; // this is some string type
 		
 
@@ -896,8 +933,13 @@ namespace impl {
 		using post_load_function_t = traits::setup_function_t;
 		using post_save_function_t = traits::setup_function_t;
 
+		string_t _class_name;
+		// TODO: implement class_id and class_id initialization
+
+		bool _reading_class;
 		handlers_t	_handlers;
 		handler_p _current_handler;
+
 		pre_load_function_t _pre_load_f;
 		pre_save_function_t _pre_save_f;
 		post_load_function_t _post_load_f;
@@ -905,6 +947,7 @@ namespace impl {
 
 		handler_object_t(
 				target_t* target_,
+				string_t const& class_name_,
 				default_p default_ = nullptr,
 				pre_load_function_t pre_load_f_ = nullptr,
 				pre_save_function_t pre_save_f_ = nullptr,
@@ -912,6 +955,8 @@ namespace impl {
 				post_save_function_t post_save_f_ = nullptr,
 				traits::handlers_t const& handlers_ = {}) :
 			base_t(target_, default_),
+			_class_name(class_name_),
+			_reading_class(false),
 			_pre_load_f(pre_load_f_),
 			_pre_save_f(pre_save_f_),
 			_post_load_f(post_load_f_),
@@ -923,6 +968,7 @@ namespace impl {
 				_handlers.push_back(
 					{ h.first, std::static_pointer_cast<handler_t>(h.second) });
 		}
+
 
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
@@ -970,7 +1016,14 @@ namespace impl {
 		bool Uint64(uint64_t i) override { return delegate_f(&handler_t::Uint64, i); }
 		bool Double(double d) override { return delegate_f(&handler_t::Double, d); }
 		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::RawNumber, str, length, copy); }
-		bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::String, str, length, copy); }
+		bool String(const char_t* str, size_t length, bool copy) override {
+			if (_reading_class) {
+				_class_name = str;
+				_reading_class = false;
+				return true;
+			}
+			return delegate_f(&handler_t::String, str, length, copy);
+		}
 		bool StartObject() override {
 			if (_current_handler)
 				return delegate_f(&handler_t::StartObject);
@@ -981,7 +1034,10 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) {
 			if (_current_handler)
 				return delegate_f(&handler_t::String, str, length, copy);
-
+			if (util::equal_tag(str, length, standard_tags::tag_class_name)) {
+				_reading_class = true;
+				return true;
+			}
 			_current_handler = find_handler(str, length);
 			AF_ASSERT(_current_handler, "Unexpected key (%) when loading object.", str);
 			return true;
@@ -1002,6 +1058,11 @@ namespace impl {
 				_pre_save_f();
 			if (base_t::should_not_write()) return;
 			writer_.StartObject();
+
+#if _AF_JSON_USE_CLASS_TAGS
+			writer_.Key(standard_tags::tag_class_name, standard_tags::tag_class_name_sz, false);
+			writer_.String(_class_name.c_str(), _class_name.size(), false);
+#endif
 			for (auto const& h : _handlers) {
 #if _AF_SERIALIZATION_TERSE && !_AF_VERBOSE_WRITES_ALWAYS
 				if (h.second->will_write()) {
@@ -1020,7 +1081,9 @@ namespace impl {
 		}
 	};
 
-
+	// handler for dynamic object needs to be
+	template<typename target_t>
+	struct handler_dynamic_object_t;
 
 	namespace handler_traits {
 		using namespace serialization::traits::predicates;
@@ -1059,7 +1122,7 @@ namespace impl {
 	
 	// creator functions all need to follow a certain form
 	template<typename target_t, typename handler_traits::handler_types<target_t>::sfinae_condition_t = true>
-	handler_value_p<target_t> make_json_handler(
+	handler_p make_json_handler(
 		target_t*								target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
@@ -1072,15 +1135,26 @@ namespace impl {
 			contained_default_);
 	}
 
-	// we need a special makers for objects
+
+	// we need a special makers for object hadnlers
+	template<typename target_t>
+	inline handler_p make_dynamic_object_handler(
+			target_t* target_,
+			traits::initializer_function_t initializer_f_) {
+		return std::make_shared< handler_dynamic_object_t<target_t> >(
+			target_,
+			initializer_f_);
+	}
 	template<typename target_t, typename object_description_t>
-	inline handler_value_p<target_t> from_object_description(
+	inline handler_p make_object_handler_from_object_description(
 			target_t*					target_,
 			traits::default_p<target_t>	default_,
 			object_description_t const& object_description_) {
 		return std::make_shared< handler_object_t<target_t> >(
 			target_,
+			object_description_.class_tag(),
 			default_,
+			initializer_f_,
 			object_description_.pre_load_f(),
 			object_description_.post_load_f(),
 			object_description_.pre_save_f(),
@@ -1088,18 +1162,35 @@ namespace impl {
 			object_description_.handlers());
 	}
 	
-	template<typename target_t, typename type_description_inst_t>
-	inline handler_value_p<target_t> from_type_description(
-		target_t* target_,
-		traits::default_p<target_t>	default_,
-		type_description_inst_t const& type_description_) {
-
+	template<typename target_t>
+	inline handler_p make_object_handler_from_type_description(
+			target_t* target_,
+			traits::default_p<target_t>	default_) {
+		auto& td = target_->template type_description<serialization_factory>();
 		auto object_description = 
-			type_description_.to_impl<target_t>().make_object_description(*target_, default_ ? default_->value() : nullptr);
-		return from_object_description(target_, default_, *object_description);
+			td.to_impl<target_t>().make_object_description(*target_, default_ ? default_->value() : nullptr);
+		return make_object_handler_from_object_description(target_, default_, *object_description);
 	}
 
-	namespace predicates {
+	template<typename target_t>
+	inline handler_p make_object_handler_from_type_description_factory(
+			target_t* target_,
+			traits::default_p<target_t>	default_) {
+		auto factory = target_->type_description_factory();
+		auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
+		auto object_description = object_factory->template object_description<serialization_factory>();
+
+		return make_object_handler_from_object_description(target_, default_, *object_description);
+	}
+
+	template<typename target_t>
+	inline handler_p make_object_handler_from_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>	default_) {
+		return target_->json_handler(default_);
+	}
+	
+	namespace object_predicates {
 		using namespace traits::predicates;
 		
 		_AF_DECLARE_HAS_MEMBER(json_handler);
@@ -1138,31 +1229,42 @@ namespace impl {
 		>;
 	}
 
-	template<typename target_t, predicates::if_use_json_handler_t<target_t> = true>
-	inline handler_value_p<target_t> make_json_handler(
-		target_t* target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t> 	contained_default_ = nullptr
-	) {
-		_unused(contained_default_);
-		return target_->json_handler(default_);
+	// late bound handlers have a number of limitations:
+	// 1. no defaults (no idea what the type for it should be (might be able to deduce it dynamically, but it's becoming really complicated))
+	// 2. they can only be created using dynamic methods of construction - json_handler or factory method
+	template<typename target_t, object_predicates::if_use_json_handler_t<target_t> = true>
+	inline handler_p make_late_bound_json_handler(target_t* target_) {
+		return from_json_handler(target_, nullptr, nullptr);
+	}
+	template<typename target_t, object_predicates::if_use_type_description_factory_t<target_t> = true>
+	inline handler_p make_late_bound_json_handler(target_t* target_) {
+		return from_type_description_factory(target_, nullptr, nullptr);
 	}
 
-	template<typename target_t, predicates::if_use_type_description_t<target_t> = true>
-	inline handler_value_p<target_t> make_json_handler(
+	template<typename target_t, object_predicates::if_use_json_handler_t<target_t> = true>
+	inline handler_p make_json_handler(
+		target_t* target_,
+		traits::default_p<target_t>				default_ = nullptr,
+		traits::default_contained_p<target_t> 	contained_default_ = nullptr,
+		
+	) {
+		_unused(contained_default_);
+		return from_json_handler(target_, default_, nullptr);
+	}
+
+	template<typename target_t, object_predicates::if_use_type_description_t<target_t> = true>
+	inline handler_p make_json_handler(
 		target_t*								target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t> 	contained_default_ = nullptr
 	) {
 		_unused(contained_default_);
-		auto& td = target_->template type_description<serialization_factory>();
-
-		return from_type_description(target_, default_, td);
+		return from_type_description(target_, default_, nullptr);
 	}
 
 	// optimised version of making, for many small objects we want to avoid hitting the heap too much
-	template<typename target_t, predicates::if_use_object_description_t<target_t> = true>
-	inline handler_value_p<target_t> make_json_handler(
+	template<typename target_t, object_predicates::if_use_object_description_t<target_t> = true>
+	inline handler_p make_json_handler(
 		target_t* target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
@@ -1172,29 +1274,112 @@ namespace impl {
 		
 		return from_object_description(target_, default_, *object_description);
 	}
-	template<typename target_t, predicates::if_use_type_description_factory_t<target_t> = true>
-	inline handler_value_p<target_t> make_json_handler(
+	template<typename target_t, object_predicates::if_use_type_description_factory_t<target_t> = true>
+	inline handler_p make_json_handler(
 		target_t* target_,
 		traits::default_p<target_t>				default_ = nullptr,
 		traits::default_contained_p<target_t>	contained_default_ = nullptr
 	) {
 		_unused(contained_default_);
-		auto factory = target_->type_description_factory();
-		auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
-		auto object_description = object_factory->template object_description<serialization_factory>();
-
-		return from_object_description(target_, default_, *object_description);
+		return from_type_description_factory(target_, default_, nullptr);
 	}
+
+
+	// handler for dynamic object
+	template<typename target_t>
+	struct handler_dynamic_object_t : public handler_value_t<target_t> {
+		using base_t = handler_value_t<target_t>;
+		using target_handler_p = handler_p;
+		using string_t = traits::string_t;
+
+		bool _reading_class;
+		target_handler_p _target_handler;
+		initializer_function_t _initializer_f;
+
+		handler_dynamic_object_t // NOTE: dynamic objects don't allow defaults
+			target_t* target_,
+			initializer_function_t initializer_f_
+			) : base_t(target_, nullptr),
+			_reading_class(false),
+			_target_handler(nullptr),
+			_initializer_f(initializer_f_){
+
+		}
+		template<typename... ParamsT>
+		inline bool delegate_f(bool (handler_t::* mf)(ParamsT ...), ParamsT... ps) {
+			AF_ASSERT(_target_handler, "Unexpected value when loading object");
+			bool ret = ((*_target_handler).*mf)(ps...);
+			if (_target_handler->is_done()) {
+				base_t::set_done(true);
+				_target_handler = nullptr;
+			}
+			return ret;
+		}
+		bool Null() override {
+			if (_target_handler)
+				return delegate_f(&handler_t::Null);
+			return base_t::Null();
+		}
+		bool Bool(bool b) override { return delegate_f(&handler_t::Bool, b); }
+		bool Int(int i) override { return delegate_f(&handler_t::Int, i); }
+		bool Uint(unsigned i) override { return delegate_f(&handler_t::Uint, i); }
+		bool Int64(int64_t i) override { return delegate_f(&handler_t::Int64, i); }
+		bool Uint64(uint64_t i) override { return delegate_f(&handler_t::Uint64, i); }
+		bool Double(double d) override { return delegate_f(&handler_t::Double, d); }
+		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::RawNumber, str, length, copy); }
+		bool String(const char_t* str, size_t length, bool copy) override {
+			if (_reading_class) {
+				AF_ASSERT(_initializer_f, "Initializer function is not supplied for a dynamic object (class: %)", str);
+				_reading_class = false;
+				if (_initializer_f)
+					_initializer_f(str, &(base_t::_target));
+
+				GET_HANDLER_FOR_TARGET
+
+					base_t::_target->prepare_for_loading();
+				delegate_f(&handler_t::StartObject);
+				delegate_f(&handler_t::String, str, length, copy);
+				return true;
+			}
+			return delegate_f(&handler_t::String, str, length, copy);
+		}
+		bool StartObject() override {
+			if (_target_handler)
+				return delegate_f(&handler_t::StartObject);
+			return true;
+		}
+		bool Key(const char_t* str, size_t length, bool copy) {
+			if (_target_handler)
+				return delegate_f(&handler_t::String, str, length, copy);
+			if (util::equal_tag(str, length, standard_tags::tag_class)) {
+				_reading_class = true;
+				return true;
+			}
+			AF_ERROR("Unexpected key (%) when loading object.", str);
+			return true;
+		}
+		bool EndObject(size_t memberCount) override { return delegate_f(&handler_t::EndObject, memberCount); }
+		bool StartArray() override { return delegate_f(&handler_t::StartArray); }
+		bool EndArray(size_t elementCount) override { return delegate_f(&handler_t::EndArray, elementCount); }
+
+		void write(writer_wrapper_t& writer_) const override {
+			if (!_target_handler)
+				GET_HANDLER_FOR_TARGET
+				_target_handler->write(writer_);
+		}
+
+	};
 
 	// serialization factory is passed through to the type_description hierarchy
 	struct serialization_factory {
 		template<typename target_t>
-		static inline handler_value_p<target_t> make_handler(
+		static inline handler_p make_handler(
 			target_t* target_,
-			traits::default_p<target_t>				default_ = nullptr,
-			traits::default_contained_p<target_t>	contained_default_ = nullptr
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t>	contained_default_,
+			traits::initializer_function_t			initializer_f_
 		) {
-			return make_json_handler<target_t>(target_, default_, contained_default_);
+			return make_json_handler<target_t>(target_, default_, contained_default_, initializer_f_);
 		}
 	};
 
@@ -1320,42 +1505,49 @@ namespace impl {
 } // namespace impl
 
 template<typename target_t>
-using json_handler_p = impl::handler_value_p<target_t>;
+using json_handler_p = impl::handler_p;
 
 template<typename target_t>
 using default_p = traits::default_p<target_t>;
 
 using json_serialization_factory = impl::serialization_factory;
 
+// TODO: this function ignores object_description and type_description_factory functions
 template<typename target_t, typename type_description_t>
-inline json_handler_p<target_t> make_json_handler_from_type_description(
+inline json_handler_p make_json_handler_from_type_description(
 		target_t* target_,
 		traits::default_p<target_t>	default_,
-		type_description_t const& type_description_) {
-	return impl::from_type_description(target_, default_, type_description_);
+		type_description_t const& type_description_,
+		traits::initializer_function_t const& initializer_f_) {
+	return impl::from_type_description(target_, default_, type_description_, initializer_f_);
 }
 
-template<typename impl_t>
+
 struct json_handler_cache {
-	json_handler_p<impl_t> _handler_cache;
+	json_handler_p _handler_cache;
 
 	json_handler_cache() : _handler_cache(nullptr) {}
 
-	inline json_handler_p<impl_t> operator()(impl_t* that_, default_value_p<impl_t> default_ = nullptr) {
+	template<typename impl_t>
+	inline json_handler_p create(
+			impl_t* that_, 
+			default_value_p<impl_t> default_ = nullptr,
+			traits::initializer_function_t const& initializer_f_) {
 		if (!_handler_cache)
+			//TODO: this should use serialization_factory
 			_handler_cache = make_json_handler_from_type_description(
 				that_, default_,
-				impl_t::template type_description<json_serialization_factory>());
+				impl_t::template type_description<json_serialization_factory>(),
+				initializer_f_);
 		else // TODO: if you don't do weird stuff, this is probably unnecessary, defaults should be per instance
 			_handler_cache->set_default(default_);
 		return _handler_cache;
 	}
-
 };
-#define AF_IMPLEMENTS_JSON_HANDLER_CACHE(TYPE) \
-    autotelica::json::json_handler_cache<TYPE> __handler_cache;\
+#define AF_IMPLEMENTS_JSON_HANDLER(TYPE) \
+    autotelica::json::json_handler_cache __handler_cache;\
     virtual autotelica::json::json_handler_p<TYPE> json_handler(default_p<TYPE> default_ = nullptr) {\
-        return __handler_cache(this, default_);\
+        return __handler_cache.create(this, default_);\
     }
 
 
@@ -1552,6 +1744,7 @@ struct reader {
 		using namespace impl;
 		
 		Reader reader;
+		//TODO: this should use serialization_factory
 		auto handler = impl::make_json_handler(&target_);
 		handler->prepare_for_loading();
 		using reader_factory_t = encoding_traits::reading<stream_t, encoding_v>;
@@ -1632,6 +1825,7 @@ struct writer {
 		writer_t& writer_) {
 		using namespace rapidjson;
 		using namespace impl;
+		//TODO: this should use serialization_factory
 		auto handler = impl::make_json_handler(&target_);
 		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer_ };
 		handler->write(writer_wrapper);

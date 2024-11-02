@@ -50,40 +50,17 @@ struct test2 {//} : public json_handler_cache<test2> {
     template<typename serialization_factory_t>
     static type_description_t<serialization_factory_t>  const& type_description() {
         static auto description = 
-            begin_object<test2, serialization_factory_t>().
+            begin_object<test2, serialization_factory_t>("test2").
                 member("i", &test2::i, 2510).
                 member("d", &test2::d, 1.991).
                 member("ints", &test2::ints, {1,2,3}).
             end_object();
         return description;
     }
-
-    AF_IMPLEMENTS_CACHED_TYPE_DESCRIPTION_FACTORY;
-    AF_IMPLEMENTS_JSON_HANDLER_CACHE(test2);
-
-    //virtual traits::string_t to_json_string(
-    //        bool pretty_ = false,
-    //        schema_p<encoding_v> schema_ = nullptr,
-    //        bool put_bom_ = false) {
-    //    return autotelica::json::writer<>::to_string(*this, pretty_, schema_, put_bom_);
-    //}
-    //virtual typename traits::string_t to_json_file(
-    //    bool pretty_ = false,
-    //    schema_p<encoding_v> schema_ = nullptr,
-    //    bool put_bom_ = false) {
-    //    return autotelica::json::writer<>::to_string(*this, pretty_, schema_, put_bom_);
-    //}
-
-
-
-    //virtual type_description_factory_p type_description_factory() {
-    //    return make_type_description_factory(*this);
-    //}
-
-    //virtual json_handler_p<test2> json_handler(default_p<test2> default_ = nullptr) {
-    //    return _handler_cache(this, default_);
-    //    //return json_handler_cached(default_);
-    //}
+    // DOCUMENT: one of these must be there for dynamnically resolved types
+    // best to have both (so that things other than JSON also work)
+    AF_IMPLEMENTS_DYNAMIC_TYPE_DESCRIPTION;
+    AF_IMPLEMENTS_JSON_HANDLER(test2);
 
 };
 
