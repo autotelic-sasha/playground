@@ -12,8 +12,6 @@ namespace autotelica {
 		template<typename T>
 		using if_exists_t = void;
 
-		template<typename T>
-		using select_t = void; // sometimes this makes things more readable
 
 		// Predicates
 		// Useful when composing std like sfinae conditions. 
@@ -26,6 +24,11 @@ namespace autotelica {
 		// if_t enablest a definition if its argument evaluates to true.
 		template <typename condition_t>
 		using if_t = std::enable_if_t<condition_t::value, bool>;
+
+		// using SFINAE with class specialisation is a lot like switch statements
+		// see _AF_DECLARE_HAS_MEMBER at the bottom for example of use
+		template<typename condition_t>
+		using case_t = if_t<condition_t>;
 
 		// not_t is a simple negation
 		template <typename condition_t>
@@ -347,26 +350,34 @@ namespace autotelica {
 	}
 }
 
-// _AF_DECLARE_HAS_STATIC_MEMBER declares a sfinae predicate 
-// which is true if it's type parameter has a static function with a given name 
-#define _AF_DECLARE_HAS_STATIC_MEMBER(function_name) \
-	template<typename T, typename U = void>\
-	struct has_static_##function_name##_impl_t : std::false_type {};\
-	template<typename T>\
-	struct has_static_##function_name##_impl_t<T, \
-		select_t<std::is_function<decltype(T::function_name)>>> : std::true_type {};\
-	template<typename T>\
-	struct has_static_##function_name##_t : has_static_##function_name##_impl_t<T>::type {};\
-	template<typename T> using if_has_static_##function_name##_t = if_t<has_static_##function_name##_t<T>>;
-
 // _AF_DECLARE_HAS_MEMBER declares a sfinae predicate 
-// which is true if it's type parameter has a non-static member with a given name
-#define _AF_DECLARE_HAS_MEMBER(function_name) \
-	template<typename T, typename U = void>\
+// which is true if its type parameter has a templated member with a given name ...
+// that can be invoked with types passed in as variadic parameters
+// examples:
+//		_AF_DECLARE_HAS_MEMBER(f1)
+//			has_f1_t<A> is std::true_type if class A implements a public member or a public static f
+//			if_has_f1_t<A> is an alias for if_t<has_f1_t<A>>
+// 
+//		_AF_DECLARE_HAS_MEMBER(f2, int, int)
+//			has_f2_t<A> is std::true_type if class A implements a public member template 
+//			or a public static template f2 which can be instantiated with template parameters int and int
+//			if_has_f2_t<A> is an alias for if_t<has_f2_t<A>>
+// 
+#define _AF_DECLARE_HAS_MEMBER(function_name, ...)\
+	template<typename T, typename switch_t = bool>\
 	struct has_##function_name##_impl_t : std::false_type {};\
 	template<typename T>\
+	struct has_##function_name##_impl_t<T,\
+		case_t<std::is_function<decltype(T::function_name)>>> : std::true_type {};\
+	template<typename T>\
 	struct has_##function_name##_impl_t<T, \
-		select_t<std::is_member_pointer<decltype(&T::function_name)>>> : std::true_type {};\
+		case_t<std::is_function<decltype(T::template function_name<__VA_ARGS__>)>>> : std::true_type {};\
+	template<typename T >\
+	struct has_##function_name##_impl_t<T, \
+		case_t<std::is_member_pointer<decltype(&T::function_name)>>> : std::true_type {};\
+	template<typename T >\
+	struct has_##function_name##_impl_t<T, \
+		case_t<std::is_member_pointer<decltype(&T::template function_name<__VA_ARGS__>)>>> : std::true_type {};\
 	template<typename T>\
 	struct has_##function_name##_t : has_##function_name##_impl_t<T>::type {};\
 	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##_t<T>>;

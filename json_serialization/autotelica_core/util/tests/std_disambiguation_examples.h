@@ -38,6 +38,10 @@ namespace autotelica {
 				std::wstring wstring_{ L"test string" };
 
 				std::shared_ptr<int> pi_;
+
+				std::bitset<5> bs1_;
+				std::bitset<10> bs2_;
+				
 				// shared_ptr
 				AF_TEST_COMMENT("shared_ptr");
 				AF_TEST_RESULT(true, is_shared_ptr_f(pi_));
@@ -642,7 +646,34 @@ namespace autotelica {
 				AF_TEST_RESULT(false, is_value_grid_f(string_.begin()));
 				AF_TEST_RESULT(false, is_value_grid_f(vector_.begin()));
 				AF_TEST_RESULT(false, is_value_grid_f(*vector_vector_.begin()));
+				AF_TEST_RESULT(false, is_value_grid_f(bs1_));
 
+				//bitset
+				AF_TEST_COMMENT("bitset");
+				AF_TEST_RESULT(false, is_bitset_f(array_));
+				AF_TEST_RESULT(false, is_bitset_f(vector_));
+				AF_TEST_RESULT(false, is_bitset_f(vector_vector_));
+				AF_TEST_RESULT(false, is_bitset_f(deque_));
+				AF_TEST_RESULT(false, is_bitset_f(forward_list_));
+				AF_TEST_RESULT(false, is_bitset_f(list_));
+				AF_TEST_RESULT(false, is_bitset_f(set_));
+				AF_TEST_RESULT(false, is_bitset_f(multiset_));
+				AF_TEST_RESULT(false, is_bitset_f(map_));
+				AF_TEST_RESULT(false, is_bitset_f(multimap_));
+				AF_TEST_RESULT(false, is_bitset_f(unordered_set_));
+				AF_TEST_RESULT(false, is_bitset_f(unordered_multiset_));
+				AF_TEST_RESULT(false, is_bitset_f(unordered_map_));
+				AF_TEST_RESULT(false, is_bitset_f(unordered_multimap_));
+				AF_TEST_RESULT(false, is_bitset_f(stack_));
+				AF_TEST_RESULT(false, is_bitset_f(queue_));
+				AF_TEST_RESULT(false, is_bitset_f(priority_queue_));
+				AF_TEST_RESULT(false, is_bitset_f(string_));
+				AF_TEST_RESULT(false, is_bitset_f(123));
+				AF_TEST_RESULT(false, is_bitset_f(string_.begin()));
+				AF_TEST_RESULT(false, is_bitset_f(vector_.begin()));
+				AF_TEST_RESULT(false, is_bitset_f(*vector_vector_.begin()));
+				AF_TEST_RESULT(true, is_bitset_f(bs1_));
+				AF_TEST_RESULT(true, is_bitset_f(bs2_));
 			}
 		}
 	}

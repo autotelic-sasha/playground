@@ -242,7 +242,7 @@ namespace autotelica {
 				}
 				else {
 					messages::message(
-						"SUCCESS: % evaluated to %.",
+						"SUCCESS: % evaluated to: %.",
 						code_snippet,
 						quote_string<T>(result).value());
 				}
@@ -342,7 +342,7 @@ namespace autotelica {
 				else {
 					if (throw_on_difference) {
 						messages::error_ex(file_name, line,
-							"%  evaluated to % but expected value was: %.",
+							"%  evaluated to: %, but expected value was: %.",
 							code_snippet,
 							quote_string<T>(actual).value(),
 							quote_string<T>(expected).value()
@@ -350,7 +350,7 @@ namespace autotelica {
 					}
 					else {
 						messages::error_text_ex(file_name, line,
-							"%  evaluated to % but expected value was: %.",
+							"%  evaluated to: %, but expected value was: %.",
 							code_snippet,
 							quote_string<T>(actual).value(),
 							quote_string<T>(expected).value()
