@@ -261,16 +261,12 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 
 		handler_integral_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t unused2_) :
+				default_contained_p /*unused*/) :
 			base_t(target_, default_) {
-			_unused(unused_, unused2_);
-
 		}
 
 		bool Bool(bool b)  override { return base_t::set(b); }
@@ -293,15 +289,12 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 
 		handler_bitset_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t unused2_) :
+				default_contained_p /*unused*/) :
 			base_t(target_, default_) {
-			_unused(unused_, unusued2_);
 		}
 
 		bool Int(int i)  override { return base_t::set(base_t::target_t(static_cast<unsigned long>(i))); }
@@ -323,15 +316,12 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 
 		handler_floating_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p unused_ = nullptr,
-				initializer_function_t unused2_ = nullptr) :
+				default_p default_ ,
+				default_contained_p /*unused*/) :
 			base_t(target_, default_) {
-			_unused(unused_, unusued2_);
 		}
 
 		bool Double(double d) override { return base_t::set(d); }
@@ -353,16 +343,13 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 
 		handler_string_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t unused2_) :
+				default_contained_p /*unused*/) :
 			base_t(target_, default_) {
-			_unused(unused_, unused2_);
 		}
 
 		// reader part
@@ -384,17 +371,14 @@ namespace impl {
 		using base_t = handler_value_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 		using string_t = traits::string_t;
 
 		handler_enum_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t unused2_) :
+				default_contained_p /*unused*/) :
 			base_t(target_, default_) {
-			_unused(unused_, unused2_);
 		}
 
 		// reader part
@@ -443,13 +427,12 @@ namespace impl {
 	};
 
 	// handler for pointers
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_ptr_t : public handler_delegating_t<target_t> {
 
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_p<contained_t>;
@@ -460,12 +443,12 @@ namespace impl {
 				target_t* target_,
 				default_p default_,
 				default_contained_p contained_default_,
-				initializer_function_t initializer_f_) :
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
 			_value_handler(
 				std::static_pointer_cast<value_handler_t>(
 					serialization_factory::make_handler(
-						value_ptr(), contained_default_, nullptr, initializer_f_))){
+						value_ptr(), contained_default_, nullptr, polymorphic_maker_))){
 		}
 
 		inline contained_t* value_ptr() {
@@ -507,13 +490,12 @@ namespace impl {
 	};
 
 	// handler for sequences (lists and vectors)
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_sequence_t : public handler_delegating_t<target_t> {
 
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = typename target_t::value_type;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_t<contained_t>;
@@ -524,12 +506,12 @@ namespace impl {
 
 		handler_sequence_t(
 				target_t* target_,
-				default_p default_ = nullptr,
-				default_contained_p contained_default_ = nullptr,
-				initializer_function_t initializer_f_ = nullptr) :
+				default_p default_ ,
+				default_contained_p contained_default_,
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
 			_value_handler(serialization_factory::make_handler<contained_t>(
-				nullptr, contained_default_, nullptr, initializer_f_)),
+				nullptr, contained_default_, nullptr, polymorphic_maker_)),
 			_as_object(false){
 		}
 		handler_sequence_t(
@@ -537,10 +519,10 @@ namespace impl {
 				bool as_object_,
 				default_p default_ ,
 				default_contained_p contained_default_,
-				initializer_function_t initializer_f_) :
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
 			_value_handler(serialization_factory::make_handler<contained_t>(
-				nullptr, contained_default_, nullptr, initializer_f_)),
+				nullptr, contained_default_, nullptr, polymorphic_maker_)),
 			_as_object(as_object_) {
 		}
 
@@ -625,13 +607,12 @@ namespace impl {
 	};
 
 	// handler for sets
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_setish_t : public handler_sequence_t<target_t> {
 
 		using base_t = handler_sequence_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = typename target_t::value_type;
 
 		contained_t _current_value;
@@ -639,19 +620,17 @@ namespace impl {
 		handler_setish_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t initializer_f_) :
-			base_t(target_, default_, nullptr, initializer_f_) {// sets canot contain default values
-			_unused(unused_);
+				default_contained_p /*unused*/,
+				polymorphic_maker_t const& polymorphic_maker_) :
+			base_t(target_, default_, nullptr, polymorphic_maker_) {// sets canot contain default values
 		}
 		handler_setish_t(
 				target_t* target_,
 				bool as_object_,
 				default_p default_ ,
-				default_contained_p unused_,
-				initializer_function_t initializer_f_) :
-			base_t(target_, as_object_, default_, nullptr, initializer_f_) {// sets canot contain default values
-			_unused(unused_);
+				default_contained_p /*unused*/,
+				polymorphic_maker_t const& polymorphic_maker_) :
+			base_t(target_, as_object_, default_, nullptr, polymorphic_maker_) {// sets canot contain default values
 		}
 
 		void set_next() override{
@@ -668,12 +647,11 @@ namespace impl {
 	// pairs can be stored more efficiently if the first type is a string
 	// we will add a special handler for this
 
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_string_pair_t : public handler_delegating_t<target_t> {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using contained_t = traits::default_contained_t<target_t>;
 		using char_t = traits::char_t;
 		using key_t = traits::key_t;
@@ -691,11 +669,10 @@ namespace impl {
 		handler_string_pair_t(
 				target_t* target_,
 				default_p default_,
-				default_contained_p unused_,
-				initializer_function_t initializer_f_) :
+				default_contained_p /*unused*/,
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, initializer_f_)) {
-				_unused(unused_);
+			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, polymorphic_maker_)) {
 		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
@@ -777,13 +754,12 @@ namespace impl {
 	};
 
 	// handling pairs
-	template< typename target_t>
+	template< typename target_t, typename polymorphic_maker_t>
 	struct handler_pair_t : public handler_delegating_t<target_t> {
 
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 		using char_t = traits::char_t;
 
 		using key_t = typename target_t::first_type;
@@ -804,15 +780,14 @@ namespace impl {
 		handler_pair_t(
 				target_t* target_,
 				default_p default_ ,
-				default_contained_p unused_,
-				initializer_function_t initializer_f_) :
+				default_contained_p /*unused*/,
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
 			_key_handler(serialization_factory::make_handler(value(), nullptr, nullptr, nullptr)),
-			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, initializer_f_)),
+			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, polymorphic_maker_)),
 			_current_handler(nullptr),
 			_loaded_key(false){
 			
-			_unused(unused_);
 		}
 
 		void prepare_for_loading() override {
@@ -895,21 +870,19 @@ namespace impl {
 
 
 	// handler for general maps
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_mapish_t : public handler_setish_t<target_t> {
 
 		using base_t = handler_setish_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using initializer_function_t = traits::initializer_function_t;
 
 		handler_mapish_t(
-			target_t* target_,
-			default_p default_,
-			default_contained_p unused_, 
-			initializer_function_t initializer_f_) :
-			base_t(target_, true, default_, nullptr, initializer_f_) {// mapps canot contain default values
-			_unused(unused_);
+				target_t* target_,
+				default_p default_,
+				default_contained_p /*unused*/,
+				polymorphic_maker_t const& polymorphic_maker_) :
+			base_t(target_, true, default_, nullptr, polymorphic_maker_) {// mapps canot contain default values
 		}
 
 	};
@@ -934,9 +907,27 @@ namespace impl {
 		using post_save_function_t = traits::setup_function_t;
 
 		string_t _class_name;
-		// TODO: implement class_id and class_id initialization
-
+		size_t _class_id;
+		// class name and class id are special, we need to keep track of when we are reading them
+		// because they may belong here or to some contained handler
 		bool _reading_class;
+		template<typename integral_t>
+		inline bool handle_class_id(integral_t class_id_) {
+			if (_reading_class) {
+				_class_id = static_cast<size_t>(class_id_);
+				_reading_class = false;
+				return true;
+			}
+			return false;
+		}
+		inline bool handle_class_name(const char_t* str, size_t length) {
+			if (_reading_class) {
+				_class_name = string_t(str, lenght);
+				_reading_class = false;
+				return true;
+			}
+			return false;
+		}
 		handlers_t	_handlers;
 		handler_p _current_handler;
 
@@ -948,6 +939,7 @@ namespace impl {
 		handler_object_t(
 				target_t* target_,
 				string_t const& class_name_,
+				size_t class_id_ = size_t(-1),
 				default_p default_ = nullptr,
 				pre_load_function_t pre_load_f_ = nullptr,
 				pre_save_function_t pre_save_f_ = nullptr,
@@ -956,6 +948,7 @@ namespace impl {
 				traits::handlers_t const& handlers_ = {}) :
 			base_t(target_, default_),
 			_class_name(class_name_),
+			_class_id(class_id_),
 			_reading_class(false),
 			_pre_load_f(pre_load_f_),
 			_pre_save_f(pre_save_f_),
@@ -1010,19 +1003,14 @@ namespace impl {
 			return base_t::Null();
 		}
 		bool Bool(bool b) override { return delegate_f(&handler_t::Bool, b); }
-		bool Int(int i) override { return delegate_f(&handler_t::Int, i); }
-		bool Uint(unsigned i) override { return delegate_f(&handler_t::Uint, i); }
-		bool Int64(int64_t i) override { return delegate_f(&handler_t::Int64, i); }
-		bool Uint64(uint64_t i) override { return delegate_f(&handler_t::Uint64, i); }
+		bool Int(int i) override { return handle_class_id(i) || delegate_f(&handler_t::Int, i); }
+		bool Uint(unsigned i) override { return handle_class_id(i) || delegate_f(&handler_t::Uint, i); }
+		bool Int64(int64_t i) override { return handle_class_id(i) || delegate_f(&handler_t::Int64, i); }
+		bool Uint64(uint64_t i) override { return handle_class_id(i) || delegate_f(&handler_t::Uint64, i); }
 		bool Double(double d) override { return delegate_f(&handler_t::Double, d); }
 		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::RawNumber, str, length, copy); }
 		bool String(const char_t* str, size_t length, bool copy) override {
-			if (_reading_class) {
-				_class_name = str;
-				_reading_class = false;
-				return true;
-			}
-			return delegate_f(&handler_t::String, str, length, copy);
+			return handle_class_name(str, length) || delegate_f(&handler_t::String, str, length, copy);
 		}
 		bool StartObject() override {
 			if (_current_handler)
@@ -1035,6 +1023,10 @@ namespace impl {
 			if (_current_handler)
 				return delegate_f(&handler_t::String, str, length, copy);
 			if (util::equal_tag(str, length, standard_tags::tag_class_name)) {
+				_reading_class = true;
+				return true;
+			}
+			if (util::equal_tag(str, length, standard_tags::tag_class_id)) {
 				_reading_class = true;
 				return true;
 			}
@@ -1060,9 +1052,22 @@ namespace impl {
 			writer_.StartObject();
 
 #if _AF_JSON_USE_CLASS_TAGS
-			writer_.Key(standard_tags::tag_class_name, standard_tags::tag_class_name_sz, false);
-			writer_.String(_class_name.c_str(), _class_name.size(), false);
+// NOTE:	class_name and class_id are used for creating polymorphic object
+//			we are breaking JSON conventions here, but things work much more efficiently 
+//			if we insist that these fields are written first, when used
+//			we also want class_id to be written before class_name, when present
+//			because typically, polymorphic makers will use those more efficiently
+			if (_class_id != -1) {
+				writer_.Key(standard_tags::tag_class_id, standard_tags::tag_class_id_sz, false);
+				writer_.UInt(static_cast<unsigned>(_class_id));
+
+			}
+			if (!_class_name.empty()) {
+				writer_.Key(standard_tags::tag_class_name, standard_tags::tag_class_name_sz, false);
+				writer_.String(_class_name.c_str(), _class_name.size(), false);
+			}
 #endif
+			
 			for (auto const& h : _handlers) {
 #if _AF_SERIALIZATION_TERSE && !_AF_VERBOSE_WRITES_ALWAYS
 				if (h.second->will_write()) {
@@ -1081,228 +1086,417 @@ namespace impl {
 		}
 	};
 
-	// handler for dynamic object needs to be
-	template<typename target_t>
-	struct handler_dynamic_object_t;
+	namespace handler_makers {
+		// handler for dynamic object needs to be forward declared
+		template<typename target_t>
+		struct handler_dynamic_object_t;
 
-	namespace handler_traits {
-		using namespace serialization::traits::predicates;
+		namespace handler_traits {
+			using namespace serialization::traits::predicates;
 
 
-		template<typename target_t, typename = void>
-		struct handler_types {
-		};
+			template<typename target_t, typename = void>
+			struct handler_types {
+			};
 
-#define _JSON_HANDLER_TRAIT(HandlerT, ConditionT) \
+#define _JSON_HANDLER_TRAIT(HandlerT, IsPolymorphicT, ConditionT) \
 		template<typename target_t>\
-		struct handler_types<target_t, select_t<ConditionT>> {\
+		struct handler_types_t<target_t, ConditionT = true> {\
 			using handler_type = HandlerT<target_t>;\
+			const bool _is_polymorphic = IsPolymorphicT;\
 			using sfinae_condition_t = ConditionT;\
 		};
+			_AF_DECLARE_HAS_SUBTYPE(sfinae_condition_t);
 
+			template<typename target_t>
+			using is_simple_type_t = has_sfinae_condition_t_t<handler_types_t<target_t>>;
 
-		_JSON_HANDLER_TRAIT(handler_integral_t, if_integral_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_bitset_t, if_bitset_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_floating_t, if_floating_point_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_string_t, if_string_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_enum_t, if_enum_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_ptr_t, if_pointer_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_sequence_t, if_sequence_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_setish_t, if_setish_t<target_t>);
+			template<typename target_t>
+			using if_simple_polymorphic_maker_t = if_t < all_of_t<
+				is_simple_type<target_t>,
+				const_t<handler_types_t<target_t>::_is_polymorphic>,
+				typename handler_types_t<target_t>::sfinae_condition_t>;
+
+			template<typename target_t>
+			using if_simple_non_polymorphic_maker_t = if_t < all_of_t<
+				is_simple_type<target_t>,
+				not_t<const_t<handler_types_t<target_t>::_is_polymorphic>>,
+				typename handler_types_t<target_t>::sfinae_condition_t>;
+
+			_JSON_HANDLER_TRAIT(handler_integral_t, false, is_integral_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_bitset_t, false, is_bitset_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_floating_t, false, is_floating_point_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_string_t, false, is_string_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_enum_t, false, is_enum_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_ptr_t, true, is_pointer_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_sequence_t, true, is_sequence_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_setish_t, true, is_setish_t<target_t>);
 #if _AF_JSON_OPTIMISED_STRING_MAPS
-		_JSON_HANDLER_TRAIT(handler_pair_t, if_non_string_pair_t<target_t>);
-		_JSON_HANDLER_TRAIT(handler_string_pair_t, if_string_pair_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_pair_t, true, is_non_string_pair_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_string_pair_t, true, is_string_pair_t<target_t>);
 #else
-		_JSON_HANDLER_TRAIT(handler_pair_t, if_non_string_pair_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_pair_t, true, is_non_string_pair_t<target_t>);
 #endif
-		_JSON_HANDLER_TRAIT(handler_mapish_t, if_mapish_t<target_t>);
+			_JSON_HANDLER_TRAIT(handler_mapish_t, true, is_mapish_t<target_t>);
 
-	}
-
-	
-	// creator functions all need to follow a certain form
-	template<typename target_t, typename handler_traits::handler_types<target_t>::sfinae_condition_t = true>
-	handler_p make_json_handler(
-		target_t*								target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t>	contained_default_ = nullptr
-	) {
-		using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
-
-		return std::make_shared<handler_type>(
-			target_, 
-			default_, 
-			contained_default_);
-	}
-
-
-	// we need a special makers for object hadnlers
-	template<typename target_t>
-	inline handler_p make_dynamic_object_handler(
-			target_t* target_,
-			traits::initializer_function_t initializer_f_) {
-		return std::make_shared< handler_dynamic_object_t<target_t> >(
-			target_,
-			initializer_f_);
-	}
-	template<typename target_t, typename object_description_t>
-	inline handler_p make_object_handler_from_object_description(
-			target_t*					target_,
-			traits::default_p<target_t>	default_,
-			object_description_t const& object_description_) {
-		return std::make_shared< handler_object_t<target_t> >(
-			target_,
-			object_description_.class_tag(),
-			default_,
-			initializer_f_,
-			object_description_.pre_load_f(),
-			object_description_.post_load_f(),
-			object_description_.pre_save_f(),
-			object_description_.post_save_f(),
-			object_description_.handlers());
-	}
-	
-	template<typename target_t>
-	inline handler_p make_object_handler_from_type_description(
-			target_t* target_,
-			traits::default_p<target_t>	default_) {
-		auto& td = target_->template type_description<serialization_factory>();
-		auto object_description = 
-			td.to_impl<target_t>().make_object_description(*target_, default_ ? default_->value() : nullptr);
-		return make_object_handler_from_object_description(target_, default_, *object_description);
-	}
-
-	template<typename target_t>
-	inline handler_p make_object_handler_from_type_description_factory(
-			target_t* target_,
-			traits::default_p<target_t>	default_) {
-		auto factory = target_->type_description_factory();
-		auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
-		auto object_description = object_factory->template object_description<serialization_factory>();
-
-		return make_object_handler_from_object_description(target_, default_, *object_description);
-	}
-
-	template<typename target_t>
-	inline handler_p make_object_handler_from_json_handler(
-			target_t* target_,
-			traits::default_p<target_t>	default_) {
-		return target_->json_handler(default_);
-	}
-	
-	namespace object_predicates {
-		using namespace traits::predicates;
-		
-		_AF_DECLARE_HAS_MEMBER(json_handler);
-		// predicates for choosing the right way to access type description
-		template<typename target_t>
-		using if_use_json_handler_t = if_t<
-			has_json_handler_t<target_t>
-		>;
-
-
-		template<typename target_t>
-		using if_use_type_description_factory_t = if_t<
-			all_of_t<
-				not_t<has_json_handler_t<target_t>>,
-				has_type_description_factory_t<target_t>
-			>
-		>;
-
-		template<typename target_t>
-		using if_use_object_description_t = if_t<
-			all_of_t<
-				not_t<has_json_handler_t<target_t>>,
-				not_t<has_type_description_factory_t<target_t>>,
-				has_object_description_t<target_t>
-			>
-		>;
-
-		template<typename target_t>
-		using if_use_type_description_t = if_t<
-			all_of_t<
-				not_t<has_json_handler_t<target_t>>,
+			_AF_DECLARE_HAS_MEMBER(json_handler_cache);
+			// these are all used for creating object handlers
+			// predicates for choosing the best way to create a handler
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_handler_from_type_description_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				not_t<has_json_handler_cache_t<target_t>>,
 				not_t<has_type_description_factory_t<target_t>>,
 				not_t<has_object_description_t<target_t>>,
 				has_type_description_t<target_t>
-			>
-		>;
-	}
+				>
+			>;
 
-	// late bound handlers have a number of limitations:
-	// 1. no defaults (no idea what the type for it should be (might be able to deduce it dynamically, but it's becoming really complicated))
-	// 2. they can only be created using dynamic methods of construction - json_handler or factory method
-	template<typename target_t, object_predicates::if_use_json_handler_t<target_t> = true>
-	inline handler_p make_late_bound_json_handler(target_t* target_) {
-		return from_json_handler(target_, nullptr, nullptr);
-	}
-	template<typename target_t, object_predicates::if_use_type_description_factory_t<target_t> = true>
-	inline handler_p make_late_bound_json_handler(target_t* target_) {
-		return from_type_description_factory(target_, nullptr, nullptr);
-	}
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_handler_from_object_description_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				not_t<has_json_handler_cache_t<target_t>>,
+				not_t<has_type_description_factory_t<target_t>>,
+				has_object_description_t<target_t>
+				>
+			>;
 
-	template<typename target_t, object_predicates::if_use_json_handler_t<target_t> = true>
-	inline handler_p make_json_handler(
-		target_t* target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t> 	contained_default_ = nullptr,
-		
-	) {
-		_unused(contained_default_);
-		return from_json_handler(target_, default_, nullptr);
-	}
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_handler_from_type_description_factory_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				not_t<has_json_handler_cache_t<target_t>>,
+				has_type_description_factory_t<target_t>
+				>
+			>;
 
-	template<typename target_t, object_predicates::if_use_type_description_t<target_t> = true>
-	inline handler_p make_json_handler(
-		target_t*								target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t> 	contained_default_ = nullptr
-	) {
-		_unused(contained_default_);
-		return from_type_description(target_, default_, nullptr);
-	}
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_handler_from_json_handler_cache_t = if_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				has_json_handler_cache_t<target_t>
+			>;
 
-	// optimised version of making, for many small objects we want to avoid hitting the heap too much
-	template<typename target_t, object_predicates::if_use_object_description_t<target_t> = true>
-	inline handler_p make_json_handler(
-		target_t* target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t>	contained_default_ = nullptr
-	) {
-		_unused(contained_default_);
-		auto object_description = target_->template object_description<serialization_factory>();
-		
-		return from_object_description(target_, default_, *object_description);
-	}
-	template<typename target_t, object_predicates::if_use_type_description_factory_t<target_t> = true>
-	inline handler_p make_json_handler(
-		target_t* target_,
-		traits::default_p<target_t>				default_ = nullptr,
-		traits::default_contained_p<target_t>	contained_default_ = nullptr
-	) {
-		_unused(contained_default_);
-		return from_type_description_factory(target_, default_, nullptr);
-	}
 
+			// json_handler optimisation needs different predicates
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_cached_handler_from__from_type_description_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				not_t<has_type_description_factory_t<target_t>>,
+				not_t<has_object_description_t<target_t>>,
+				has_type_description_t<target_t>
+				>
+			>;
+
+
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_cached_handler_from__from_object_description_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				not_t<has_type_description_factory_t<target_t>>,
+				has_object_description_t<target_t>
+				>
+			>;
+
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_cached_handler_from__from_type_description_factory_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				is_null_polymorphic_maker_t<polymorphic_maker_t>,
+				has_type_description_factory_t<target_t>
+				>
+			>;
+
+
+			template<typename target_t, typename polymorphic_maker_t>
+			using if_dynamic_object_handler_t = if_t<
+				all_of_t<
+				not_t<handler_traits::is_simple_type_t<target_t>>,
+				not_t<is_null_polymorphic_maker_t<polymorphic_maker_t>>,
+				has_type_description_factory_t<target_t>
+				>
+			>;
+		}
+
+
+		// creator functions all need to follow a certain form
+
+		// making handlers for simple types
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			typename handler_traits::if_simple_non_polymorphic_maker_t<target_t> = true>
+		handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t>	contained_default_,
+			null_polymorphic_maker_t const& /*unused*/
+		) {
+			using handler_type = typename handler_traits::handler_types<target_t>::handler_type;
+
+			return std::make_shared<handler_type>(
+				target_,
+				default_,
+				contained_default_);
+		}
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			typename handler_traits::if_simple_polymorphic_maker_t<target_t> = true>
+		handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t>	contained_default_,
+			polymorphic_maker_t const& polymorphic_handler_
+		) {
+			using handler_type = typename handler_traits::handler_types<target_t, polymorphic_maker_t>::handler_type;
+
+			return std::make_shared<handler_type>(
+				target_,
+				default_,
+				contained_default_,
+				polymorphic_handler_);
+		}
+
+
+		// we need a special makers for object hadnlers
+		template<typename target_t, typename object_description_t>
+		inline handler_p make_object_handler_from_object_description(
+			target_t* target_,
+			traits::default_p<target_t>	default_,
+			object_description_t const& object_description_) {
+			return std::make_shared< handler_object_t<target_t> >(
+				target_,
+				object_description_.class_tag(),
+				object_description_.class_id(),
+				default_,
+				object_description_.pre_load_f(),
+				object_description_.post_load_f(),
+				object_description_.pre_save_f(),
+				object_description_.post_save_f(),
+				object_description_.handlers());
+		}
+
+		template<typename target_t>
+		inline handler_p make_object_handler_from_type_description(
+			target_t* target_,
+			traits::default_p<target_t>	default_) {
+			auto& td = target_t::template type_description<serialization_factory>();
+			auto object_description =
+				td.to_impl<target_t>().make_object_description(*target_, default_ ? default_->value() : nullptr);
+			return make_object_handler_from_object_description(target_, default_, *object_description);
+		}
+
+		template<typename target_t>
+		inline handler_p make_object_handler_from_type_description_factory(
+			target_t* target_,
+			traits::default_p<target_t>	default_) {
+			auto factory = target_->type_description_factory();
+			auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
+			auto object_description = object_factory->template object_description<serialization_factory>();
+
+			return make_object_handler_from_object_description(target_, default_, *object_description);
+		}
+
+		template<
+			typename target_t,
+			typename polymorphic_maker_t>
+		inline handler_p make_dynamic_object_handler(
+			target_t* target_,
+			polymorphic_maker_t const& polymorphic_maker_
+		) {
+			if (target_t) {
+				auto factory = target_->type_description_factory();
+				auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
+				return std::make_shared< handler_dynamic_object_t<target_t> >(
+					target_,
+					object_factory->class_name(),
+					object_factory->class_id(),
+					polymorphic_handler_);
+			}
+			return std::make_shared< handler_dynamic_object_t<target_t> >(
+				target_,
+				"",
+				size_t(-1),
+				polymorphic_handler_);
+		}
+		// dynamic object handlers are used to handle polymorphic types
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_dynamic_object_handler_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				/*unused*/,
+			traits::default_contained_p<target_t>	/*unused*/,
+			polymorphic_maker_t const& polymorphic_maker_
+		) {
+			return make_dynamic_object_handler(target_, polymorphic_maker_);
+		}
+
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_dynamic_object_handler_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_cached_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t>	contained_default_,
+			polymorphic_maker_t const& polymorphic_maker_
+		) {
+			return make_dynamic_object_handler(target_, polymorphic_maker_);
+		}
+		// makers for object handlers - there's a few; the most efficient one is choosen
+		// at compile time, based on available functions on the object 
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_handler_from_type_description_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			return make_object_handler_from_type_description(target_, default_);
+		}
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_cached_handler_from_type_description_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_cached_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			return make_object_handler_from_type_description(target_, default_);
+		}
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_handler_from_object_description_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			auto object_description = target_->template object_description<serialization_factory>();
+			return make_object_handler_from_object_description(target_, default_, object_description);
+		}
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_cached_handler_from_object_description_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_cached_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			auto object_description = target_->template object_description<serialization_factory>();
+			return make_object_handler_from_object_description(target_, default_, object_description);
+		}
+
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_handler_from_type_description_factory_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			return make_object_handler_from_type_description_factory(target_, default_);
+		}
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_cached_handler_from_type_description_factory_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_cached_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const&				/*unused*/
+		) {
+			return make_object_handler_from_type_description_factory(target_, default_);
+		}
+
+		// handler cache universal implementation
+		struct json_handler_cache_t {
+			virtual ~json_handler_cache_t() {}
+		};
+		using json_handler_cache_p = std::shared_ptr<json_handler_cache_t>;
+
+		template<typename target_t>
+		struct json_handler_cache_impl_t {
+			handler_p _handler_cache;
+
+			json_handler_cache() : _handler_cache(nullptr) {}
+
+			template<typename polymorphic_maker_t>
+			inline json_handler_p create(
+				target_t* that_,
+				default_value_p<target_t> default_,
+				polymorphic_maker_t const& polymorphic_maker_) {// this cache is per instance, so it the polymorphic maker, no need to check for consistency there
+				if (!_handler_cache)
+					_handler_cache = make_cached_json_handler(that_, default_, polymorphic_maker_);
+				else
+					_handler_cache->set_default(default_);
+				return _handler_cache;
+			}
+		};
+
+		template<
+			typename target_t,
+			typename polymorphic_maker_t,
+			handler_traits::if_handler_from_json_handler_cache_t<target_t, polymorphic_maker_t> = true>
+		inline handler_p make_json_handler(
+			target_t* target_,
+			traits::default_p<target_t>				default_,
+			traits::default_contained_p<target_t> 	/*unused*/,
+			polymorphic_maker_t const& polymorphic_maker_
+		) {
+			auto handler_cache = target_->json_handler_cache();
+			auto cache_impl = static_cast<json_handler_cache_impl<target_t>&>(handler_cache);
+			return cache_impl.create(default_, polymorphic_maker_);
+		}
+	}// namespace handler_makers
 
 	// handler for dynamic object
-	template<typename target_t>
+	template<typename target_t, typename polymorphic_maker_t>
 	struct handler_dynamic_object_t : public handler_value_t<target_t> {
 		using base_t = handler_value_t<target_t>;
 		using target_handler_p = handler_p;
 		using string_t = traits::string_t;
 
-		bool _reading_class;
+		bool _reading_class; //  only true when we read class_id or class_name tag (whichever comes first)
+		size_t _class_id;
+		string_t _class_name;
 		target_handler_p _target_handler;
-		initializer_function_t _initializer_f;
+		polymorphic_maker_t const _polymorphic_maker;
 
 		handler_dynamic_object_t // NOTE: dynamic objects don't allow defaults
 			target_t* target_,
-			initializer_function_t initializer_f_
+			string_t const& class_name_,
+			size_t class_id_ = size_t(-1),
+			polymorphic_maker_t polymorphic_maker_
 			) : base_t(target_, nullptr),
 			_reading_class(false),
+			_class_name(class_name_),
+			_class_id(class_id_),
 			_target_handler(nullptr),
-			_initializer_f(initializer_f_){
+			_polymorphic_maker(polymorphic_maker_){
 
 		}
 		template<typename... ParamsT>
@@ -1315,32 +1509,62 @@ namespace impl {
 			}
 			return ret;
 		}
+		inline void make_target_handler() {
+			if (_target_handler)
+				return;
+			if (_class_id == size_t(-1) && _class_name.empty() && base_t::_target) {
+				auto factory = target_->type_description_factory();
+				auto object_factory = std::static_pointer_cast<type_description_factory_instance_t<target_t>>(factory);
+				_class_id = object_factory->class_id();
+				_class_name = object_factory->class_name();
+			}
+			if(_class_id != size_t(-1))
+				_polymorphic_maker.make_from_class_id(_class_id, &base_t::_target);
+			else {
+				AF_ASSERT(!_class_name.empty(), "Either class id or class name must be supplied for polymorphic de-serialization.");
+				_polymorphic_maker.make_from_class_name(class_name, &base_t::_target);
+			}
+			_target_handler = serialization_factory::make_handler(
+				base_t::_target, nullptr, nullptr, null_polymorphic_maker());
+		}
+		template<typename integral_t>
+		inline void handle_class_id(integral_t class_id_) {
+			if (_reading_class) {
+				_reading_class = false;
+				_class_id = static_cast<size_t>(class_id_);
+				if (_target_handler)
+					return false;
+				make_target_handler();
+				delegate_f(&handler_t::StartObject);
+				delegate_f(&handler_t::Key, standard_tags::tag_class_id, standard_tags::tag_class_id_sz, false);
+			}
+		}
+		inline bool handle_class_name(const char_t* str, size_t length) {
+			if (_reading_class) {
+				_reading_class = false;
+				_class_name = string_t(str, lenght); 
+				if (_target_handler)
+					return false;
+				make_target_handler();
+				delegate_f(&handler_t::StartObject);
+				delegate_f(&handler_t::Key, standard_tags::tag_class_name, standard_tags::tag_class_name_sz, false);
+			}
+		}
+
 		bool Null() override {
 			if (_target_handler)
 				return delegate_f(&handler_t::Null);
 			return base_t::Null();
 		}
 		bool Bool(bool b) override { return delegate_f(&handler_t::Bool, b); }
-		bool Int(int i) override { return delegate_f(&handler_t::Int, i); }
-		bool Uint(unsigned i) override { return delegate_f(&handler_t::Uint, i); }
-		bool Int64(int64_t i) override { return delegate_f(&handler_t::Int64, i); }
-		bool Uint64(uint64_t i) override { return delegate_f(&handler_t::Uint64, i); }
+		bool Int(int i) override { handle_class_id(i);  return delegate_f(&handler_t::Int, i); }
+		bool Uint(unsigned i) override { handle_class_id(i); return delegate_f(&handler_t::Uint, i); }
+		bool Int64(int64_t i) override { handle_class_id(i); return delegate_f(&handler_t::Int64, i); }
+		bool Uint64(uint64_t i) override { handle_class_id(i); return delegate_f(&handler_t::Uint64, i); }
 		bool Double(double d) override { return delegate_f(&handler_t::Double, d); }
 		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&handler_t::RawNumber, str, length, copy); }
 		bool String(const char_t* str, size_t length, bool copy) override {
-			if (_reading_class) {
-				AF_ASSERT(_initializer_f, "Initializer function is not supplied for a dynamic object (class: %)", str);
-				_reading_class = false;
-				if (_initializer_f)
-					_initializer_f(str, &(base_t::_target));
-
-				GET_HANDLER_FOR_TARGET
-
-					base_t::_target->prepare_for_loading();
-				delegate_f(&handler_t::StartObject);
-				delegate_f(&handler_t::String, str, length, copy);
-				return true;
-			}
+			handle_class_name(str, length);
 			return delegate_f(&handler_t::String, str, length, copy);
 		}
 		bool StartObject() override {
@@ -1351,7 +1575,11 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) {
 			if (_target_handler)
 				return delegate_f(&handler_t::String, str, length, copy);
-			if (util::equal_tag(str, length, standard_tags::tag_class)) {
+			if (util::equal_tag(str, length, standard_tags::tag_class_name)) {
+				_reading_class = true;
+				return true;
+			}
+			if (util::equal_tag(str, length, standard_tags::tag_class_id)) {
 				_reading_class = true;
 				return true;
 			}
@@ -1363,23 +1591,40 @@ namespace impl {
 		bool EndArray(size_t elementCount) override { return delegate_f(&handler_t::EndArray, elementCount); }
 
 		void write(writer_wrapper_t& writer_) const override {
+#if _AF_JSON_USE_CLASS_TAGS
+			// NOTE:	class_name and class_id are used for creating polymorphic object
+			//			we are breaking JSON conventions here, but things work much more efficiently 
+			//			if we insist that these fields are written first, when used
+			//			we also want class_id to be written before class_name, when present
+			//			because typically, polymorphic makers will use those more efficiently
+			if (_class_id != -1) {
+				writer_.Key(standard_tags::tag_class_id, standard_tags::tag_class_id_sz, false);
+				writer_.UInt(static_cast<unsigned>(_class_id));
+
+			}
+			if (!_class_name.empty()) {
+				writer_.Key(standard_tags::tag_class_name, standard_tags::tag_class_name_sz, false);
+				writer_.String(_class_name.c_str(), _class_name.size(), false);
+			}
+#endif			
 			if (!_target_handler)
-				GET_HANDLER_FOR_TARGET
-				_target_handler->write(writer_);
+				make_target_handler();
+			_target_handler->write(writer_);
 		}
 
 	};
 
 	// serialization factory is passed through to the type_description hierarchy
 	struct serialization_factory {
-		template<typename target_t>
+		template<typename target_t, typename polymorphic_maker_t>
 		static inline handler_p make_handler(
-			target_t* target_,
-			traits::default_p<target_t>				default_,
-			traits::default_contained_p<target_t>	contained_default_,
-			traits::initializer_function_t			initializer_f_
+			target_t*								target_,
+			traits::default_p<target_t>				default_ = nullptr,
+			traits::default_contained_p<target_t>	contained_default_ = nullptr,
+			polymorphic_maker_t const&				polymorphic_maker_ = null_polymorphic_maker()
 		) {
-			return make_json_handler<target_t>(target_, default_, contained_default_, initializer_f_);
+			return handler_makers::make_json_handler<target_t, polymorphic_maker_t>(
+				target_, default_, contained_default_, polymorphic_maker_);
 		}
 	};
 
@@ -1505,49 +1750,11 @@ namespace impl {
 } // namespace impl
 
 template<typename target_t>
-using json_handler_p = impl::handler_p;
 
-template<typename target_t>
-using default_p = traits::default_p<target_t>;
-
-using json_serialization_factory = impl::serialization_factory;
-
-// TODO: this function ignores object_description and type_description_factory functions
-template<typename target_t, typename type_description_t>
-inline json_handler_p make_json_handler_from_type_description(
-		target_t* target_,
-		traits::default_p<target_t>	default_,
-		type_description_t const& type_description_,
-		traits::initializer_function_t const& initializer_f_) {
-	return impl::from_type_description(target_, default_, type_description_, initializer_f_);
-}
-
-
-struct json_handler_cache {
-	json_handler_p _handler_cache;
-
-	json_handler_cache() : _handler_cache(nullptr) {}
-
-	template<typename impl_t>
-	inline json_handler_p create(
-			impl_t* that_, 
-			default_value_p<impl_t> default_ = nullptr,
-			traits::initializer_function_t const& initializer_f_) {
-		if (!_handler_cache)
-			//TODO: this should use serialization_factory
-			_handler_cache = make_json_handler_from_type_description(
-				that_, default_,
-				impl_t::template type_description<json_serialization_factory>(),
-				initializer_f_);
-		else // TODO: if you don't do weird stuff, this is probably unnecessary, defaults should be per instance
-			_handler_cache->set_default(default_);
-		return _handler_cache;
-	}
-};
 #define AF_IMPLEMENTS_JSON_HANDLER(TYPE) \
-    autotelica::json::json_handler_cache __handler_cache;\
-    virtual autotelica::json::json_handler_p<TYPE> json_handler(default_p<TYPE> default_ = nullptr) {\
-        return __handler_cache.create(this, default_);\
+    autotelica::json::json_handler_cache_impl_t<TYPE> __handler_cache;\
+    virtual autotelica::json::json_handler_cache_t& json_handler_cache() {\
+        return __handler_cache;\
     }
 
 
@@ -1745,7 +1952,7 @@ struct reader {
 		
 		Reader reader;
 		//TODO: this should use serialization_factory
-		auto handler = impl::make_json_handler(&target_);
+		auto handler = impl::serialization_factory::make_handler(&target_);
 		handler->prepare_for_loading();
 		using reader_factory_t = encoding_traits::reading<stream_t, encoding_v>;
 		auto actual_stream = reader_factory_t::input_stream(stream_);
@@ -1826,7 +2033,7 @@ struct writer {
 		using namespace rapidjson;
 		using namespace impl;
 		//TODO: this should use serialization_factory
-		auto handler = impl::make_json_handler(&target_);
+		auto handler = impl::serialization_factory::make_handler(&target_);
 		auto writer_wrapper = writer_wrapper_impl_t<writer_t>{ writer_ };
 		handler->write(writer_wrapper);
 	}

@@ -20,7 +20,10 @@ namespace autotelica {
 		// conditions with the result of the test exposed via a static boolean constant "value"
 		// (like std meta programming library types do).
 		// 
-
+		template<bool value_>
+		struct const_t {
+			static const bool value = value_;
+		};
 		// if_t enablest a definition if its argument evaluates to true.
 		template <typename condition_t>
 		using if_t = std::enable_if_t<condition_t::value, bool>;
@@ -319,29 +322,29 @@ namespace autotelica {
 		template<typename T>
 		using if_non_string_map_t = if_t<
 			all_of_t<
-				is_mapish_t<T>,
-				not_t<is_string_t<typename T::key_t>>>>;
+			is_mapish_t<T>,
+			not_t<is_string_t<typename T::key_t>>>>;
 
 		// choose if T is a map indexed by strings
 		template<typename T>
 		using if_string_map_t = if_t<
 			all_of_t<
-				is_mapish_t<T>,
-				is_string_t<typename T::key_t>>>;
+			is_mapish_t<T>,
+			is_string_t<typename T::key_t>>>;
 
 		// choose if T is a pair where first type is not a string 
 		template<typename T>
 		using if_non_string_pair_t = if_t<
 			all_of_t<
-				is_pair_t<T>,
-				not_t<is_string_t<typename T::first_type>>>>;
+			is_pair_t<T>,
+			not_t<is_string_t<typename T::first_type>>>>;
 
 		// choose if T is a pair where first type is a string 
 		template<typename T>
 		using if_string_pair_t = if_t<
 			all_of_t<
-				is_pair_t<T>,
-				is_string_t<typename T::first_type>>>;
+			is_pair_t<T>,
+			is_string_t<typename T::first_type>>>;
 
 
 
@@ -351,8 +354,8 @@ namespace autotelica {
 }
 
 // _AF_DECLARE_HAS_MEMBER declares a sfinae predicate 
-// which is true if its type parameter has a templated member with a given name ...
-// that can be invoked with types passed in as variadic parameters
+// which is true if its type parameter has a member with a given name
+// (when the member is a template, you must pass as further arguments types with which the template can be instantiated)
 // examples:
 //		_AF_DECLARE_HAS_MEMBER(f1)
 //			has_f1_t<A> is std::true_type if class A implements a public member or a public static f
@@ -381,3 +384,21 @@ namespace autotelica {
 	template<typename T>\
 	struct has_##function_name##_t : has_##function_name##_impl_t<T>::type {};\
 	template<typename T> using if_has_##function_name##_t = if_t<has_##function_name##_t<T>>;
+
+
+
+// _AF_DECLARE_HAS_SUBTYPE declares a sfinae predicate 
+// which is true if its type parameter has a subtype with the given name implemented
+// example:
+//		_AF_DECLARE_HAS_SUBTYPE(some_type);
+//		has_some_type_t<A> is std::true_type if A has a subtype some_type
+//		if_has_some_type_t<A> is an alias for if_t<has_some_type_t<A>>
+#define _AF_DECLARE_HAS_SUBTYPE(subtype_t)\
+	template<typename T, typename switch_t = bool>\
+	struct has_##subtype_t##_impl_t : std::false_type {};\
+	template<typename T>\
+	struct has_##subtype_t##_impl_t<T, case_t<not_t<std::is_same<typename T::subtype_t, void>>>> : std::true_type {};\
+	template<typename T>\
+	struct has_##subtype_t##_t : has_##subtype_t##_impl_t<T>::type {};\
+	template<typename T>\
+	using if_has_##subtype_t##_t = if_t<has_##subtype_t##_t<T>>;

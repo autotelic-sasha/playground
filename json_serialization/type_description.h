@@ -113,6 +113,9 @@ namespace autotelica {
 			}
 		};
 
+		// polymorphic_member_description_instance_t is the only way to handle polymorphic objects
+		// i.e. root object cannot be polymorphic
+		// TODO: document this limitation
 		template<typename object_t, typename target_t, typename factory_t, typename polymorphic_maker_t = null_polymorphic_maker_t>
 		struct polymorphic_member_description_instance_t: public member_description_t<object_t, factory_t>{
 
@@ -229,7 +232,8 @@ namespace autotelica {
 				using default_p = traits::default_p<object_t>;
 
 				object_t& _object;
-				string_t const& _class;
+				string_t const& _class_name;
+				size_t const _class_id;
 				default_p _default;
 				handlers_t _handlers;
 				setup_function_t _pre_load_f;
@@ -241,14 +245,15 @@ namespace autotelica {
 
 				object_description_t(
 					object_t& object_,
-					string_t const& class_,
+					string_t const& class_name_,
+					size_t const class_id_,
 					default_p default_,
 					handlers_t const& handlers_,
 					setup_function_t pre_load_f_,
 					setup_function_t post_load_f_,
 					setup_function_t pre_save_f_,
 					setup_function_t post_save_f_) :
-					_object(object_), _class(class_),
+					_object(object_), _class_name(class_),_class_id(class_id_),
 					_default(default_), _handlers(handlers_),
 					_pre_load_f(pre_load_f_), _post_load_f(post_load_f_),
 					_pre_save_f(pre_save_f_), _post_save_f(post_save_f_) {
@@ -256,7 +261,8 @@ namespace autotelica {
 				}
 
 				inline object_t& object() { return _object; }
-				inline string_t const& class_tag() const { return _class; }
+				inline string_t const& class_name() const { return _class_name; }
+				inline size_t const class_id() const { return _class_id; }
 				inline default_p const& default_() const { return _default; }
 				inline handlers_t const& handlers() const { return _handlers; }
 				inline setup_function_t const& pre_load_f() const { return _pre_load_f; }
@@ -270,7 +276,8 @@ namespace autotelica {
 			
 			inline object_description_p make_object_description(
 				object_t& object_,
-				string_t const& class_,
+				string_t const& class_name_,
+				size_t const class_id_,
 				traits::default_p<object_t> default_,
 				traits::handlers_t const& handlers_,
 				traits::setup_function_t pre_load_f_,
@@ -280,7 +287,8 @@ namespace autotelica {
 			) const {
 				return std::make_shared<object_description_t>(
 					object_,
-					class_, 
+					class_name_,
+					class_id_
 					default_,
 					handlers_,
 					pre_load_f_,
@@ -290,7 +298,8 @@ namespace autotelica {
 			}
 		protected:
 			bool _done;
-			string_t const _class;
+			string_t const _class_name;
+			size_t const _class_id;
 			member_function_t _pre_load_f;
 			member_function_t _pre_save_f;
 			member_function_t _post_load_f;
@@ -316,9 +325,10 @@ namespace autotelica {
 #endif
 			}
 		public:
-			type_description_impl_t(string_t const& class_ = "") :
+			type_description_impl_t(string_t const& class_name_, size_t const class_id_) :
 				_done(false),
-				_class(class_),
+				_class_name(class_),
+				_class_id(class_id),
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
 				_post_load_f(nullptr),
@@ -330,7 +340,8 @@ namespace autotelica {
 			
 
 			bool done() const { return _done; }
-			string_t const& class_tag() const { return _class; }
+			string_t const& class_name() const { return _class_name; }
+			size_t const class_id() const { return _class_id;  }
 			member_function_t const& pre_load_f() const { return _pre_load_f; }
 			member_function_t const& pre_save_f() const { return _pre_save_f; }
 			member_function_t const& post_load_f() const { return _post_load_f; }
@@ -451,8 +462,9 @@ namespace autotelica {
 		};
 		
 		template<typename object_t, typename factory_t>
-		type_description_impl_t<object_t, factory_t> begin_object(typename traits::string_t const& class_ = "") {
-			return type_description_impl_t<object_t, factory_t>(class_);
+		type_description_impl_t<object_t, factory_t> begin_object(
+				typename traits::string_t const& class_name_ = "", size_t const class_id_ = size_t(-1)) {
+			return type_description_impl_t<object_t, factory_t>(class_name_, class_id_);
 		}
 
 		struct type_description_factory_t {
@@ -481,6 +493,7 @@ namespace autotelica {
 		template<typename object_t>
 		class type_description_factory_instance_t : public type_description_factory_t {
 			object_t& _object;
+			using string_t = traits::string_t;
 		public:
 			type_description_factory_instance_t(object_t& object_) : _object(object_) {}
 
@@ -491,6 +504,8 @@ namespace autotelica {
 			inline type_description_impl_t<object_t, factory_t> const& type_description() const {
 				return object_t::template type_description<factory_t>().to_impl<object_t>();
 			}
+			inline string_t const& class_name() const { return type_description().class_name(); }
+			inline size_t const class_id() const { return type_description().class_id(); }
 
 			template<typename factory_t>
 			inline object_description_p<factory_t> object_description() const {

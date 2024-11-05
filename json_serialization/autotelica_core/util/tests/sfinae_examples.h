@@ -69,7 +69,13 @@ namespace autotelica {
                 template<typename T1, typename T2 >
                 static T1 templated_f2(T1 t1, T2 t2) { return t1 + t2; }
 
+                using some_type_t = int;
+
             };
+            struct B {
+
+            };
+            _AF_DECLARE_HAS_SUBTYPE(some_type_t);
             _AF_DECLARE_HAS_MEMBER(static_f);
             _AF_DECLARE_HAS_MEMBER(member_f);
             _AF_DECLARE_HAS_MEMBER(nonexistent_f);
@@ -89,12 +95,20 @@ namespace autotelica {
                 AF_TEST_RESULT("SEQUENCE", simple_type_switch(t));
                 std::map<int, int> m = { {1,2},{3,4} };
                 AF_TEST_RESULT("OTHER", simple_type_switch(m));
+                AF_TEST_RESULT(true, has_some_type_t_t<A>::value);
                 AF_TEST_RESULT(true, has_static_f_t<A>::value);
                 AF_TEST_RESULT(true, has_member_f_t<A>::value);
                 AF_TEST_RESULT(false, has_nonexistent_f_t<A>::value);
                 AF_TEST_RESULT(true, has_templated_f1_t<A>::value);
                 AF_TEST_RESULT(true, has_templated_f2_t<A>::value);
                 AF_TEST_RESULT(false, has_templated_f3_t<A>::value);
+                AF_TEST_RESULT(false, has_some_type_t_t<B>::value);
+                AF_TEST_RESULT(false, has_static_f_t<B>::value);
+                AF_TEST_RESULT(false, has_member_f_t<B>::value);
+                AF_TEST_RESULT(false, has_nonexistent_f_t<B>::value);
+                AF_TEST_RESULT(false, has_templated_f1_t<B>::value);
+                AF_TEST_RESULT(false, has_templated_f2_t<B>::value);
+                AF_TEST_RESULT(false, has_templated_f3_t<B>::value);
 
             }
         }
