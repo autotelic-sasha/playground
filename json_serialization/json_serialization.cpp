@@ -49,11 +49,11 @@ struct test2 {//} : public json_handler_cache<test2> {
     // TODO: test how inheritance will work
     template<typename serialization_factory_t>
     static type_description_t<serialization_factory_t>  const& type_description() {
-        static auto description = 
-            begin_object<test2, serialization_factory_t>("test2").
-                member("i", &test2::i, 2510).
-                member("d", &test2::d, 1.991).
-                member("ints", &test2::ints, {1,2,3}).
+        static const auto description =
+            begin_object<test2, serialization_factory_t>("test2", 1).
+                member3("i", &test2::i, 2510).
+                member3("d", &test2::d, 1.991).
+                member3("ints", &test2::ints, {1,2,3}).
             end_object();
         return description;
     }
@@ -67,6 +67,7 @@ struct test2 {//} : public json_handler_cache<test2> {
 int main()
 {
     try {
+
         //test1 t(1991);
         //auto js = json::writer<>::to_string(t);
         //test1 t2, t3;
@@ -74,7 +75,7 @@ int main()
         //json::reader<>::from_string(t2, js);
         //std::cout << js << std::endl;
         //json::reader<>::from_string(t3, "{}");
-        //std::cout << json::writer<>::to_string(t3) << std::endl;*/
+        //std::cout << json::writer<>::to_string(t3) << std::endl;
         //autotelica::serialization::traits::default_p<double> a;
         //bool is = std::is_function<decltype(test2::type_description)>::value;
         test2 t_2(1991);

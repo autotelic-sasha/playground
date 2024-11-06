@@ -164,14 +164,16 @@ namespace autotelica {
 		}
 
 		template<typename object_t, typename target_t, typename factory_t, typename default_value_t,
-			if_t<std::is_same<default_value_t, typename member_description_instance_t<object_t, target_t, factory_t>::target_default_p>> = true>
+			if_t< any_of_t<
+				std::is_constructible<target_t, default_value_t>,
+				std::is_assignable<target_t, default_value_t>>> = true>
 		member_description_p<object_t, factory_t> make_member_description(
 			typename member_description_instance_t<object_t, target_t, factory_t>::key_t const& key_,
 			typename member_description_instance_t<object_t, target_t, factory_t>::target_p target_,
-			default_value_t default_value_
+			default_value_t const& default_value_
 		) {
 			return std::make_shared<member_description_instance_t<object_t, target_t, factory_t>>(
-				key_, target_, default_value_, nullptr);
+				key_, target_, make_default_value(default_value_), nullptr);
 		}
 
 		template<typename object_t, typename target_t, typename factory_t, typename polymorphic_maker_t, 
@@ -189,8 +191,8 @@ namespace autotelica {
 		member_description_p<object_t, factory_t> make_member_description(
 			typename member_description_instance_t<object_t, target_t, factory_t>::key_t const& key_,
 			typename member_description_instance_t<object_t, target_t, factory_t>::target_p target_,
-			typename member_description_instance_t<object_t, target_t, factory_t>::target_default_p default_value_ = nullptr,
-			typename member_description_instance_t<object_t, target_t, factory_t>::target_contained_default_p contained_default_value_ = nullptr
+			typename member_description_instance_t<object_t, target_t, factory_t>::target_default_p default_value_,
+			typename member_description_instance_t<object_t, target_t, factory_t>::target_contained_default_p contained_default_value_
 		) {
 			return std::make_shared<member_description_instance_t<object_t, target_t, factory_t>>(
 				key_, target_, default_value_, contained_default_value_);
@@ -225,7 +227,7 @@ namespace autotelica {
 			using member_function_t = void (object_t::*)();
 			using member_description_p = member_description_p<object_t, factory_t>;
 			using member_descriptions_t = std::vector<member_description_p>;
-
+			using this_t = type_description_impl_t<object_t, factory_t>;
 			class object_description_t {
 				using setup_function_t = traits::setup_function_t;
 				using handlers_t = traits::handlers_t;
@@ -253,7 +255,7 @@ namespace autotelica {
 					setup_function_t post_load_f_,
 					setup_function_t pre_save_f_,
 					setup_function_t post_save_f_) :
-					_object(object_), _class_name(class_),_class_id(class_id_),
+					_object(object_), _class_name(class_name_),_class_id(class_id_),
 					_default(default_), _handlers(handlers_),
 					_pre_load_f(pre_load_f_), _post_load_f(post_load_f_),
 					_pre_save_f(pre_save_f_), _post_save_f(post_save_f_) {
@@ -288,7 +290,7 @@ namespace autotelica {
 				return std::make_shared<object_description_t>(
 					object_,
 					class_name_,
-					class_id_
+					class_id_,
 					default_,
 					handlers_,
 					pre_load_f_,
@@ -327,8 +329,8 @@ namespace autotelica {
 		public:
 			type_description_impl_t(string_t const& class_name_, size_t const class_id_) :
 				_done(false),
-				_class_name(class_),
-				_class_id(class_id),
+				_class_name(class_name_),
+				_class_id(class_id_),
 				_pre_load_f(nullptr),
 				_pre_save_f(nullptr),
 				_post_load_f(nullptr),
@@ -369,7 +371,7 @@ namespace autotelica {
 				return *this;
 			}
 
-			template<typename target_t>
+			template<typename target_t, typename = void>
 			inline type_description_impl_t& member(
 				typename traits::key_t const& key_,
 				target_t object_t::* target_
@@ -382,20 +384,33 @@ namespace autotelica {
 				return *this;
 			}
 
-			template<typename target_t, typename polymorphic_maker_or_default_t>
-			inline type_description_impl_t& member(
+			//TODO: this needs to be tested throroughly - stepped through, for polymorphic makers
+			template<typename target_t, typename polymorphic_maker_or_default_t = target_t>
+			inline this_t& member3(
 				key_t const& key_,
 				target_t object_t::* target_,
 				polymorphic_maker_or_default_t const& polymorphic_maker_or_defult_
 			) {
 				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
 				validate_key(key_);
-				auto member_description(make_member_description(
+				auto member_description(make_member_description<object_t, target_t, factory_t, polymorphic_maker_or_default_t >(
 					key_, target_, polymorphic_maker_or_defult_));
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
-
+			/*template<typename target_t>
+			inline type_description_impl_t& member(
+				key_t const& key_,
+				target_t object_t::* target_,
+				target_t const& default_
+			) {
+				AF_ASSERT(!_done, "Cannot append description data once end_object is invoked.");
+				validate_key(key_);
+				auto member_description(
+					make_member_description<object_t, target_t, factory_t>(key_, target_, default_));
+				_member_descriptions.push_back(member_description);
+				return *this;
+			}*/
 			template<typename target_t, typename element_t>
 			inline type_description_impl_t& member(
 				key_t const& key_,
@@ -445,7 +460,7 @@ namespace autotelica {
 			) const {
 				auto od = make_object_description(
 					object,
-					_class,
+					_class_name, _class_id,
 					default_?make_default_value(*default_):nullptr,
 					traits::handlers_t(),
 					wrap_function(object, _pre_load_f),

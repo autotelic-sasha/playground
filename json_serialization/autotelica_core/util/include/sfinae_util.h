@@ -20,10 +20,10 @@ namespace autotelica {
 		// conditions with the result of the test exposed via a static boolean constant "value"
 		// (like std meta programming library types do).
 		// 
-		template<bool value_>
-		struct const_t {
-			static const bool value = value_;
-		};
+		// sometimes we just need a type
+		template<bool value_v>
+		struct const_t : public std::integral_constant<bool, value_v> {};
+
 		// if_t enablest a definition if its argument evaluates to true.
 		template <typename condition_t>
 		using if_t = std::enable_if_t<condition_t::value, bool>;
@@ -216,6 +216,22 @@ namespace autotelica {
 		template<typename T>
 		using is_value_grid_t = std_disambiguation::is_value_grid_t<T>;
 
+		// a few handy little helpers
+		template<typename T>
+		using is_pointer_t = any_of_t<is_shared_ptr_t<T>, std::is_pointer<T>>;
+		
+		// map where key is not a string
+		template<typename T>
+		using is_non_string_map_t = all_of_t<is_mapish_t<T>,not_t<is_string_t<typename T::key_t>>>;
+		// map where key is a string
+		template<typename T>
+		using is_string_map_t = all_of_t<is_mapish_t<T>,is_string_t<typename T::key_t>>;
+		// is a pair where first type is not a string 
+		template<typename T>
+		using is_non_string_pair_t = all_of_t<is_pair_t<T>,not_t<is_string_t<typename T::first_type>>>;
+		// a pair where first type is a string 
+		template<typename T>
+		using is_string_pair_t = all_of_t<is_pair_t<T>, is_string_t<typename T::first_type>>;
 		// Selectors
 		// Predicates to use a particular implementation of a templated function
 		// for commonly used types.
@@ -310,8 +326,7 @@ namespace autotelica {
 
 		// choose if T is a pointer type
 		template<typename T>
-		using if_pointer_t = if_t<
-			any_of_t<is_shared_ptr_t<T>, std::is_pointer<T>>>;
+		using if_pointer_t = if_t<is_pointer_t<T>>;
 
 		// choose if T is a bitset
 		template<typename T>
@@ -320,33 +335,19 @@ namespace autotelica {
 
 		// choose if T is a map not indexed by strings
 		template<typename T>
-		using if_non_string_map_t = if_t<
-			all_of_t<
-			is_mapish_t<T>,
-			not_t<is_string_t<typename T::key_t>>>>;
+		using if_non_string_map_t = if_t<is_non_string_map_t<T>>;
 
 		// choose if T is a map indexed by strings
 		template<typename T>
-		using if_string_map_t = if_t<
-			all_of_t<
-			is_mapish_t<T>,
-			is_string_t<typename T::key_t>>>;
+		using if_string_map_t = if_t<is_string_map_t<T>>;
 
 		// choose if T is a pair where first type is not a string 
 		template<typename T>
-		using if_non_string_pair_t = if_t<
-			all_of_t<
-			is_pair_t<T>,
-			not_t<is_string_t<typename T::first_type>>>>;
+		using if_non_string_pair_t = if_t<is_non_string_pair_t<T>>;
 
 		// choose if T is a pair where first type is a string 
 		template<typename T>
-		using if_string_pair_t = if_t<
-			all_of_t<
-			is_pair_t<T>,
-			is_string_t<typename T::first_type>>>;
-
-
+		using if_string_pair_t = if_t<is_string_pair_t<T>>;
 
 		// unused marks things as unused, so compilers don't moan
 		template <typename... Args> inline void _unused(Args&&...) {}
