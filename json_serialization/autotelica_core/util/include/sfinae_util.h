@@ -351,6 +351,184 @@ namespace autotelica {
 
 		// unused marks things as unused, so compilers don't moan
 		template <typename... Args> inline void _unused(Args&&...) {}
+	
+		// function_signatures namespace contains utilities for inspecting functions
+		// 
+		// the syntax becomes boring, so the core functionlity is wrapped in macros:
+		// 
+		//		_af_number_of_arguments(function_)	is constexpr number of arguments a function takes
+		//		_af_return_type(function_)			is the return type of a function
+		//		_af_argument_type(function_, i)		is the type of the i-th argument
+		//
+		//		_af_signature(function_)				creates the type for signature_t trait
+		//
+		//  signature_t can be created for function pointers, member function pointers, 
+		//	static member function pointers, functor objects, and lambdas
+		//
+		//	if created succesfully, it exposes:
+		//		size_t arguments_n				constexpr number of arguments the function takes
+		//		return_t						the return type of a function
+		//		template<int i> argument_t		the type of the i-th argument
+		//
+		//	the signatures can be traversed in SAX like fashion, more details below and in examples.
+		namespace function_signatures {
+
+			// to deal with functors (including lambdas) we need a predicate to detect them
+			template<typename T, typename switch_t = bool>
+			struct is_functor_impl_t : std::false_type {};
+			template<typename T >
+			struct is_functor_impl_t<T,
+				case_t<std::is_member_pointer<decltype(&T::operator())>>> : std::true_type {};
+			template<typename T >
+			struct is_functor_t : is_functor_impl_t<T>::type {};
+			template<typename T> using if_is_functor_t = if_t<is_functor_t<T>>;
+			template<typename T> using if_is_not_functor_t = if_t<not_t<is_functor_t<T>>>;
+
+			// signature_t implements all the clever bits
+			template<typename T> struct signature_t;
+
+			// function pointers
+			template<typename return_type>
+			struct signature_t<return_type(*)(void)> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = 0;
+			};
+			template<typename return_type, typename ... argument_types>
+			struct signature_t<return_type(*)(argument_types...)> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = sizeof...(argument_types);
+
+				using argument_types_t = std::tuple<argument_types...>;
+
+				template <int i>
+				using argument_t = typename std::tuple_element<i, argument_types_t>::type;
+			};
+
+			// member function pointers
+			template<typename return_type, typename class_type>
+			struct signature_t<return_type(class_type::*)(void)> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = 0;
+			};
+			template<typename return_type, typename class_type, typename ... argument_types>
+			struct signature_t<return_type(class_type::*)(argument_types...)> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = sizeof...(argument_types);
+
+				using argument_types_t = std::tuple<argument_types...>;
+
+				template <int i>
+				using argument_t = typename std::tuple_element<i, argument_types_t>::type;
+			};
+
+			// member function pointers to const members
+			template<typename return_type, typename class_type>
+			struct signature_t<return_type(class_type::*)(void) const> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = 0;
+			};
+
+			template<typename return_type, typename class_type, typename ... argument_types>
+			struct signature_t<return_type(class_type::*)(argument_types...) const> {
+				using return_t = return_type;
+				static constexpr size_t arguments_n = sizeof...(argument_types);
+
+				using argument_types_t = std::tuple<argument_types...>;
+
+				template <int i>
+				using argument_t = typename std::tuple_element<i, argument_types_t>::type;
+			};
+
+			// SFINAE helpers to deduce the type of signature_t
+			template<typename function_t, if_is_functor_t<function_t> = true>
+			constexpr signature_t<decltype(&function_t::operator())> make_signature_t(function_t) {
+				return signature_t<decltype(&function_t::operator())>();
+			}
+
+			template<typename function_t, if_is_not_functor_t<function_t> = true>
+			constexpr signature_t<function_t> make_signature_t(function_t) {
+				return signature_t<function_t>();
+			}
+
+			// the macros are basically the API to this funcionality
+#define _af_signature(function_) decltype(autotelica::sfinae::function_signatures::make_signature_t(function_))
+#define _af_number_of_arguments(function_) _af_signature(function_)::arguments_n
+#define _af_return_type(function_) typename _af_signature(function_)::return_t
+#define _af_argument_type(function_, i) typename _af_signature(function_)::argument_t<i>
+
+
+			// SAX type signature information traversals
+			// This works with a traverser object. 
+			// A traverser object is any object that implements following methods:
+			//
+			// 
+			// template<size_t i>
+			// inline void number_of_arguments();
+			//
+			// template<typename return_t>
+			// inline void return_type();
+			//
+			// template<typename argument_t, size_t i>
+			// inline void argument_type();
+			//
+			// inline void done();
+			//
+			// return_type get_result() const;
+			//
+			// NB: return_type is whatever makes sense fot that particular traverser
+			//
+			template<typename signature_t, typename traverser_t, int i>
+			struct traverse_arguments_t {
+				static inline void traverse(traverser_t& traverser_) {
+					using arg_t = typename signature_t::template argument_t<i - 1>;
+					traverse_arguments_t<signature_t, traverser_t, i - 1>::traverse(traverser_);
+					traverser_.template argument_type<arg_t, i>();
+
+				}
+			};
+			template<typename signature_t, typename traverser_t>
+			struct traverse_arguments_t<signature_t, traverser_t, 0> {
+				static inline void traverse(traverser_t& /*unused*/) {
+				}
+			};
+
+			template<typename signature_t, typename traverser_t>
+			class traverse_signature_t {
+
+				traverser_t& _traverser;
+
+
+			public:
+				traverse_signature_t(traverser_t& traverser_) :_traverser(traverser_) {
+				}
+
+				void traverse() {
+					const size_t argsn = signature_t::arguments_n;
+					_traverser.template number_of_arguments<argsn>();
+					_traverser.template return_type<typename signature_t::return_t>();
+					traverse_arguments_t<signature_t, traverser_t, argsn>::traverse(_traverser);
+					_traverser.done();
+				}
+			};
+
+			// to traverse a signature, implement a traverser, and then invoke traverse_signature
+			template<typename signature_t, typename traverser_t>
+			auto traverse_signature() -> typename _af_signature(&traverser_t::get_result)::return_t{
+				traverser_t traverser_;
+				traverse_signature_t<signature_t, traverser_t> t(traverser_);
+				t.traverse();
+				return traverser_.get_result();
+			}
+
+			template<typename signature_t, typename traverser_t>
+			auto traverse_signature(traverser_t& traverser_) -> typename _af_signature(&traverser_t::get_result)::return_t{
+				traverse_signature_t<signature_t, traverser_t> t(traverser_);
+				t.traverse();
+				return traverser_.get_result();
+			}
+
+		} // namespace function_signatures
+
 	}
 }
 

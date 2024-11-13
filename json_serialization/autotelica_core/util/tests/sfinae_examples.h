@@ -1,6 +1,7 @@
 #pragma once
 #include "testing_util.h"
 #include "sfinae_util.h"
+#include <typeinfo>
 
 namespace autotelica {
     namespace examples {
@@ -73,7 +74,7 @@ namespace autotelica {
 
             };
             struct B {
-
+                int operator()() { return 1; }
             };
             _AF_DECLARE_HAS_SUBTYPE(some_type_t);
             _AF_DECLARE_HAS_MEMBER(static_f);
@@ -82,6 +83,48 @@ namespace autotelica {
             _AF_DECLARE_HAS_MEMBER(templated_f1, int);
             _AF_DECLARE_HAS_MEMBER(templated_f2, int, int);
             _AF_DECLARE_HAS_MEMBER(templated_f3, int);
+
+            // testing function_signatures 
+            int f1() { std::cout << "f1()" << std::endl; return 0; }
+            double f2(int i, std::string const& s) { std::cout << "f2(" << i << "," << s << ")" << std::endl; return 1.0; }
+
+
+            template<typename T>
+            constexpr const char* t2s() {
+                return typeid(T).name();
+            }
+
+            // signature_type_ids_t is a traverser that builds a string 
+            // of type_names
+            struct signature_type_ids_t {
+                std::stringstream _out;
+                size_t _arguments_n;
+
+                signature_type_ids_t() :_arguments_n(-1) {}
+                signature_type_ids_t(signature_type_ids_t const& rhs) :_arguments_n(rhs._arguments_n) {}
+
+                template<size_t i>
+                inline void number_of_arguments() {
+                    _arguments_n = i;
+                }
+                template<typename return_t>
+                inline void return_type() {
+                    _out << t2s<return_t>() << "(";
+                }
+                template<typename argument_t, size_t i>
+                inline void argument_type() {
+                    _out << t2s<argument_t>();
+                    if (i != _arguments_n)
+                        _out << ",";
+                }
+                inline void done() {
+                    _out << ")";
+                }
+                std::string get_result() const {
+                    return _out.str();
+                }
+            };
+
 
             template< bool = true> // declaring it as a template is a way to work aroud c++ limitations about declaring things in headers
             void examples() {
@@ -109,6 +152,39 @@ namespace autotelica {
                 AF_TEST_RESULT(false, has_templated_f1_t<B>::value);
                 AF_TEST_RESULT(false, has_templated_f2_t<B>::value);
                 AF_TEST_RESULT(false, has_templated_f3_t<B>::value);
+
+                AF_TEST_COMMENT("Testing function_signatures");
+                auto l = [](int i, int j) { return i + j; };
+                using f1_s = _af_signature(&f1);
+                using f2_s = _af_signature(&f2);
+                using af1_s = _af_signature(&A::member_f);
+                using af2_s = _af_signature(&A::static_f);
+                using B_s = _af_signature(B());
+                using l_s = _af_signature(l);
+                using namespace sfinae::function_signatures;
+                AF_TEST_RESULT(2, _af_number_of_arguments(&f2));
+                
+#ifdef _WIN32                
+                AF_TEST_RESULT("double", t2s<_af_return_type(&A::member_f)>());
+                AF_TEST_RESULT("double", t2s<_af_argument_type(&A::member_f, 1)>());
+                AF_TEST_RESULT("int()", traverse_signature<f1_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("double(int,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >)", traverse_signature<f2_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("double(double,double)", traverse_signature<af1_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("double(double)", traverse_signature<af2_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("int()", traverse_signature<B_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("int(int,int)", traverse_signature<l_s AF_COMMA signature_type_ids_t>());
+#endif
+#ifdef __GNUC__
+                AF_TEST_RESULT("d", t2s<_af_return_type(&A::member_f)>());
+                AF_TEST_RESULT("d", t2s<_af_argument_type(&A::member_f, 1)>());
+                AF_TEST_RESULT("i()", traverse_signature<f1_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("d(i,NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE)", traverse_signature<f2_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("d(d,d)", traverse_signature<af1_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("d(d)", traverse_signature<af2_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("i()", traverse_signature<B_s AF_COMMA signature_type_ids_t>());
+                AF_TEST_RESULT("i(i,i)", traverse_signature<l_s AF_COMMA signature_type_ids_t>());
+#endif
+
 
             }
         }

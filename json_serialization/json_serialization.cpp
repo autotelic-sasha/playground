@@ -10,31 +10,17 @@
 
 using namespace autotelica::type_description;
 using namespace autotelica::json;
-/*struct test1 : public af_serializable {
-    int i;
-    object_description_p _description;
 
-    test1(int i_ = 0) :i(i_) {}
-    bool operator==(test1 const& rhs) const {
-        return i == rhs.i;
-    }
-    object_description_p object_description() override {
-        if (!_description) {
-            _description = begin_object(*this).
-                member("i", i, 2510).
-                end_object();
-        }
-        return _description;
-    }
-};*/
-
+struct test1 {
+    std::vector<std::string> _strings;
+    std>>map
+};
 
 struct test2 {//} : public json_handler_cache<test2> {
     int i;
     double d;
     std::vector<int> ints;
-
-    
+    std::vector<std::list<int>> intsints;
 
     test2(
         int i_ = 0, 
@@ -51,13 +37,14 @@ struct test2 {//} : public json_handler_cache<test2> {
     static type_description_t<serialization_factory_t>  const& type_description() {
         static const auto description =
             begin_object<test2, serialization_factory_t>("test2", 1).
-                member3("i", &test2::i, 2510).
-                member3("d", &test2::d, 1.991).
-                member3("ints", &test2::ints, {1,2,3}).
+                member("i", &test2::i, 2510).
+                member("d", &test2::d, 1.991).
+                member("ints", &test2::ints, {1,2,3}).
+                member("intsints", &test2::intsints, { { 1,2,3 }, { 4,5,6 } }).
             end_object();
         return description;
     }
-    // DOCUMENT: one of these must be there for dynamnically resolved types
+    // DOCUMENT: one of these must be there for dynamically resolved types
     // best to have both (so that things other than JSON also work)
     AF_IMPLEMENTS_DYNAMIC_TYPE_DESCRIPTION;
     AF_IMPLEMENTS_JSON_HANDLER(test2);
@@ -68,21 +55,8 @@ int main()
 {
     try {
 
-        //test1 t(1991);
-        //auto js = json::writer<>::to_string(t);
-        //test1 t2, t3;
-        //std::cout << js << std::endl;
-        //json::reader<>::from_string(t2, js);
-        //std::cout << js << std::endl;
-        //json::reader<>::from_string(t3, "{}");
-        //std::cout << json::writer<>::to_string(t3) << std::endl;
-        //autotelica::serialization::traits::default_p<double> a;
-        //bool is = std::is_function<decltype(test2::type_description)>::value;
         test2 t_2(1991);
 
-        //bool is = autotelica::serialization::util::predicates::is_serializable_object_t<test2>::value;
-        //bool is2 = autotelica::serialization::util::predicates::has_object_description_t<test2>::value;
-        //
         auto js = autotelica::json::writer<>::to_string(t_2);
         test2 t_22, t_23;
         std::cout << js << std::endl;

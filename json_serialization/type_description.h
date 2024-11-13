@@ -386,7 +386,7 @@ namespace autotelica {
 
 			//TODO: this needs to be tested throroughly - stepped through, for polymorphic makers
 			template<typename target_t, typename polymorphic_maker_or_default_t = target_t>
-			inline this_t& member3(
+			inline this_t& member(
 				key_t const& key_,
 				target_t object_t::* target_,
 				polymorphic_maker_or_default_t const& polymorphic_maker_or_defult_
@@ -425,7 +425,13 @@ namespace autotelica {
 				_member_descriptions.push_back(member_description);
 				return *this;
 			}
-
+			// TODO: Add a "member" function that takes a function to initialise the member.
+			//		 We can use function signature detection from excel project for this!
+			// 
+			// TODO: Add a "member" function that takes a raw type description as parameter
+			//		 this will become a mechanism for extending the schema - you define a 
+			//		 type_description for any type you like, without having to have a containing object. 
+			// TODO: Add a "member" function that takes get and set methods as parameters.
 			
 			template<typename base_object_t>
 			inline type_description_impl_t& base_type() {
