@@ -206,6 +206,11 @@ namespace impl {
 			_target = target_;
 			prepare_for_loading();
 		}
+		inline void writing_reset(target_t const* target_) {//TODO: naughty const_cast, but useful for writing
+			if (target_ == _target) return;
+			_target = const_cast<target_t*>(target_);
+			prepare_for_loading();
+		}
 
 		inline bool is_set() const { return _target != nullptr; }
 
@@ -492,14 +497,12 @@ namespace impl {
 		}
 	};
 
-	// handler for sequences (lists and vectors)
-	template<typename target_t, typename polymorphic_maker_t>
-	struct handler_sequence_t : public handler_delegating_t<target_t> {
-
+	// used as a base for maps, sets, vectors, lists
+	template<typename target_t, typename polymorphic_maker_t, typename contained_t = typename target_t::value_type>
+	struct handler_container_base_t : public handler_delegating_t<target_t> {
 		using base_t = handler_delegating_t<target_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
-		using contained_t = typename target_t::value_type;
 		using char_t = traits::char_t;
 		using value_handler_t = handler_value_t<contained_t>;
 		using value_handler_p = handler_value_p<contained_t>;
@@ -507,42 +510,29 @@ namespace impl {
 		value_handler_p _value_handler;
 		const bool _as_object; // this is a little bit of a hack, so that we can use this same handler with maps
 
-		handler_sequence_t(
+		handler_container_base_t(
 				target_t* target_,
-				default_p default_ ,
+				default_p default_,
 				default_contained_p contained_default_,
-				polymorphic_maker_t const& polymorphic_maker_) :
+				polymorphic_maker_t const& polymorphic_maker_,
+				bool as_object_ = false) :
 			base_t(target_, default_),
 			_value_handler(
 				std::static_pointer_cast<value_handler_t>(
 					serialization_factory::make_handler<contained_t>(
 						nullptr, contained_default_, nullptr, polymorphic_maker_))),
-			_as_object(false){
-		}
-		handler_sequence_t(
-				target_t* target_,
-				bool as_object_,
-				default_p default_ ,
-				default_contained_p contained_default_,
-				polymorphic_maker_t const& polymorphic_maker_) :
-			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler<contained_t>(
-				nullptr, contained_default_, nullptr, polymorphic_maker_)),
 			_as_object(as_object_) {
 		}
+		virtual ~handler_container_base_t() {
 
+		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
 			_value_handler->prepare_for_loading();
 		}
-		virtual void set_next() {
-			base_t::_target->emplace_back();
-			contained_t& ret(base_t::_target->back());
-			_value_handler->reset(&ret);
-		}
-		virtual void finish_loading_element() {
-			_value_handler->reset(nullptr);
-		}
+		virtual void set_next() = 0;
+		virtual void finish_loading_element() = 0;
+			
 		template<typename... ParamsT>
 		inline bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			base_t::set_started_loading();
@@ -566,7 +556,7 @@ namespace impl {
 		bool Double(double d) override { return delegate_f(&value_handler_t::Double, d); }
 		bool RawNumber(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::RawNumber, str, length, copy); }
 		bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
-		bool StartObject() override { 
+		bool StartObject() override {
 			if (_as_object && !base_t::has_started_loading()) {
 				base_t::_target->clear();
 				return true;
@@ -574,11 +564,11 @@ namespace impl {
 			return delegate_f(&value_handler_t::StartObject);
 		}
 		bool Key(const char_t* str, size_t length, bool copy) { return delegate_f(&value_handler_t::String, str, length, copy); }
-		bool EndObject(size_t memberCount) override { 
+		bool EndObject(size_t memberCount) override {
 			if (_as_object && (!base_t::has_started_loading() || !_value_handler->is_set()))
 				return base_t::set_done();
 
-			return delegate_f(&value_handler_t::EndObject, memberCount); 
+			return delegate_f(&value_handler_t::EndObject, memberCount);
 		}
 		bool StartArray() override {
 			if (!_as_object && !base_t::has_started_loading()) {
@@ -589,7 +579,7 @@ namespace impl {
 		}
 		bool EndArray(size_t elementCount) override {
 			if (!_as_object && (!base_t::has_started_loading() || !_value_handler->is_set()))
-				return base_t::set_done(); 
+				return base_t::set_done();
 			return delegate_f(&value_handler_t::EndArray, elementCount);
 		}
 		// writing 
@@ -600,7 +590,7 @@ namespace impl {
 			else
 				writer_.StartArray();
 			for (auto& t : *(base_t::_target)) {
-				_value_handler->reset(&t);
+				_value_handler->reset(reinterpret_cast<contained_t*>(&t));// TODO: this is naughty, but necesary to make maps work because contained values are pair<const key_type, mapped_type> and we need pair<key_type, mapped_type>
 				_value_handler->write(writer_);
 			}
 			if (_as_object)
@@ -611,11 +601,40 @@ namespace impl {
 		}
 	};
 
+	// handler for sequences (lists and vectors)
+	template<typename target_t, typename polymorphic_maker_t>
+	struct handler_sequence_t : public handler_container_base_t<target_t, polymorphic_maker_t> {
+
+		using base_t = handler_container_base_t<target_t, polymorphic_maker_t>;
+		using default_p = typename base_t::default_p;
+		using default_contained_p = typename base_t::default_contained_p;
+		using contained_t = typename base_t::contained_t;
+		using char_t = traits::char_t;
+
+
+		handler_sequence_t(
+				target_t* target_,
+				default_p default_ ,
+				default_contained_p contained_default_,
+				polymorphic_maker_t const& polymorphic_maker_) :
+			base_t(target_, default_, contained_default_, polymorphic_maker_){
+		}
+
+		void set_next() override {
+			base_t::_target->emplace_back();
+			contained_t& ret(base_t::_target->back());
+			base_t::_value_handler->reset(&ret);
+		}
+		void finish_loading_element() override {
+			base_t::_value_handler->reset(nullptr);
+		}
+	};
+
 	// handler for sets
 	template<typename target_t, typename polymorphic_maker_t>
-	struct handler_setish_t : public handler_sequence_t<target_t, polymorphic_maker_t> {
+	struct handler_setish_t : public handler_container_base_t<target_t, polymorphic_maker_t> {
 
-		using base_t = handler_sequence_t<target_t, polymorphic_maker_t>;
+		using base_t = handler_container_base_t<target_t, polymorphic_maker_t>;
 		using default_p = typename base_t::default_p;
 		using default_contained_p = typename base_t::default_contained_p;
 		using contained_t = typename target_t::value_type;
@@ -628,14 +647,6 @@ namespace impl {
 				default_contained_p /*unused*/,
 				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_, nullptr, polymorphic_maker_) {// sets canot contain default values
-		}
-		handler_setish_t(
-				target_t* target_,
-				bool as_object_,
-				default_p default_ ,
-				default_contained_p /*unused*/,
-				polymorphic_maker_t const& polymorphic_maker_) :
-			base_t(target_, as_object_, default_, nullptr, polymorphic_maker_) {// sets canot contain default values
 		}
 
 		void set_next() override{
@@ -661,15 +672,18 @@ namespace impl {
 		using char_t = traits::char_t;
 		using key_t = traits::key_t;
 		using value_t = typename target_t::second_type;
-		using value_handler_t = handler_value_p<value_t>;
+		using value_handler_t = handler_value_t<value_t>;
+		using value_handler_p = handler_value_p<value_t>;
 
-		using key_p = traits::key_t*;
-		using value_p = typename target_t::second_type*;
+		using key_t = traits::key_t;
+		using value_t = typename target_t::second_type;
 
-		inline key_p key() { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
-		inline value_p value() { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
+		inline key_t* key_p() { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
+		inline key_t const* key_p() const { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
+		inline value_t* value_p() { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
+		inline value_t const* value_p() const { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
 		
-		value_handler_t _value_handler;
+		value_handler_p _value_handler;
 
 		handler_string_pair_t(
 				target_t* target_,
@@ -677,12 +691,14 @@ namespace impl {
 				default_contained_p /*unused*/,
 				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
-			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, polymorphic_maker_)) {
+			_value_handler(
+				std::static_pointer_cast<value_handler_t>(
+					serialization_factory::make_handler(value_p(), nullptr, nullptr, polymorphic_maker_))) {
 		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
-			if(key())
-				key()->clear();
+			if(key_p())
+				key_p()->clear();
 			_value_handler->prepare_for_loading();
 		}
 
@@ -692,7 +708,7 @@ namespace impl {
 		template<typename... ParamsT>
 		bool delegate_f(bool (value_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			AF_ASSERT(base_t::has_started_loading(), "Reading value before the key in a string pair.");
-			bool ret = (_value_handler->*mf)(ps...);
+			bool ret = (_value_handler.get()->*mf)(ps...);
 			base_t::set_done(_value_handler->is_done());
 			return ret;
 		}
@@ -718,7 +734,7 @@ namespace impl {
 		bool Key(const char_t* str, size_t length, bool copy) override { 
 			if (base_t::has_started_loading())
 				return delegate_f(&value_handler_t::Key, str, length, copy); 
-			util::assign(key(), str, length);
+			util::assign(key_p(), str, length);
 			base_t::set_started_loading();
 			return true;
 		}
@@ -732,14 +748,14 @@ namespace impl {
 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
-			writer_->StartObject();
-			writing::write(*key(), writer_);
-			_value_handler->reset(value());
+			writer_.StartObject();
+			writing::write(*key_p(), writer_);
+			_value_handler->writing_reset(value_p());
 			if(_value_handler->should_not_write())
-				writer_->Null();
+				writer_.Null();
 			else
 				_value_handler->write(writer_);
-			writer_->EndObject();
+			writer_.EndObject(1);
 		}
 
 	};
@@ -769,13 +785,17 @@ namespace impl {
 
 		using key_t = typename target_t::first_type;
 		using value_t = typename target_t::second_type;
+		using key_handler_t = handler_value_t<key_t>;
+		using value_handler_t = handler_value_t<value_t>;
 		using key_handler_p = handler_value_p<key_t>;
 		using value_handler_p = handler_value_p<value_t>;
 		using current_handler_t = handler_t;
 		using current_handler_p = handler_p;
 
-		inline key_t key() { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
-		inline value_t value() { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
+		inline key_t* key_p() { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
+		inline value_t* value_p() { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
+		inline key_t const* key_p() const { return base_t::is_set() ? (&(base_t::_target->first)) : nullptr; }
+		inline value_t const* value_p() const { return base_t::is_set() ? (&(base_t::_target->second)) : nullptr; }
 
 		key_handler_p _key_handler;
 		value_handler_p _value_handler;
@@ -788,8 +808,10 @@ namespace impl {
 				default_contained_p /*unused*/,
 				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
-			_key_handler(serialization_factory::make_handler(value(), nullptr, nullptr, nullptr)),
-			_value_handler(serialization_factory::make_handler(value(), nullptr, nullptr, polymorphic_maker_)),
+			_key_handler(std::static_pointer_cast<key_handler_t>(serialization_factory::make_handler(
+				key_p(), nullptr, nullptr, null_polymorphic_maker()))),
+			_value_handler(std::static_pointer_cast<value_handler_t>(serialization_factory::make_handler(
+				value_p(), nullptr, nullptr, polymorphic_maker_))),
 			_current_handler(nullptr),
 			_loaded_key(false){
 			
@@ -797,8 +819,8 @@ namespace impl {
 
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
-			_key_handler->reset(key());
-			_value_handler->reset(value());
+			_key_handler->reset(key_p());
+			_value_handler->reset(value_p());
 			_loaded_key = false;
 		}
 
@@ -806,7 +828,7 @@ namespace impl {
 		template<typename... ParamsT>
 		bool delegate_f(bool (current_handler_t::* mf)(ParamsT ...), ParamsT... ps) {
 			AF_ASSERT(_current_handler, "Unexpected value while reading a pair.");
-			bool ret = (_current_handler->*mf)(ps...);
+			bool ret = (_current_handler.get()->*mf)(ps...);
 			if (_current_handler->is_done()) {
 				base_t::set_done(_key_handler->is_done() && _value_handler->is_done());
 				_current_handler = nullptr;
@@ -855,39 +877,50 @@ namespace impl {
 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
-			_key_handler->reset(key());
-			_value_handler->reset(value());
-			writer_->StartObject();
-			writer_->Key(standard_tags::tag_key, standard_tags::tag_key_sz, false);
+			_key_handler->writing_reset(key_p());
+			_value_handler->writing_reset(value_p());
+			writer_.StartObject();
+			writer_.Key(standard_tags::tag_key, standard_tags::tag_key_sz, false);
 			if (_key_handler->should_not_write()) 
-				writer_->Null();
+				writer_.Null();
 			else
 				_key_handler->write(writer_);
 			
-			writer_->Key(standard_tags::tag_value, standard_tags::tag_value_sz, false);
+			writer_.Key(standard_tags::tag_value, standard_tags::tag_value_sz, false);
 			if (_value_handler->should_not_write())
-				writer_->Null();
+				writer_.Null();
 			else
 				_value_handler->write(writer_);
-			writer_->EndObject();
+			writer_.EndObject(2);
 		}
 	};
 
 
 	// handler for general maps
 	template<typename target_t, typename polymorphic_maker_t>
-	struct handler_mapish_t : public handler_setish_t<target_t, polymorphic_maker_t> {
+	struct handler_mapish_t : public handler_container_base_t<target_t, polymorphic_maker_t, std::pair<typename target_t::key_type, typename target_t::mapped_type>> {
 
-		using base_t = handler_setish_t<target_t, polymorphic_maker_t>;
+		using base_t = handler_container_base_t<target_t, polymorphic_maker_t, std::pair<typename target_t::key_type, typename target_t::mapped_type >> ;
 		using default_p = typename base_t::default_p;
+		using contained_t = typename target_t::value_type;
 		using default_contained_p = typename base_t::default_contained_p;
+
+		contained_t _current_value;
 
 		handler_mapish_t(
 				target_t* target_,
 				default_p default_,
 				default_contained_p /*unused*/,
 				polymorphic_maker_t const& polymorphic_maker_) :
-			base_t(target_, true, default_, nullptr, polymorphic_maker_) {// mapps canot contain default values
+			base_t(target_, default_, nullptr, polymorphic_maker_, true) {// mapps canot contain default values
+		}
+
+		void set_next() override {
+			//base_t::_value_handler->reset(&_current_value);
+		}
+		void finish_loading_element() override {
+			base_t::_target->insert(_current_value);
+			base_t::_value_handler->reset(nullptr);
 		}
 
 	};

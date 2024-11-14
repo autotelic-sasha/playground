@@ -13,10 +13,23 @@ using namespace autotelica::json;
 
 struct test1 {
     std::vector<std::string> _strings;
-    std>>map
+    std::map<int, std::string> _map;
+    std::map<std::string, std::string> _string_map;
+
+    template<typename serialization_factory_t>
+    static type_description_t<serialization_factory_t>  const& type_description() {
+        static const auto description =
+            begin_object<test1, serialization_factory_t>("test1", 2).
+                member("strings", &test1::_strings, {"one", "two","three"}).
+                member("map", &test1::_map, { {1,"one"}, {2,"two"} }).
+                member("string_map", &test1::_string_map, { {"one","1"}, {"two","2"} }).
+            end_object();
+        return description;
+    }
+
 };
 
-struct test2 {//} : public json_handler_cache<test2> {
+struct test2 {
     int i;
     double d;
     std::vector<int> ints;
@@ -55,13 +68,16 @@ int main()
 {
     try {
 
+        test1 t_1;
+        std::cout << autotelica::json::writer<>::to_string(t_1) << std::endl;
+
         test2 t_2(1991);
 
-        auto js = autotelica::json::writer<>::to_string(t_2);
+        auto js2 = autotelica::json::writer<>::to_string(t_2);
         test2 t_22, t_23;
-        std::cout << js << std::endl;
-        autotelica::json::reader<>::from_string(t_22, js);
-        std::cout << js << std::endl;
+        std::cout << js2 << std::endl;
+        autotelica::json::reader<>::from_string(t_22, js2);
+        std::cout << js2 << std::endl;
         autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0, \"ints\":null}");
         std::cout << autotelica::json::writer<>::to_string(t_23) << std::endl;
     }
