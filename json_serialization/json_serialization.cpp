@@ -64,22 +64,32 @@ struct test2 {
 
 };
 
+template< typename T>
+void test_in_out(T& t, std::string s = "") {
+    auto js = autotelica::json::writer<>::to_string(t);
+    T t_2;
+    std::cout << "FROM OBJECT: " << js << std::endl;
+    autotelica::json::reader<>::from_string(t_2, js);
+    std::cout << "FROM ROUND TRIP: " << js << std::endl;
+    if (!s.empty()) {
+        T t_3;
+        autotelica::json::reader<>::from_string(t_3, s);
+        std::cout << "FROM STRING: " << s << "\nLOADED     : " << autotelica::json::writer<>::to_string(t_3) << std::endl;
+    }
+
+}
+
 int main()
 {
     try {
 
         test1 t_1;
-        std::cout << autotelica::json::writer<>::to_string(t_1) << std::endl;
-
+        test_in_out(t_1, "{\"class_id\":2,\"class_name\":\"test1\",\"strings\":[],\"map\":[],\"string_map\":{}}");
+        test_in_out(t_1, "{\"class_id\":2,\"class_name\":\"test1\",\"map\":[],\"string_map\":{}}");
+        test_in_out(t_1, "{\"class_id\":2,\"class_name\":\"test1\",\"strings\":[],\"map\":[]}");
+        test_in_out(t_1, "{\"class_id\":2,\"class_name\":\"test1\"}");
         test2 t_2(1991);
-
-        auto js2 = autotelica::json::writer<>::to_string(t_2);
-        test2 t_22, t_23;
-        std::cout << js2 << std::endl;
-        autotelica::json::reader<>::from_string(t_22, js2);
-        std::cout << js2 << std::endl;
-        autotelica::json::reader<>::from_string(t_23, "{\"d\":2.0, \"ints\":null}");
-        std::cout << autotelica::json::writer<>::to_string(t_23) << std::endl;
+        test_in_out(t_2, "{\"d\":2.0, \"ints\":null}");
     }
     catch (std::runtime_error& e) {
         std::cout << "ERROR CAUGHT: " << e.what() << std::endl;

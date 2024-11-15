@@ -1,7 +1,6 @@
 #pragma once
 #include "std_disambiguation.h"
 
-
 namespace autotelica {
 	namespace sfinae {
 		// Trickery to make use of SFINAE - can be instantiated only if the listed types exist
@@ -11,6 +10,44 @@ namespace autotelica {
 
 		template<typename T>
 		using if_exists_t = void;
+
+		namespace detail
+		{
+			struct nonesuch {
+				~nonesuch() = delete;
+				nonesuch(nonesuch const&) = delete;
+				void operator=(nonesuch const&) = delete;
+
+			};
+
+			template<class Default, class AlwaysVoid, typename Op>
+			struct detector
+			{
+				using value_t = std::false_type;
+				using type = Default;
+			};
+
+			template<class Default, typename Op>
+			struct detector<Default, if_exists_t<Op>, Op>
+			{
+				using value_t = std::true_type;
+				using type = Op;
+			};
+		} // namespace detail
+
+		//template<template<class...> class Op, class... Args>
+		//using is_detected = typename detail::detector<detail::nonesuch, void, Op, Args...>::value_t;
+
+		//template<template<class...> class Op, class... Args>
+		//using detected_t = typename detail::detector<detail::nonesuch, void, Op, Args...>::type;
+
+		template<class Default, typename Op>
+		using detected_or = typename detail::detector<Default, void, Op>::type;
+		
+		
+		
+		
+		
 
 
 		// Predicates
@@ -220,18 +257,33 @@ namespace autotelica {
 		template<typename T>
 		using is_pointer_t = any_of_t<is_shared_ptr_t<T>, std::is_pointer<T>>;
 		
+		// map where key is a string
+		template<typename T, typename switch_t = bool>
+		struct is_string_map_impl_t : std::false_type {};
+		template<typename T>
+		struct is_string_map_impl_t<T,
+			case_t<all_of_t<is_pair_t<T>, is_string_t<typename T::key_t>>>> : std::true_type {};
+		template<typename T>
+		struct is_string_map_t : is_string_map_impl_t<T>::type {};
 		// map where key is not a string
 		template<typename T>
-		using is_non_string_map_t = all_of_t<is_mapish_t<T>,not_t<is_string_t<typename T::key_t>>>;
-		// map where key is a string
+		using is_non_string_map_t = all_of_t<is_mapish_t<T>, not_t<is_string_map_t<T>>>;
+
+		// a pair where first type is a string 
+		template<typename T, typename switch_t = bool>
+		struct is_string_pair_impl_t : std::false_type{};
 		template<typename T>
-		using is_string_map_t = all_of_t<is_mapish_t<T>,is_string_t<typename T::key_t>>;
+		struct is_string_pair_impl_t<T, 
+			case_t<all_of_t<is_pair_t<T>, is_string_t<typename T::first_type>>>> : std::true_type {};
+		template<typename T>
+		struct is_string_pair_t : is_string_pair_impl_t<T>::type{}; 
+
 		// is a pair where first type is not a string 
 		template<typename T>
-		using is_non_string_pair_t = all_of_t<is_pair_t<T>,not_t<is_string_t<typename T::first_type>>>;
-		// a pair where first type is a string 
-		template<typename T>
-		using is_string_pair_t = all_of_t<is_pair_t<T>, is_string_t<typename T::first_type>>;
+		using is_non_string_pair_t = all_of_t<is_pair_t<T>, not_t<is_string_pair_t<T>>>;
+
+		//template<typename T>
+		//using is_string_pair_t = all_of_t<is_pair_t<T>, is_string_t<pair_first_type_t<T>>>;
 		// Selectors
 		// Predicates to use a particular implementation of a templated function
 		// for commonly used types.

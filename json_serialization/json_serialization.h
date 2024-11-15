@@ -514,14 +514,13 @@ namespace impl {
 				target_t* target_,
 				default_p default_,
 				default_contained_p contained_default_,
-				polymorphic_maker_t const& polymorphic_maker_,
-				bool as_object_ = false) :
+				polymorphic_maker_t const& polymorphic_maker_) :
 			base_t(target_, default_),
+			_as_object(is_string_pair_t<contained_t>::value),
 			_value_handler(
 				std::static_pointer_cast<value_handler_t>(
 					serialization_factory::make_handler<contained_t>(
-						nullptr, contained_default_, nullptr, polymorphic_maker_))),
-			_as_object(as_object_) {
+						nullptr, contained_default_, nullptr, polymorphic_maker_))){
 		}
 		virtual ~handler_container_base_t() {
 
@@ -558,6 +557,7 @@ namespace impl {
 		bool String(const char_t* str, size_t length, bool copy) override { return delegate_f(&value_handler_t::String, str, length, copy); }
 		bool StartObject() override {
 			if (_as_object && !base_t::has_started_loading()) {
+				base_t::set_started_loading();
 				base_t::_target->clear();
 				return true;
 			}
@@ -572,6 +572,7 @@ namespace impl {
 		}
 		bool StartArray() override {
 			if (!_as_object && !base_t::has_started_loading()) {
+				base_t::set_started_loading();
 				base_t::_target->clear();
 				return true;
 			}
@@ -697,8 +698,6 @@ namespace impl {
 		}
 		void prepare_for_loading() override {
 			base_t::prepare_for_loading();
-			if(key_p())
-				key_p()->clear();
 			_value_handler->prepare_for_loading();
 		}
 
@@ -748,14 +747,13 @@ namespace impl {
 
 		void write(writer_wrapper_t& writer_) const override {
 			if (base_t::should_not_write()) return;
-			writer_.StartObject();
-			writing::write(*key_p(), writer_);
+			auto& key = *key_p();
+			writer_.Key(key.c_str(), key.size(), false);
 			_value_handler->writing_reset(value_p());
 			if(_value_handler->should_not_write())
 				writer_.Null();
 			else
 				_value_handler->write(writer_);
-			writer_.EndObject(1);
 		}
 
 	};
@@ -904,7 +902,6 @@ namespace impl {
 		using default_p = typename base_t::default_p;
 		using contained_t = typename target_t::value_type;
 		using default_contained_p = typename base_t::default_contained_p;
-
 		contained_t _current_value;
 
 		handler_mapish_t(
@@ -912,7 +909,7 @@ namespace impl {
 				default_p default_,
 				default_contained_p /*unused*/,
 				polymorphic_maker_t const& polymorphic_maker_) :
-			base_t(target_, default_, nullptr, polymorphic_maker_, true) {// mapps canot contain default values
+			base_t(target_, default_, nullptr, polymorphic_maker_) {// mapps canot contain default values
 		}
 
 		void set_next() override {
@@ -1070,11 +1067,12 @@ namespace impl {
 			}
 			_current_handler = find_handler(str, length);
 			AF_ASSERT(_current_handler, "Unexpected key (%) when loading object.", str);
+			_current_handler->prepare_for_loading();
 			return true;
 		}
 		bool EndObject(size_t memberCount) override {
 			if (_current_handler)
-				return _current_handler->EndObject(memberCount);
+				return delegate_f(&handler_t::EndObject, memberCount);
 			validate_all_loaded();
 			if (_post_load_f)
 				_post_load_f();
