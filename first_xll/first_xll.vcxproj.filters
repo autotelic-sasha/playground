@@ -24,14 +24,17 @@
     <ClInclude Include="first_xll_macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="XLCALL.H">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="af_xloper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="example_functions.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_inner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\XLCALL.H">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -41,9 +44,6 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="XLCALL.CPP">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -51,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="xll_exports.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="af_xloper\XLCALL.CPP">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

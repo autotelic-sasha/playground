@@ -2,16 +2,18 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files
 #include <windows.h>
-#include "XLCALL.H"
-#include <locale>
+#include "af_xloper/XLCALL.H"
+#include "af_xloper/af_xloper_inner.h"
+
+
 #include <limits>
-#include <codecvt>
+
 #include <string>
 #include <memory>
 #include <type_traits>
 #include <functional>
 #include <tuple>
-#include <iostream>
+
 #include <cstdarg>
 #include <sstream>
 #include <vector>
@@ -25,179 +27,16 @@
 #include <math.h>
 #include <iostream>
 #include <algorithm>
-#include <mutex>
+
 #include <cwctype>
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
 		// much of this is based on https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
-		namespace xl_type_ops {
-			// helpers for basic xltype operations
-			inline void check_xl_error(LPXLOPER12 const& in) {
-				if (!in || (in->xltype & xltypeErr))
-					throw std::runtime_error("Error in input.");
-			}
-			inline void check_xl_error(XLOPER12 const& in) {
-				if (in.xltype & xltypeErr)
-					throw std::runtime_error("Error in input.");
-			}
-			inline void set_xl_type(XLOPER12& xl, DWORD xltype) {
-				xl.xltype |= xltype;
-			}
-			inline void overwrite_xl_type(XLOPER12& xl, DWORD xltype) {
-				xl.xltype = xltype;
-			}
-			inline bool is_xl_type(XLOPER12 const& xl, DWORD xltype) {
-				return (xl.xltype & xltype);
-			}
-			inline void check_xl_type(XLOPER12 const& xl, DWORD xltype) {
-				if (!is_xl_type(xl, xltype))
-					throw std::runtime_error("Unexpected XLOPER type.");
-			}
-		}
-		namespace xl_constants {
-			// xloper12 constants
-			auto const MAX_XL12_ROWS = 1048576;
-			auto const MAX_XL12_COLS = 16384;
-			auto const MAX_XL12_UDF_ARGS = 255;
-			auto const MAX_XL12_STR_LEN = 32767u;
-
-			// often used xloper12 values
-			static XLOPER12 const& xlMissing() {
-				static XLOPER12 missing{ 0, xltypeMissing };
-				return missing;
-			}
-			static XLOPER12 const& xlEmptyString() {
-				static wchar_t p[2]{ 0 };
-				static XLOPER12 empty{ 0, xltypeStr };
-				static std::once_flag _once;
-				std::call_once(_once, [&]() {empty.val.str = p; }); // because prior to C++ 20 we can't initialise unions properly
-				return empty;
-			}
-			static XLOPER12 const& xlNull() {
-				static XLOPER12 _err{ 0, xltypeErr };
-				static std::once_flag _once;
-				std::call_once(_once, [&]() {_err.val.err = xlerrNull;}); // because prior to C++ 20 we can't initialise unions properly
-				return _err;
-			}
-			static XLOPER12 const& xlNA() {
-				static XLOPER12 _err{ 0, xltypeErr };
-				static std::once_flag _once;
-				std::call_once(_once, [&]() {_err.val.err = xlerrNA; }); // because prior to C++ 20 we can't initialise unions properly
-				return _err;
-			}
-		}
-
-		struct xl_memory {
-			// dealing with memory for xlopers is done the old fashioned way
-			// because Excel API is C based
-			// 
-
-			// Create counted Unicode wchar string from null-terminated Unicode input
-			static wchar_t* new_xl12string(const wchar_t* text)
-			{
-				using namespace xl_constants;
-				size_t len;
-				if (!text)
-					throw std::runtime_error("Attempted to allocate null string");
-				len = wcslen(text);
-
-				if (len > MAX_XL12_STR_LEN)
-					len = MAX_XL12_STR_LEN; // truncate
-				wchar_t* p = (wchar_t*)malloc((len + 1)*sizeof(wchar_t));
-				if (!p) throw std::runtime_error("Could not allocate memory for XLOPER12 string");
-				memcpy(p + 1, text, (len) * sizeof(wchar_t));
-				p[0] = (wchar_t)len;
-				return p;
-			}
-
-			// create new xloper12s
-			static LPXLOPER12 new_xloper12() {
-				LPXLOPER12 out = (LPXLOPER12)malloc(sizeof(XLOPER12));
-				if (!out)
-					throw std::runtime_error("Could not allocate memory for XLOPER12");
-				out->xltype = xlbitDLLFree;
-				return out;
-			}
-			static LPXLOPER12 new_xloper12_array(size_t sz) {
-				LPXLOPER12 out = (LPXLOPER12)malloc(sz * sizeof(XLOPER12));
-				if (!out)
-					throw std::runtime_error("Could not allocate memory for XLOPER12 array");
-				return out;
-			}
-
-			// deep copy of xloper12s
-			static void clone_value(XLOPER12 const& in, XLOPER12& out) {
-				switch (out.xltype) {
-				case xltypeNum:
-				case xltypeBool:
-				case xltypeErr:
-				case xltypeInt:
-				case xltypeMissing:
-				case xltypeNil:
-					out.val = in.val;
-					break;
-				case xltypeStr:
-					out.val.str = new_xl12string(in.val.str);
-					break;
-				case xltypeMulti: {
-					size_t sz = out.val.array.rows * out.val.array.columns;
-					out.val.array.lparray = new_xloper12_array(sz);
-					for (size_t i = 0; i < sz; ++i)
-						clone_value(in.val.array.lparray[i], out.val.array.lparray[i]);
-					}
-					break;
-				case xltypeRef:
-				case xltypeSRef:
-				case xltypeFlow:
-					throw std::runtime_error("Unhandled Excel type.");
-				default:
-					throw std::runtime_error("Unknown Excel type.");
-				}
-			}
-			static LPXLOPER12 clone(LPXLOPER12 in) {
-				LPXLOPER12 out = new_xloper12();
-				out->xltype = in->xltype;
-				clone_value(*in, *out);
-				return out;
-			}
-
-			// this is called from xlAutoFree
-			static void freeXL(LPXLOPER12 pXL) {
-				try {
-					if (pXL->xltype & xlbitXLFree)
-						Excel12(xlFree, 0, 1, pXL);
-					else if (pXL->xltype & xlbitDLLFree) {
-						if (pXL->xltype & xltypeStr) {
-							free(pXL->val.str);
-							pXL->val.str = 0;
-						}
-						else if (pXL->xltype & xltypeMulti) {
-							int size = pXL->val.array.rows * pXL->val.array.columns;
-							if (size == 0) return;
-							LPXLOPER12 lparray = pXL->val.array.lparray;
-							for (size_t i = 0; i < size; ++i) { // check elements for strings
-								XLOPER12& XLi = lparray[i];
-								if (XLi.xltype & (xltypeStr|xlbitDLLFree)) {
-									if (XLi.val.str == 0) continue;
-									free(XLi.val.str);
-									XLi.val.str = 0;
-								}
-								else if(XLi.xltype & xlbitXLFree)
-									Excel12(xlFree, 0, 1, &XLi);
-							}
-							free(pXL->val.array.lparray);
-							pXL->val.array.lparray = 0;
-						}
-						free(pXL);
-					}
-				}
-				catch (...) {
-					// THIS IS BAD. LIKELY MEMORY LEAK, but nothing much can be done to handle it.
-					std::cout << "Error releasing Excel memory";
-				}
-			}
-
+		namespace xl_util {
+			// these may be used by user functions
+			
+			// stuff that is commonly done in XLLs
 			// use this for locally created xlopers, works like auto_ptr (kinda)
 			struct auto_pxl {
 				LPXLOPER12 _pxl;
@@ -205,60 +44,8 @@ namespace autotelica {
 				operator LPXLOPER12() { return _pxl; }
 				LPXLOPER12 operator->() { return _pxl; }
 				XLOPER12 operator*() { return *_pxl; }
-				~auto_pxl() { freeXL(_pxl); }
+				~auto_pxl() { inner::xl_memory::freeXL(_pxl); }
 			};
-		};
-		
-		
-		struct xl_strings {
-			// strings are annoying, it's lots of work to detect and convert between different types of them
-			static std::wstring convert(std::string const& s) {
-				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> _converter;
-				return _converter.from_bytes(s.c_str());
-			}
-			static std::string convert(std::wstring const& w) {
-				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> _converter;
-				return _converter.to_bytes(w.c_str());
-			}
-
-
-			static void xlString(std::wstring const& in, XLOPER12& out) {
-				xl_type_ops::overwrite_xl_type(out, xltypeStr | xlbitDLLFree);
-				out.val.str = xl_memory::new_xl12string(in.c_str());
-				if (!out.val.str)
-					xl_type_ops::overwrite_xl_type(out, xltypeNil);
-			}
-			static void xlString(std::string const& in, XLOPER12& out) {
-				xlString(convert(in), out);
-			}
-			static XLOPER12 xlString(std::wstring const& in) {
-				XLOPER12 out;
-				xlString(in, out);
-				return out;
-			}
-			static XLOPER12 xlString(std::string const& in) {
-				return xlString(convert(in));
-			}
-			static void xlpString(std::wstring const& in, LPXLOPER12& out) {
-				out = xl_memory::new_xloper12();
-				xlString(in, *out);
-			}
-			static void xlpString(std::string const& in, LPXLOPER12& out) {
-				xlpString(convert(in), out);
-			}
-			static LPXLOPER12 xlpString(std::wstring const& in) {
-				LPXLOPER12 out;
-				xlpString(in, out);
-				return out;
-			}
-			static LPXLOPER12 xlpString(std::string const& in) {
-				return xlpString(convert(in));
-			}
-		};
-		namespace xl_util {
-			// these may be used by user functions
-			
-			// stuff that is commonly done in XLLs
 
 			// dealing with Excel time
 			namespace xl_date {
@@ -625,7 +412,7 @@ namespace autotelica {
 					_value._str = str_;
 				}
 				xl_variant(std::string const& str_) : _type(xl_type::xl_typeStr) {
-					_value._str = xl_strings::convert(str_);
+					_value._str = inner::xl_strings::convert(str_);
 				}
 				xl_variant(bool xbool_) : _type(xl_type::xl_typeBool) {
 					_value._xbool = xbool_;
@@ -690,11 +477,11 @@ namespace autotelica {
 				}
 				void set(std::string const& str_) {
 					_type = xl_type::xl_typeStr;
-					_value._str = xl_strings::convert(str_);
+					_value._str = inner::xl_strings::convert(str_);
 				}
 				std::wstring const& get_wstring() const { check_type(xl_type::xl_typeStr);  return _value._str; }
 				std::wstring& get_wstring() { check_type(xl_type::xl_typeStr); return _value._str; }
-				std::string get_string() const { check_type(xl_type::xl_typeStr);  return xl_strings::convert(_value._str); }
+				std::string get_string() const { check_type(xl_type::xl_typeStr);  return inner::xl_strings::convert(_value._str); }
 				operator std::wstring const& () const { return get_wstring(); }
 				operator std::wstring& () { return get_wstring(); }
 				operator std::string() const {return get_string(); }
@@ -870,19 +657,19 @@ namespace autotelica {
 				xl_variant const& get(std::wstring const& key) const {
 					size_t i = find_key(key);
 					if (i == -1)
-						throw std::runtime_error(std::string("Key ") + xl_strings::convert(key) + " is not present.");
+						throw std::runtime_error(std::string("Key ") + inner::xl_strings::convert(key) + " is not present.");
 					return _values[i][1];
 				}
 				xl_variant& get(std::wstring const& key){
 					size_t i = find_key(key);
 					if (i == -1)
-						throw std::runtime_error(std::string("Key ") + xl_strings::convert(key) + " is not present.");
+						throw std::runtime_error(std::string("Key ") + inner::xl_strings::convert(key) + " is not present.");
 					return _values[i][1];
 				}
 				inline std::vector<std::vector<xl_variant>> const& values() const { return _values; }
 				inline std::vector<std::vector<xl_variant>>& values() { return _values; }
 				inline xl_variant const& operator[](std::wstring const& key) const { return get(key); }
-				inline xl_variant const& operator[](std::string const& key)  const { return get(xl_strings::convert(key));}
+				inline xl_variant const& operator[](std::string const& key)  const { return get(inner::xl_strings::convert(key));}
 				inline size_t size() const { return _values.size(); }
 
 				static bool transpose_input(XLOPER12 const& in) {
@@ -890,8 +677,8 @@ namespace autotelica {
 					// for the logic, see comment above the class declaration
 					if (in.val.array.columns == 2) {
 						if (in.val.array.rows == 2) {
-							if (xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
-								xl_type_ops::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
+							if (inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
+								inner::xl_type_ops::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
 								return true;
 							}
 							return false;
@@ -951,7 +738,7 @@ namespace autotelica {
 				size_t columns() const { return _table.size()==0?0:headings().size(); }
 
 				std::vector<std::vector<xl_variant>> get_column(std::string const& key) const {
-					return get_column(xl_strings::convert(key));
+					return get_column(inner::xl_strings::convert(key));
 				}
 
 				std::vector<std::vector<xl_variant>> get_column(std::wstring const& key) const {
@@ -988,7 +775,7 @@ namespace autotelica {
 					// for the logic, see comment above the class declaration
 					bool all_strings = true;
 					for (size_t i = 0; i < in.val.array.columns; ++i) {
-						if (!xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+						if (!inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 							all_strings = false;
 							break;
 						}
@@ -999,7 +786,7 @@ namespace autotelica {
 					all_strings = true;
 					size_t sz = in.val.array.columns * in.val.array.rows;
 					for (size_t i = 0; i < sz; i += in.val.array.columns) {
-						if (!xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+						if (!inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 							all_strings = false;
 							break;
 						}
@@ -1355,20 +1142,20 @@ namespace autotelica {
 
 			// sometimes you may want to transpose an XLOPER12 itself
 			static LPXLOPER12 xl_transpose(LPXLOPER12 in) {
-				if (!xl_type_ops::is_xl_type(*in, xltypeMulti))
+				if (!inner::xl_type_ops::is_xl_type(*in, xltypeMulti))
 					return in;
 				if (((in->val.array.rows) * (in->val.array.columns)) == 0)
 					return in;
 
-				LPXLOPER12 out = xl_memory::new_xloper12();
-				xl_type_ops::set_xl_type(*out, xltypeMulti);
+				LPXLOPER12 out = inner::xl_memory::new_xloper12();
+				inner::xl_type_ops::set_xl_type(*out, xltypeMulti);
 				out->val.array.columns = in->val.array.rows;
 				out->val.array.rows = in->val.array.columns;
 				for (size_t r = 0; r < out->val.array.rows; ++r) {
 					for (size_t c = 0; c < out->val.array.columns; ++c) {
 						size_t i_out = c + r * out->val.array.columns;
 						size_t i_in = r + c * in->val.array.columns;
-						xl_memory::clone_value(in->val.array.lparray[i_in], out->val.array.lparray[i_out]);
+						inner::xl_memory::clone_value(in->val.array.lparray[i_in], out->val.array.lparray[i_out]);
 					}
 				}
 				return in;
@@ -1380,8 +1167,8 @@ namespace autotelica {
 			// there a few options on what to do with errors and empty values
 			// all wrapped up in this namespace
 			static LPXLOPER12 xlpError(DWORD errCode) {
-				LPXLOPER12 out = xl_memory::new_xloper12();
-				xl_type_ops::set_xl_type(*out, xltypeErr);
+				LPXLOPER12 out = inner::xl_memory::new_xloper12();
+				inner::xl_type_ops::set_xl_type(*out, xltypeErr);
 				out->val.err = errCode;
 				return out;
 			}
@@ -1503,15 +1290,15 @@ namespace autotelica {
 			static inline LPXLOPER12 translate_error(const char* const error_text) {
 				static constexpr auto error_prefix = "#ERR: ";
 				if (!error_policy::rich_error_text())
-					return const_cast<LPXLOPER12>(& xl_constants::xlNA());
+					return const_cast<LPXLOPER12>(& inner::xl_constants::xlNA());
 
 				try {
 					std::string err(error_text);
 					err = error_prefix + err;
-					return xl_strings::xlpString(err);
+					return inner::xl_strings::xlpString(err);
 				}
 				catch (...) {
-					return const_cast<LPXLOPER12>(&xl_constants::xlNull());
+					return const_cast<LPXLOPER12>(&inner::xl_constants::xlNull());
 				}
 			}
 			static LPXLOPER12 translate_error(std::exception const& error_exception) {
@@ -1555,7 +1342,7 @@ namespace autotelica {
 					if (error_policy::rich_error_text())
 						throw std::runtime_error("NULL input.");
 					else
-						throw xloper_exception(&xl_constants::xlNull());
+						throw xloper_exception(&inner::xl_constants::xlNull());
 			}
 			static void check_input_xl(XLOPER12 const& xl) {
 				if (xl.xltype & xltypeErr) {
@@ -1564,13 +1351,13 @@ namespace autotelica {
 					else if (error_policy::rich_error_text())
 						throw std::runtime_error("Error in input.");
 					else
-						throw xloper_exception(&xl_constants::xlNA());
+						throw xloper_exception(&inner::xl_constants::xlNA());
 				}
 			}
 			static void check_wizard() {
 				if (error_policy::disable_wizard_calls() && 
 					xl_util::called_from_wizard()) 
-						throw xloper_exception(&xl_constants::xlNA());
+						throw xloper_exception(&inner::xl_constants::xlNA());
 			}
 		};
 
@@ -1603,7 +1390,7 @@ namespace autotelica {
 			__AF_MEANING_OF_MISSING(xl_util::xl_table_cs, xl_util::xl_table_cs());
 
 			inline bool is_xl_missing(const XLOPER12 * const in) {
-				return xl_type_ops::is_xl_type(*in, xltypeMissing | xltypeNil);
+				return inner::xl_type_ops::is_xl_type(*in, xltypeMissing | xltypeNil);
 			}
 			template<typename T>
 			std::remove_const_t<std::remove_reference_t<T>> handle_missing(const XLOPER12 * const in) {
@@ -1641,13 +1428,13 @@ namespace autotelica {
 			// xl_conversions for supported types
 			// wstring, string 
 			inline void to_xl(std::wstring const& in, XLOPER12& out) {
-				xl_strings::xlString(in, out);
+				inner::xl_strings::xlString(in, out);
 			}
 			static void from_xl(XLOPER12 const& in, std::wstring& out) {
 				CHECK_INPUT(in, out);
 				// based on Excel SDK, FRAMEWORK.C, XLOPER12 to XLOPER
 				out = L"";
-				xl_type_ops::check_xl_type(in, xltypeStr);
+				inner::xl_type_ops::check_xl_type(in, xltypeStr);
 
 				XCHAR* st;
 				int cch;
@@ -1660,44 +1447,44 @@ namespace autotelica {
 			}
 
 			inline void to_xl(std::string const& in, XLOPER12& out) {
-				to_xl(xl_strings::convert(in), out);
+				to_xl(inner::xl_strings::convert(in), out);
 			}
 
 			inline void from_xl(XLOPER12 const& in, std::string& out) {
 				std::wstring wout;
 				from_xl(in, wout);
-				out = xl_strings::convert(wout);
+				out = inner::xl_strings::convert(wout);
 			}
 			
 			// integer types, doubles and bools are passed in as is, but returned as XLOPERS
 			inline void int_to_xl(int const& in, XLOPER12& out) {
-				xl_type_ops::set_xl_type(out, xltypeInt);
+				inner::xl_type_ops::set_xl_type(out, xltypeInt);
 				out.val.w = in;
 			}
 
 			inline void int_to_xl(int const& in, LPXLOPER12& out) {
-				out = xl_memory::new_xloper12();
+				out = inner::xl_memory::new_xloper12();
 				int_to_xl(in, *out);
 			}
 			inline void num_to_xl(double const& in, XLOPER12& out) {
-				xl_type_ops::set_xl_type(out, xltypeNum);
+				inner::xl_type_ops::set_xl_type(out, xltypeNum);
 				out.val.num = in;
 			}
 
 			inline void num_to_xl(double const& in, LPXLOPER12& out) {
-				out = xl_memory::new_xloper12();
+				out = inner::xl_memory::new_xloper12();
 				num_to_xl(in, *out);
 			}
 			inline int xl_to_int(XLOPER12 const& in) {
-				xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
-				if (xl_type_ops::is_xl_type(in, xltypeInt))
+				inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (inner::xl_type_ops::is_xl_type(in, xltypeInt))
 					return in.val.w;
 				else
 					return static_cast<int>(in.val.num);
 			}
 			inline double xl_to_num(XLOPER12 const& in) {
-				xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
-				if (xl_type_ops::is_xl_type(in, xltypeInt))
+				inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (inner::xl_type_ops::is_xl_type(in, xltypeInt))
 					return static_cast<double>(in.val.w);
 				else
 					return in.val.num;
@@ -1746,12 +1533,12 @@ namespace autotelica {
 				out = static_cast<float>(xl_to_num(in));
 			}
 			inline void to_xl(bool const& in, XLOPER12& out) {
-				xl_type_ops::set_xl_type(out, xltypeBool);
+				inner::xl_type_ops::set_xl_type(out, xltypeBool);
 				out.val.xbool = in;
 			}
 			inline void from_xl(XLOPER12 const& in, bool& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeBool);
+				inner::xl_type_ops::check_xl_type(in, xltypeBool);
 				out = static_cast<bool>(in.val.xbool);
 			}
 			
@@ -1774,14 +1561,14 @@ namespace autotelica {
 			void linear_to_xl(TLinear const& in, XLOPER12& out, bool transposed = false) {
 				const size_t sz = in.size();
 				if (sz == 0) {
-					xl_type_ops::set_xl_type(out, xltypeNil);
+					inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type_ops::set_xl_type(out, xltypeMulti);
+				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.columns = transposed?((RW)sz):1;
 				out.val.array.rows = transposed?1:(RW)sz;
-				out.val.array.lparray = xl_memory::new_xloper12_array(sz);
+				out.val.array.lparray = inner::xl_memory::new_xloper12_array(sz);
 
 				size_t i = 0;
 				for (auto const& v : in){ 
@@ -1792,7 +1579,7 @@ namespace autotelica {
 			template<typename TLinear>
 			void linear_from_xl(XLOPER12 const& in, TLinear& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				if ((in.val.array.columns * in.val.array.rows) == 0) {
 					out.clear();
 					return;
@@ -1849,16 +1636,16 @@ namespace autotelica {
 					if (r.size() > cols) cols = r.size();
 				}
 				if (rows * cols == 0) {
-					xl_type_ops::set_xl_type(out, xltypeNil);
+					inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 				if (transposed)
 					std::swap(rows, cols);
 
-				xl_type_ops::set_xl_type(out, xltypeMulti);
+				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
-				out.val.array.lparray = xl_memory::new_xloper12_array(rows*cols);
+				out.val.array.lparray = inner::xl_memory::new_xloper12_array(rows*cols);
 
 				size_t i = 0;
 				typename std::remove_reference<TSimpleGrid>::type::value_type::value_type default_value;
@@ -1883,7 +1670,7 @@ namespace autotelica {
 			template<typename TSimpleGrid>
 			void simple_grid_from_xl(XLOPER12 const& in, TSimpleGrid& out, bool transposed = false) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -1984,17 +1771,17 @@ namespace autotelica {
 				const size_t rows = 2;
 				size_t cols = in.size();
 				if (rows == 0) {
-					xl_type_ops::set_xl_type(out, xltypeNil);
+					inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type_ops::set_xl_type(out, xltypeMulti);
+				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
 				if (transposed) 
 					std::swap(out.val.array.rows, out.val.array.columns);
 				
-				out.val.array.lparray = xl_memory::new_xloper12_array(rows * cols);
+				out.val.array.lparray = inner::xl_memory::new_xloper12_array(rows * cols);
 
 				size_t i = 0;
 				if(transposed){
@@ -2021,7 +1808,7 @@ namespace autotelica {
 			template<typename TLinearMap>
 			void linear_map_from_xl(XLOPER12 const& in, TLinearMap& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -2096,17 +1883,17 @@ namespace autotelica {
 					if (c.second.size() > rows) rows = c.second.size();
 				
 				if (rows * cols == 0) {
-					xl_type_ops::set_xl_type(out, xltypeNil);
+					inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type_ops::set_xl_type(out, xltypeMulti);
+				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows+1;//keys are titles, so another row
 				out.val.array.columns = (RW)cols;
 				if (transposed)
 					std::swap(out.val.array.rows, out.val.array.columns);
 				size_t sz = (rows + 1) * cols;
-				out.val.array.lparray = xl_memory::new_xloper12_array(sz);
+				out.val.array.lparray = inner::xl_memory::new_xloper12_array(sz);
 				size_t i = 0;
 				if (transposed) {
 					for (auto const& in_ : in) {
@@ -2149,7 +1936,7 @@ namespace autotelica {
 			template<typename TMapGrid>
 			void map_grid_from_xl(XLOPER12 const& in, TMapGrid& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -2272,7 +2059,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_nvp& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.values(), xl_util::xl_nvp::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_nvp_cs const& in, XLOPER12& out) {
@@ -2280,7 +2067,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_nvp_cs & out){
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.values(), xl_util::xl_nvp::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_table const& in, XLOPER12 & out) {
@@ -2288,7 +2075,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_table & out){
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.table(), xl_util::xl_table::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_table_cs const& in, XLOPER12 & out) {
@@ -2296,7 +2083,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_table_cs& out) {
 				CHECK_INPUT(in, out);
-				xl_type_ops::check_xl_type(in, xltypeMulti);
+				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.table(), xl_util::xl_table::transpose_input(in));
 			}
 
@@ -2336,7 +2123,7 @@ namespace autotelica {
 
 			template<typename T>
 			void to_xlp(T const& in, LPXLOPER12& out) {
-				out = xl_memory::new_xloper12();
+				out = inner::xl_memory::new_xloper12();
 				to_xl(in, *out);
 			}
 
@@ -2603,15 +2390,16 @@ namespace autotelica {
 
 				void xlfRegister_impl(XLOPER12 const& xDLL, std::string const& function_category_) const {
 					using namespace xl_conversions;
-					using namespace xl_constants;
+					using namespace inner::xl_constants;
+					using namespace xl_util;
 
-					xl_memory::auto_pxl function_category{to_xlp(function_category_)};
-					xl_memory::auto_pxl function_xl_name{ to_xlp(_function_xl_name) };
-					xl_memory::auto_pxl function_name{ to_xlp(_function_name) };
-					xl_memory::auto_pxl signature{ to_xlp(_signature) };
-					xl_memory::auto_pxl argument_names{ to_xlp(_argument_names) };
-					xl_memory::auto_pxl function_help{ to_xlp(_function_help) };
-					xl_memory::auto_pxl function_type{ to_xlp(1) };
+					auto_pxl function_category{to_xlp(function_category_)};
+					auto_pxl function_xl_name{ to_xlp(_function_xl_name) };
+					auto_pxl function_name{ to_xlp(_function_name) };
+					auto_pxl signature{ to_xlp(_signature) };
+					auto_pxl argument_names{ to_xlp(_argument_names) };
+					auto_pxl function_help{ to_xlp(_function_help) };
+					auto_pxl function_type{ to_xlp(1) };
 					int total_params = 10 + (int)_arguments_help.size() + 1;//1 extra to fix excel trimming help strings
 					XLOPER12 res;
 					switch (_arguments_help.size()) {
@@ -2624,103 +2412,103 @@ namespace autotelica {
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), &xlEmptyString());
 						  break;
 					case 2: 
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])), &xlEmptyString());
 						break;
 					case 3: 						
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), &xlEmptyString());
 						break;
 					case 4: 
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])), &xlEmptyString());
 						break;
 					case 5:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), &xlEmptyString());
 						break;
 					case 6:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])), &xlEmptyString());
 						  break;
 					case 7:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), &xlEmptyString());
 						break;
 					case 8:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), xl_memory::auto_pxl(to_xlp(_arguments_help[7])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), auto_pxl(to_xlp(_arguments_help[7])), &xlEmptyString());
 						break;
 					case 9:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), xl_memory::auto_pxl(to_xlp(_arguments_help[7])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[8])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), auto_pxl(to_xlp(_arguments_help[7])),
+							auto_pxl(to_xlp(_arguments_help[8])), &xlEmptyString());
 						break;
 					case 10:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), xl_memory::auto_pxl(to_xlp(_arguments_help[7])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[8])), xl_memory::auto_pxl(to_xlp(_arguments_help[9])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), auto_pxl(to_xlp(_arguments_help[7])),
+							auto_pxl(to_xlp(_arguments_help[8])), auto_pxl(to_xlp(_arguments_help[9])), &xlEmptyString());
 						break;
 					case 11:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), xl_memory::auto_pxl(to_xlp(_arguments_help[7])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[8])), xl_memory::auto_pxl(to_xlp(_arguments_help[9])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[10])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), auto_pxl(to_xlp(_arguments_help[7])),
+							auto_pxl(to_xlp(_arguments_help[8])), auto_pxl(to_xlp(_arguments_help[9])),
+							auto_pxl(to_xlp(_arguments_help[10])), &xlEmptyString());
 						  break;
 					case 12:
 						Excel12(xlfRegister, &res, total_params, (LPXLOPER12)&xDLL,
 							function_name, signature, function_xl_name, argument_names, function_type, function_category,
 							&xlMissing(), &xlMissing(), function_help,
-							xl_memory::auto_pxl(to_xlp(_arguments_help[0])), xl_memory::auto_pxl(to_xlp(_arguments_help[1])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[2])), xl_memory::auto_pxl(to_xlp(_arguments_help[3])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[4])), xl_memory::auto_pxl(to_xlp(_arguments_help[5])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[6])), xl_memory::auto_pxl(to_xlp(_arguments_help[7])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[8])), xl_memory::auto_pxl(to_xlp(_arguments_help[9])),
-							xl_memory::auto_pxl(to_xlp(_arguments_help[10])), xl_memory::auto_pxl(to_xlp(_arguments_help[11])), &xlEmptyString());
+							auto_pxl(to_xlp(_arguments_help[0])), auto_pxl(to_xlp(_arguments_help[1])),
+							auto_pxl(to_xlp(_arguments_help[2])), auto_pxl(to_xlp(_arguments_help[3])),
+							auto_pxl(to_xlp(_arguments_help[4])), auto_pxl(to_xlp(_arguments_help[5])),
+							auto_pxl(to_xlp(_arguments_help[6])), auto_pxl(to_xlp(_arguments_help[7])),
+							auto_pxl(to_xlp(_arguments_help[8])), auto_pxl(to_xlp(_arguments_help[9])),
+							auto_pxl(to_xlp(_arguments_help[10])), auto_pxl(to_xlp(_arguments_help[11])), &xlEmptyString());
 						break;
 					default: 
 						   break;
@@ -4164,14 +3952,14 @@ namespace autotelica {
 		namespace {\
 			static const auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::set_function_category(Category);\
 		}\
-		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::xl_memory::freeXL(pXL);}\
+		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::inner::xl_memory::freeXL(pXL);}\
 		extern "C" __declspec(dllexport) int __stdcall xlAutoOpen(void){return autotelica::xloper::xl_registration::xl_f_registry::xlAutoOpen_impl();}
 #else
 #define AF_DECLARE_XLL(Category) \
 		namespace {\
 			static const auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::set_function_category(Category);\
 		}\
-		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::xl_memory::freeXL(pXL);}\
+		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::inner::xl_memory::freeXL(pXL);}\
 		extern "C" __declspec(dllexport) int __stdcall xlAutoOpen(void){return autotelica::xloper::xl_registration::xl_f_registry::xlAutoOpen_impl();}\
 		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy, autotelica::xloper::xl_errors::af_xl_configure_error_policy, \
 			"Configure handling of errors and invocation behaviour.", \
