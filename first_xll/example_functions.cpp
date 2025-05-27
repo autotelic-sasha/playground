@@ -242,10 +242,10 @@ namespace af_xll_examples {
 
 	// dates
 	std::string to_iso(double d) {
-		return autotelica::xloper::xl_util::xl_date::xl_date_to_iso8601_date(d);
+		return autotelica::xloper::data::xl_date::xl_date_to_iso8601_date(d);
 	}
 	std::string format_date(double d, std::string const& format) {
-		return autotelica::xloper::xl_util::xl_date::format_xl_date(d, format);
+		return autotelica::xloper::data::xl_date::format_xl_date(d, format);
 	}
 
 	
@@ -338,13 +338,13 @@ namespace af_xll_examples {
 		return ret;
 	}
 	// fast_array
-	xl_fast_array fast_add_matrices(xl_fast_array m1, xl_fast_array m2) {
+	/*xl_fast_array fast_add_matrices(xl_fast_array m1, xl_fast_array m2) {
 		if (m1.size() != m2.size())
 			throw std::runtime_error("Matrices must be of same size.");
 		for (int64_t i = 0; i < m1.size(); ++i)
 			m1.unsafe_get(i) += m2.unsafe_get(i);
 		return m1;
-	}
+	}*/
 
 	/// utilities 
 	// object caches

@@ -14,22 +14,38 @@
 namespace autotelica {
 	namespace xloper {
 	namespace inner {
+		// implementation details of the af_xloper wrappers
+		// much of the magic depends on this, but it is ugly stuff best hidden away
+
 		namespace xl_type_ops {
 			// helpers for basic xltype operations
-			inline void check_xl_error(LPXLOPER12 const& in) {
-				if (!in || (in->xltype & xltypeErr))
-					throw std::runtime_error("Error in input.");
-			}
-			inline void check_xl_error(XLOPER12 const& in) {
-				if (in.xltype & xltypeErr)
-					throw std::runtime_error("Error in input.");
-			}
+
 			inline void set_xl_type(XLOPER12& xl, DWORD xltype) {
 				xl.xltype |= xltype;
 			}
 			inline void overwrite_xl_type(XLOPER12& xl, DWORD xltype) {
 				xl.xltype = xltype;
 			}
+			
+			// checking functions 
+			// is_ ... versions just return a boolean
+			// check_ ... verstion throw if it is suitable to do so
+
+			inline bool is_xl_error(LPXLOPER12 const& in) {
+				return (!in || (in->xltype & xltypeErr));
+			}
+
+			inline void check_xl_error(LPXLOPER12 const& in) {
+				if (is_xl_error(in))
+					throw std::runtime_error("Error in input.");
+			}
+			inline bool is_xl_error(XLOPER12 const& in) {
+				return (in.xltype & xltypeErr);
+			}
+			inline void check_xl_error(XLOPER12 const& in) {
+				if (is_xl_error(in))
+					throw std::runtime_error("Error in input.");
+			}			
 			inline bool is_xl_type(XLOPER12 const& xl, DWORD xltype) {
 				return (xl.xltype & xltype);
 			}
@@ -38,6 +54,7 @@ namespace autotelica {
 					throw std::runtime_error("Unexpected XLOPER type.");
 			}
 		}
+		
 		namespace xl_constants {
 			// xloper12 constants
 			auto const MAX_XL12_ROWS = 1048576;
@@ -184,7 +201,6 @@ namespace autotelica {
 
 		};
 
-
 		namespace xl_strings {
 			// strings are annoying, it's lots of work to detect and convert between different types of them
 			inline std::wstring convert(std::string const& s) {
@@ -231,8 +247,6 @@ namespace autotelica {
 			}
 		};
 
-	
-	
 	}
 	}
 }

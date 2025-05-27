@@ -36,6 +36,9 @@
     <ClInclude Include="af_xloper\XLCALL.H">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">

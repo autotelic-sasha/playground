@@ -75,7 +75,7 @@ namespace af_xll_examples {
 	std::string to_iso(double d);
 	std::string format_date(double d, std::string const& format);
 
-	using namespace autotelica::xloper::xl_util;
+	using namespace autotelica::xloper::data;
 	// variants
 	std::string to_string(xl_variant const& in);
 	// containers of variants
@@ -87,7 +87,7 @@ namespace af_xll_examples {
 	xl_table_cs add_count(xl_table_cs const& in);
 	xl_table extract_columns(xl_table const& in, std::vector<std::string> const& column_names);
 	// fast_array
-	xl_fast_array fast_add_matrices(xl_fast_array const& m1, xl_fast_array const& m2);
+	//xl_fast_array fast_add_matrices(xl_fast_array const& m1, xl_fast_array const& m2);
 
 	/// utilities 
 	// object caches

@@ -229,6 +229,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="af_xloper.h" />
+    <ClInclude Include="af_xloper\af_xloper_data.h" />
     <ClInclude Include="af_xloper\af_xloper_inner.h" />
     <ClInclude Include="af_xloper\XLCALL.H" />
     <ClInclude Include="example_functions.h" />
