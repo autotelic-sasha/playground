@@ -31,7 +31,7 @@
 namespace autotelica {
 	namespace xloper {
 		// much of this is based on https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
-		namespace xl_type {
+		namespace xl_type_ops {
 			// helpers for basic xltype operations
 			inline void check_xl_error(LPXLOPER12 const& in) {
 				if (!in || (in->xltype & xltypeErr))
@@ -211,7 +211,7 @@ namespace autotelica {
 		
 		
 		struct xl_strings {
-			// strings are annoying
+			// strings are annoying, it's lots of work to detect and convert between different types of them
 			static std::wstring convert(std::string const& s) {
 				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> _converter;
 				return _converter.from_bytes(s.c_str());
@@ -223,10 +223,10 @@ namespace autotelica {
 
 
 			static void xlString(std::wstring const& in, XLOPER12& out) {
-				xl_type::overwrite_xl_type(out, xltypeStr | xlbitDLLFree);
+				xl_type_ops::overwrite_xl_type(out, xltypeStr | xlbitDLLFree);
 				out.val.str = xl_memory::new_xl12string(in.c_str());
 				if (!out.val.str)
-					xl_type::overwrite_xl_type(out, xltypeNil);
+					xl_type_ops::overwrite_xl_type(out, xltypeNil);
 			}
 			static void xlString(std::string const& in, XLOPER12& out) {
 				xlString(convert(in), out);
@@ -257,11 +257,12 @@ namespace autotelica {
 		};
 		namespace xl_util {
 			// these may be used by user functions
+			
 			// stuff that is commonly done in XLLs
 
 			// dealing with Excel time
-			struct xl_date {
-				static time_t xl_date_to_tm(double xl_date) {
+			namespace xl_date {
+				inline time_t xl_date_to_tm(double xl_date) {
 					return  static_cast<time_t>((xl_date - 25569) * 86400); // the magic numbers are all over the interenet, e.g. https://stackoverflow.com/questions/75863926/convert-excels-now-time-format-but-in-c
 				}
 				static std::string format_xl_date(double xl_date, std::string const& format = "%FT%TZ") {
@@ -275,10 +276,10 @@ namespace autotelica {
 					strftime(out, buffer_sz, format.c_str(), &tm_);
 					return out;
 				}
-				static std::string xl_date_to_iso8601_date(double xl_date) {
+				inline std::string xl_date_to_iso8601_date(double xl_date) {
 					return format_xl_date(xl_date, "%F");
 				}
-				static std::string xl_date_to_iso8601_date_time(double xl_date) {
+				inline std::string xl_date_to_iso8601_date_time(double xl_date) {
 					return format_xl_date(xl_date);
 				}
 				static std::string xl_date_to_iso8601_date_time_ms(double xl_date) {
@@ -889,8 +890,8 @@ namespace autotelica {
 					// for the logic, see comment above the class declaration
 					if (in.val.array.columns == 2) {
 						if (in.val.array.rows == 2) {
-							if (xl_type::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
-								xl_type::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
+							if (xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
+								xl_type_ops::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
 								return true;
 							}
 							return false;
@@ -949,11 +950,11 @@ namespace autotelica {
 				size_t rows() const { return _table.size()-1; }
 				size_t columns() const { return _table.size()==0?0:headings().size(); }
 
-				std::vector<std::vector<xl_variant>> const& get_column(std::string const& key) {
+				std::vector<std::vector<xl_variant>> get_column(std::string const& key) const {
 					return get_column(xl_strings::convert(key));
 				}
 
-				std::vector<std::vector<xl_variant>> const& get_column(std::wstring const& key) {
+				std::vector<std::vector<xl_variant>> get_column(std::wstring const& key) const {
 					auto const column_idxs = find_key(key);
 					std::vector<std::vector<xl_variant>> ret;
 					if (column_idxs.empty()) return ret;
@@ -987,7 +988,7 @@ namespace autotelica {
 					// for the logic, see comment above the class declaration
 					bool all_strings = true;
 					for (size_t i = 0; i < in.val.array.columns; ++i) {
-						if (!xl_type::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+						if (!xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 							all_strings = false;
 							break;
 						}
@@ -998,7 +999,7 @@ namespace autotelica {
 					all_strings = true;
 					size_t sz = in.val.array.columns * in.val.array.rows;
 					for (size_t i = 0; i < sz; i += in.val.array.columns) {
-						if (!xl_type::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+						if (!xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 							all_strings = false;
 							break;
 						}
@@ -1354,13 +1355,13 @@ namespace autotelica {
 
 			// sometimes you may want to transpose an XLOPER12 itself
 			static LPXLOPER12 xl_transpose(LPXLOPER12 in) {
-				if (!xl_type::is_xl_type(*in, xltypeMulti))
+				if (!xl_type_ops::is_xl_type(*in, xltypeMulti))
 					return in;
 				if (((in->val.array.rows) * (in->val.array.columns)) == 0)
 					return in;
 
 				LPXLOPER12 out = xl_memory::new_xloper12();
-				xl_type::set_xl_type(*out, xltypeMulti);
+				xl_type_ops::set_xl_type(*out, xltypeMulti);
 				out->val.array.columns = in->val.array.rows;
 				out->val.array.rows = in->val.array.columns;
 				for (size_t r = 0; r < out->val.array.rows; ++r) {
@@ -1380,7 +1381,7 @@ namespace autotelica {
 			// all wrapped up in this namespace
 			static LPXLOPER12 xlpError(DWORD errCode) {
 				LPXLOPER12 out = xl_memory::new_xloper12();
-				xl_type::set_xl_type(*out, xltypeErr);
+				xl_type_ops::set_xl_type(*out, xltypeErr);
 				out->val.err = errCode;
 				return out;
 			}
@@ -1602,7 +1603,7 @@ namespace autotelica {
 			__AF_MEANING_OF_MISSING(xl_util::xl_table_cs, xl_util::xl_table_cs());
 
 			inline bool is_xl_missing(const XLOPER12 * const in) {
-				return xl_type::is_xl_type(*in, xltypeMissing | xltypeNil);
+				return xl_type_ops::is_xl_type(*in, xltypeMissing | xltypeNil);
 			}
 			template<typename T>
 			std::remove_const_t<std::remove_reference_t<T>> handle_missing(const XLOPER12 * const in) {
@@ -1646,7 +1647,7 @@ namespace autotelica {
 				CHECK_INPUT(in, out);
 				// based on Excel SDK, FRAMEWORK.C, XLOPER12 to XLOPER
 				out = L"";
-				xl_type::check_xl_type(in, xltypeStr);
+				xl_type_ops::check_xl_type(in, xltypeStr);
 
 				XCHAR* st;
 				int cch;
@@ -1670,7 +1671,7 @@ namespace autotelica {
 			
 			// integer types, doubles and bools are passed in as is, but returned as XLOPERS
 			inline void int_to_xl(int const& in, XLOPER12& out) {
-				xl_type::set_xl_type(out, xltypeInt);
+				xl_type_ops::set_xl_type(out, xltypeInt);
 				out.val.w = in;
 			}
 
@@ -1679,7 +1680,7 @@ namespace autotelica {
 				int_to_xl(in, *out);
 			}
 			inline void num_to_xl(double const& in, XLOPER12& out) {
-				xl_type::set_xl_type(out, xltypeNum);
+				xl_type_ops::set_xl_type(out, xltypeNum);
 				out.val.num = in;
 			}
 
@@ -1688,15 +1689,15 @@ namespace autotelica {
 				num_to_xl(in, *out);
 			}
 			inline int xl_to_int(XLOPER12 const& in) {
-				xl_type::check_xl_type(in, xltypeInt | xltypeNum);
-				if (xl_type::is_xl_type(in, xltypeInt))
+				xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (xl_type_ops::is_xl_type(in, xltypeInt))
 					return in.val.w;
 				else
 					return static_cast<int>(in.val.num);
 			}
 			inline double xl_to_num(XLOPER12 const& in) {
-				xl_type::check_xl_type(in, xltypeInt | xltypeNum);
-				if (xl_type::is_xl_type(in, xltypeInt))
+				xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (xl_type_ops::is_xl_type(in, xltypeInt))
 					return static_cast<double>(in.val.w);
 				else
 					return in.val.num;
@@ -1745,12 +1746,12 @@ namespace autotelica {
 				out = static_cast<float>(xl_to_num(in));
 			}
 			inline void to_xl(bool const& in, XLOPER12& out) {
-				xl_type::set_xl_type(out, xltypeBool);
+				xl_type_ops::set_xl_type(out, xltypeBool);
 				out.val.xbool = in;
 			}
 			inline void from_xl(XLOPER12 const& in, bool& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeBool);
+				xl_type_ops::check_xl_type(in, xltypeBool);
 				out = static_cast<bool>(in.val.xbool);
 			}
 			
@@ -1773,11 +1774,11 @@ namespace autotelica {
 			void linear_to_xl(TLinear const& in, XLOPER12& out, bool transposed = false) {
 				const size_t sz = in.size();
 				if (sz == 0) {
-					xl_type::set_xl_type(out, xltypeNil);
+					xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type::set_xl_type(out, xltypeMulti);
+				xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.columns = transposed?((RW)sz):1;
 				out.val.array.rows = transposed?1:(RW)sz;
 				out.val.array.lparray = xl_memory::new_xloper12_array(sz);
@@ -1791,7 +1792,7 @@ namespace autotelica {
 			template<typename TLinear>
 			void linear_from_xl(XLOPER12 const& in, TLinear& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 				if ((in.val.array.columns * in.val.array.rows) == 0) {
 					out.clear();
 					return;
@@ -1848,13 +1849,13 @@ namespace autotelica {
 					if (r.size() > cols) cols = r.size();
 				}
 				if (rows * cols == 0) {
-					xl_type::set_xl_type(out, xltypeNil);
+					xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 				if (transposed)
 					std::swap(rows, cols);
 
-				xl_type::set_xl_type(out, xltypeMulti);
+				xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
 				out.val.array.lparray = xl_memory::new_xloper12_array(rows*cols);
@@ -1882,7 +1883,7 @@ namespace autotelica {
 			template<typename TSimpleGrid>
 			void simple_grid_from_xl(XLOPER12 const& in, TSimpleGrid& out, bool transposed = false) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -1983,11 +1984,11 @@ namespace autotelica {
 				const size_t rows = 2;
 				size_t cols = in.size();
 				if (rows == 0) {
-					xl_type::set_xl_type(out, xltypeNil);
+					xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type::set_xl_type(out, xltypeMulti);
+				xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
 				if (transposed) 
@@ -2020,7 +2021,7 @@ namespace autotelica {
 			template<typename TLinearMap>
 			void linear_map_from_xl(XLOPER12 const& in, TLinearMap& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -2095,11 +2096,11 @@ namespace autotelica {
 					if (c.second.size() > rows) rows = c.second.size();
 				
 				if (rows * cols == 0) {
-					xl_type::set_xl_type(out, xltypeNil);
+					xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				xl_type::set_xl_type(out, xltypeMulti);
+				xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows+1;//keys are titles, so another row
 				out.val.array.columns = (RW)cols;
 				if (transposed)
@@ -2148,7 +2149,7 @@ namespace autotelica {
 			template<typename TMapGrid>
 			void map_grid_from_xl(XLOPER12 const& in, TMapGrid& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -2271,7 +2272,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_nvp& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.values(), xl_util::xl_nvp::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_nvp_cs const& in, XLOPER12& out) {
@@ -2279,7 +2280,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_nvp_cs & out){
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.values(), xl_util::xl_nvp::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_table const& in, XLOPER12 & out) {
@@ -2287,7 +2288,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_table & out){
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.table(), xl_util::xl_table::transpose_input(in));
 			}
 			inline void to_xl(xl_util::xl_table_cs const& in, XLOPER12 & out) {
@@ -2295,7 +2296,7 @@ namespace autotelica {
 			}
 			inline void from_xl(XLOPER12 const& in, xl_util::xl_table_cs& out) {
 				CHECK_INPUT(in, out);
-				xl_type::check_xl_type(in, xltypeMulti);
+				xl_type_ops::check_xl_type(in, xltypeMulti);
 				simple_grid_from_xl(in, out.table(), xl_util::xl_table::transpose_input(in));
 			}
 
@@ -2325,7 +2326,7 @@ namespace autotelica {
 
 
 
-			// templated versions of covnersions
+			// templated versions of conversions
 			template<typename T>
 			XLOPER12 to_xl(T const& in) {
 				XLOPER12 ret;
