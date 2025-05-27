@@ -4,11 +4,15 @@
 #include <windows.h>
 #include "af_xloper/af_xloper_inner.h"
 #include "af_xloper/af_xloper_data.h"
+#include "af_xloper/af_xloper_object_caches.h"
+#include "af_xloper/af_xloper_fast_array.h"
+#include "af_xloper/af_xloper_util.h"
+#include "af_xloper/af_xloper_errors.h"
 
 #include <limits>
 
 #include <type_traits>
-#include <functional>
+
 #include <tuple>
 
 #include <cstdarg>
@@ -28,748 +32,6 @@
 namespace autotelica {
 	namespace xloper {
 		// much of this is based on https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
-		namespace xl_util {
-			// these may be used by user functions
-			
-			// stuff that is commonly done in XLLs
-
-
-
-
-			// A cache for storing objects and accessing them by a versioned tag
-			// A tag is the user given name for the object followed by ":" and a version number. 
-			// The version number starts at 0 when you first instert the object into cache, then gets incremented when the object is updated.
-			struct xl_objects_cache_base {
-				virtual size_t size() const = 0;
-				virtual void clear_cache() = 0;
-				virtual std::list<std::string> list_cache() const = 0;
-			};
-
-			// Caches are typed
-			template<typename ObjectT>
-			class xl_objects_cache : public xl_objects_cache_base {
-				struct tagged_object {
-					std::shared_ptr<ObjectT> _object;
-					std::string _name;
-					size_t _version;
-					const char* const _version_separator = ":";
-					std::string tag() const {
-						char t[10];
-						itoa(_version, t, 10);
-						return _name + _version_separator + t;
-					}
-					static std::string name_from_tag(std::string tag_) {
-						std::size_t found = tag_.find_last_of(_version_separator);
-						if (found == std::string::npos)
-							return tag_;
-						return tag_.substr(0, found);
-
-					}
-				};
-				template<typename ObjecT>
-				struct xl_objects_cache_impl {
-					std::unordered_map<std::string, tagged_object> _cache;
-				};
-				static xl_objects_cache_impl<ObjectT>& instance() {
-					static xl_objects_cache_impl<ObjectT> _inst;
-					return _inst;
-				}
-			public:
-				std::shared_ptr<ObjectT> get(std::string const& name_or_tag) {
-					std::string name = tagged_object::name_from_tag(name_or_tag);
-					auto it = instance()._cache.find(name);
-					if (it == instance()._cache.end())
-						return nullptr;
-					return it->second._object;
-				}
-
-				std::string add(std::string const& name_or_tag, std::shared_ptr<ObjectT> object) {
-					std::string name = tagged_object::name_from_tag(name_or_tag);
-					auto it = instance()._cache.find(name);
-					if (it == instance()._cache.end()) {
-						tagged_object entry{ object, name, 0 };
-						instance()._cache[name] = entry;
-					}
-					else {
-						tagged_object entry(it->second);
-						entry._version++;
-						entry._object = object;
-						instance()._cache[name] = entry;
-					}
-				}
-
-				std::string update(std::string const& name_or_tag, std::shared_ptr<ObjectT> object) {
-					std::string name = tagged_object::name_from_tag(name_or_tag);
-					auto it = instance()._cache.find(name);
-					if (it == instance()._cache.end()) {
-						throw std::runtime_error(std::string("Object ") + name + " doesn't exist when trying to update it.");
-					}
-					else {
-						tagged_object entry(it->second);
-						entry._version++;
-						entry._object = object;
-						instance()._cache[name] = entry;
-					}
-				}
-				void clear() {
-					instance()._cache.clear();
-				}
-
-				size_t size() const override { return instance()->_cache.size(); }
-				void clear_cache() override { clear(); }
-				std::list<std::string> list_cache() const override {
-					std::list<std::string> ret;
-					for (auto const& c : instance()->_cache)
-						ret.push_back(c.first);
-					return ret;
-				}
-			};
-
-			// to provide simple ways to list and clear caches
-			// we have cache of caches
-			class xl_objects_caches {
-				using cache_cache_t = std::unordered_map<std::string, std::shared_ptr<xl_objects_cache_base>>;
-				static cache_cache_t& cache_cache() {
-					static cache_cache_t inst;
-					return inst;
-				}
-			public:
-				static bool exists(std::string const& cache_name) {
-					auto it = cache_cache().find(cache_name);
-					return it != cache_cache().end();
-				}
-				template<typename ObjectT>
-				static xl_objects_cache<ObjectT>& get(std::string const& cache_name) {
-					auto it = cache_cache().find(cache_name);
-					if (it == cache_cache().end()) {
-						std::shared_ptr<xl_objects_cache<ObjectT>> ret(new xl_objects_cache<ObjectT>());
-						cache_cache()[cache_name] = ret;
-						return ret;
-					}
-					else {
-						std::shared_ptr<xl_objects_cache<ObjectT>> ret(std::dynamic_pointer_cast<xl_objects_cache<ObjectT>>(it->second));
-						if (!ret)
-							throw std::runtime_error(std::string("Cache ") + cache_name + (" is of wrong type."));
-						return ret;
-					}
-				}
-				template<typename ObjectT>
-				static std::shared_ptr<ObjectT> get(std::string const& cache_name, std::string const& object_name_or_tag) {
-					return get<ObjectT>(cache_name).get(object_name_or_tag);
-				}
-
-				template<typename ObjectT>
-				static std::string add(std::string const& cache_name, std::string const& object_name_or_tag, std::shared_ptr<ObjectT> object) {
-					return get<ObjectT>(cache_name).add(object_name_or_tag, object);
-				}
-				template<typename ObjectT>
-				static std::string update(std::string const& cache_name, std::string const& object_name_or_tag, std::shared_ptr<ObjectT> object) {
-					return get<ObjectT>(cache_name).update(object_name_or_tag, object);
-				}
-
-				static size_t cache_size(std::string const& cache_name) {
-					auto it = cache_cache().find(cache_name);
-					if (it == cache_cache().end())
-						return 0;
-					else
-						return it->second->size();
-				}
-				static void clear_cache(std::string const& cache_name) {
-					auto it = cache_cache().find(cache_name);
-					if (it != cache_cache().end())
-						it->second->clear_cache();
-				}
-				static std::list<std::string> list_cache(std::string const& cache_name) {
-					auto it = cache_cache().find(cache_name);
-					if (it != cache_cache().end())
-						return it->second->list_cache();
-					return {};
-				}
-				static std::unordered_map<std::string, size_t> cache_sizes() {
-					std::unordered_map<std::string, size_t> ret;
-					for (auto const& c : cache_cache())
-						ret[c.first] = c.second->size();
-					return ret;
-				}
-				static void clear_all_caches() {
-					for (auto const& c : cache_cache())
-						c.second->clear_cache();
-				}
-				static std::unordered_map<std::string, std::list<std::string>> list_all_caches() {
-					std::unordered_map<std::string, std::list<std::string>> ret;
-					for (auto const& c : cache_cache())
-						ret[c.first] = c.second->list_cache();
-					return ret;
-				}
-			};
-			// these are exposed to XLLs by default
-			inline size_t af_xl_object_cache_size(std::string const& cache_name) { return xl_objects_caches::cache_size(cache_name); }
-
-			inline std::unordered_map<std::string, size_t> af_xl_object_cache_sizes() { return xl_objects_caches::cache_sizes(); }
-
-			inline bool af_xl_clear_object_cache(std::string const& cache_name) { xl_objects_caches::clear_cache(cache_name); return true; }
-
-			inline bool af_xl_clear_all_object_caches() { xl_objects_caches::clear_all_caches(); return true; }
-
-			inline std::list<std::string> af_xl_list_objects_cache(std::string const& cache_name) { return xl_objects_caches::list_cache(cache_name); }
-
-			inline std::unordered_map<std::string, std::list<std::string>> af_xl_list_all_objects_caches() { return xl_objects_caches::list_all_caches(); }
-
-
-
-
-
-
-			// xl_fast_array is a wrapper for FP12 arrays
-			// they are a pain to use, but apparently the fastest way to pass lots of number to and from excel
-			class xl_fast_array {
-				_FP12* _array;
-				// auto free means delete the pointer on exit. if you need to use this semantics, do it, but it's a pain.
-				bool _auto_free;
-				// for fast resizing we may change the values inside _array, but not realocate space
-				int32_t _actual_rows;
-				int32_t _actual_columns;
-				// a trick to access array values by double indexing fast
-				// store a pointer to the start of each row in an array, they use those
-				std::vector<double*> _rows;
-
-				// dealing with memory for FP12 arrays is a real pain
-				// xlAutoFree doesn't work for these
-				// once you create one, you own it, but you can't delete it before you return it
-				// it's so easy to loose track of them
-				// instead, create them in a static cache, then once in a while clear that cache up
-				static std::list<std::shared_ptr<xl_fast_array>>& cache() {
-					static std::list<std::shared_ptr<xl_fast_array>> _cache;
-					return _cache;
-				}
-
-				void copy(xl_fast_array& in) {
-					_array = in._array;
-					_auto_free = in._auto_free;
-					_actual_rows = in._actual_rows;
-					_actual_columns = in._actual_columns;
-					_rows = in._rows;
-					in._array = nullptr;
-					in._auto_free = false;
-					in._actual_rows = 0;
-					in._actual_columns = 0;
-					in._rows.clear();
-				}
-				void release_impl() {
-					if (_array) {
-						free(_array);
-						_array = nullptr;
-						_actual_rows = 0;
-						_actual_columns = 0;
-					}
-				}
-				void make_new(int32_t rows, int32_t columns) {
-					free(_array);
-					int64_t size = rows * columns;
-					// checkout https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
-					// section 6.2.2 for the calcualtion below
-					int64_t mem_size = sizeof(_FP12) + (size - 1) * sizeof(double); 
-					_array = (_FP12*)malloc(mem_size);
-					if (!_array)
-						throw std::runtime_error("Could not allocate _FP12 array large enough.");
-					_actual_rows = rows;
-					_actual_columns = columns;
-					_array->rows = rows;
-					_array->columns = columns;
-					_rows.clear();
-				}
-				void init_impl(double v = 0) {
-					if (_array)
-						std::fill_n(_array->array, _array->rows * _array->columns, v);
-				}
-				
-			public:
-				xl_fast_array(_FP12* array_ = nullptr, bool auto_free_ = false):
-					_array(array_), 
-					_auto_free(auto_free_),
-					_actual_rows(0),
-					_actual_columns(0){
-					if (_array) {
-						_actual_rows = _array->rows;
-						_actual_columns = _array->columns;
-					}
-					_rows.clear();
-				}
-				xl_fast_array(int32_t rows, int32_t columns, bool auto_free_ = false) :
-					_array(nullptr),
-					_auto_free(auto_free_),
-					_actual_rows(0),
-					_actual_columns(0) {
-					make_new(rows, columns);
-				}
-				xl_fast_array(int32_t rows, int32_t columns, double init_value, bool auto_free_ = false) :
-					_array(nullptr),
-					_auto_free(auto_free_),
-					_actual_rows(0),
-					_actual_columns(0) {
-					make_new(rows, columns);
-					init_impl(init_value);
-				}
-				~xl_fast_array() {
-					if (_auto_free)
-						release_impl();
-				}
-				xl_fast_array(xl_fast_array const& in) {
-					copy(const_cast<xl_fast_array&>(in));
-				}
-				xl_fast_array& operator=(xl_fast_array const& in) {
-					copy(const_cast<xl_fast_array&>(in));
-				}
-
-				// allocate tries to reuse existing memory, if your stuff can fit into it
-				// very handy for reusing in paramters, but tricky to keep track of
-				// if it returns true, you got to remember to delete it yourself
-				bool allocate(int32_t rows, int32_t columns) {
-					if (rows < _actual_rows && columns < _actual_columns) {
-						_rows.clear();
-						_array->rows = rows;
-						_array->columns = columns;
-						return false;
-					}
-					else {
-						make_new(rows, columns);
-						return true;
-					}
-				}
-
-				inline FP12* fp12() const { return _array; }
-				inline void release() { release_impl(); }
-				inline void init(double v) { init_impl(v); }
-
-				inline int32_t rows() const { return _array ? _array->rows : 0; }
-				inline int32_t unsafe_rows() const { return _array->rows; }
-				inline int32_t columns() const { return _array ? _array->columns: 0; }
-				inline int32_t unsafe_columns() const { return _array->columns; }
-				inline int32_t actual_rows() const { return _actual_rows; }
-				inline int32_t actual_columns() const { return _actual_columns; }
-
-				inline int64_t size() const { return _array ? (unsafe_rows() * unsafe_columns()) : 0; }
-				inline int64_t actual_size() const { return _actual_rows * _actual_columns; }
-				inline bool empty() const { return !_array || (size() == 0); }
-
-				inline double const* values() const { return _array ? _array->array : nullptr; }
-				inline double const* unsafe_values() const { return _array->array; }
-				inline double* values() { return _array ? _array->array : nullptr; }
-				inline double* unsafe_values() { return _array->array; }
-
-				inline double get(int64_t i) const { 
-					if (!_array || i >= size())
-						throw std::runtime_error("Out of bounds or non existent array access.");
-					return _array->array[i]; 
-				}
-				inline double unsafe_get(int64_t i) const {
-					return _array->array[i];
-				}
-				inline double& get(int64_t i){
-					if (!_array || i >= size())
-						throw std::runtime_error("Out of bounds or non existent array access.");
-					return _array->array[i];
-				}
-				inline double& unsafe_get(int64_t i){
-					return _array->array[i];
-				}
-				inline void set(int64_t i, double const d){ get(i) = d;}
-				inline void unsafe_set(int64_t i, double const d) { unsafe_get(i) = d; }
-
-				inline double get(int32_t row, int32_t column) const {
-					if (!_array || row >= rows() || column >= columns())
-						throw std::runtime_error("Out of bounds or non existent array access.");
-					int64_t i = column + row * columns();
-					return _array->array[i];
-				}
-				inline double unsafe_get(int32_t row, int32_t column) const {
-					int64_t i = column + row * columns();
-					return _array->array[i];
-				}
-				inline double& get(int32_t row, int32_t column) {
-					if (!_array || row >= rows() || column >= columns())
-						throw std::runtime_error("Out of bounds or non existent array access.");
-					int64_t i = column + row * columns();
-					return _array->array[i];
-				}
-				inline double& unsafe_get(int32_t row, int32_t column) {
-					int64_t i = column + row * columns();
-					return _array->array[i];
-				}
-				inline void set(int32_t row, int32_t column, double const d) { get(row,column) = d; }
-				inline void unsafe_set(int32_t row, int32_t column, double const d) { unsafe_get(row, column) = d; }
-
-				// to use clever indexing, you have to prepare the container
-				// it may take a while for large arrays, so only worth it if you are going to index a lot
-				void prepare_indexing() {
-					if (empty()) {
-						_rows.clear();
-						return;
-					}
-					_rows.reserve(rows());
-					for (size_t i = 0; i < rows(); ++i) {
-						_rows.push_back(unsafe_values() + i * columns());
-					}
-				}
-				double* operator[](int r) { return _rows[r]; }
-				double const* operator[] (int r) const { return _rows[r]; }
-
-				double* row(int r) { if (r > _rows.size()) throw std::runtime_error("Invalid row access."); return _rows[r]; }
-				double const* row(int r) const { if (r > _rows.size()) throw std::runtime_error("Invalid row access."); return _rows[r]; }
-
-				// handling the memory of these FP12 structures is a real pain
-				// common suggestions is to create static instances, eek!
-				// we'll provide a cache to store instances ... you do have to remember to clear it once in a while though
-				static size_t cache_size() { return cache().size(); }
-				static void clear_cache() { cache().clear(); }
-				static std::shared_ptr<xl_fast_array> make_cached(int32_t rows, int32_t columns) {
-					std::shared_ptr<xl_fast_array> ret(new xl_fast_array(rows, columns));
-					cache().push_back(ret);
-					return ret;
-				}
-				static std::shared_ptr<xl_fast_array> make_cached(int32_t rows, int32_t columns, double v) {
-					std::shared_ptr<xl_fast_array> ret(new xl_fast_array(rows, columns, v));
-					cache().push_back(ret);
-					return ret;
-				}
-
-
-			};
-			// these are exposed by the XLL by default
-			inline size_t af_xl_fast_array_cache_size() { return xl_fast_array::cache_size();}
-			
-			inline bool af_xl_clear_fast_array_cache(){ xl_fast_array::clear_cache(); return true; }
-
-			inline bool af_xl_clear_all_caches() { return af_xl_clear_fast_array_cache() && af_xl_clear_all_object_caches();}
-
-			
-			// nasty but standard way to stop functions evaluating in the wizard dialog
-			struct wizard_detection_impl {
-				// detecting function wizard calls, taken from: https://learn.microsoft.com/en-us/office/client-developer/excel/how-to-call-xll-functions-from-the-function-wizard-or-replace-dialog-boxes
-				// Data structure used as input to xldlg_enum_proc(), called by
-				// called_from_paste_fn_dlg(), called_from_replace_dlg(), and
-				// called_from_Excel_dlg(). These functions tell the caller whether
-				// the current worksheet function was called from one or either of
-				// these dialog boxes.
-				typedef struct
-				{
-					bool is_dlg;
-					short low_hwnd;
-					char const* const window_title_text; // set to NULL if don't care
-				}
-				xldlg_enum_struct;
-
-				// The callback function called by Windows for every top-level window.
-				static BOOL CALLBACK xldlg_enum_proc(HWND hwnd, xldlg_enum_struct* p_enum)
-				{
-					auto constexpr CLASS_NAME_BUFFSIZE = 50;
-					auto constexpr WINDOW_TEXT_BUFFSIZE = 50;
-					// Check if the parent window is Excel.
-					// Note: Because of the change from MDI (Excel 2010)
-					// to SDI (Excel 2013), comment out this step in Excel 2013.
-					//if (LOWORD((DWORD)GetParent(hwnd)) != p_enum->low_hwnd)
-					//	return TRUE; // keep iterating
-					char class_name[CLASS_NAME_BUFFSIZE + 1];
-					//  Ensure that class_name is always null terminated for safety.
-					class_name[CLASS_NAME_BUFFSIZE] = 0;
-					GetClassNameA(hwnd, class_name, CLASS_NAME_BUFFSIZE);
-					//  Do a case-insensitve comparison for the Excel dialog window
-					//  class name with the Excel version number truncated.
-					size_t len; // The length of the window's title text
-					if (_strnicmp(class_name, "bosa_sdm_xl", 11) == 0)
-					{
-						// Check if a searching for a specific title string
-						if (p_enum->window_title_text)
-						{
-							// Get the window's title and see if it matches the given text.
-							char buffer[WINDOW_TEXT_BUFFSIZE + 1];
-							buffer[WINDOW_TEXT_BUFFSIZE] = 0;
-							len = GetWindowTextA(hwnd, buffer, WINDOW_TEXT_BUFFSIZE);
-							if (len == 0) // No title
-							{
-								if (p_enum->window_title_text[0] != 0)
-									return TRUE; // No match, so keep iterating
-							}
-							// Window has a title so do a case-insensitive comparison of the
-							// title and the search text, if provided.
-							else if (p_enum->window_title_text[0] != 0
-								&& _stricmp(buffer, p_enum->window_title_text) != 0)
-								return TRUE; // Keep iterating
-						}
-						p_enum->is_dlg = true;
-						return FALSE; // Tells Windows to stop iterating.
-					}
-					return TRUE; // Tells Windows to continue iterating.
-				}
-				static bool called_from_paste_fn_dlg(void)
-				{
-					// commented out parts are not actually used in versions of excel higher than 10
-					// leaving them in because this piece of code is very often cited in documentation, books, forums ... 
-					//XLOPER xHwnd;
-					// Calls Excel12, which only returns the low part of the Excel
-					// main window handle. This is OK for the search however.
-
-					//if (Excel12(xlGetHwnd, &xHwnd, 0))
-					//	return false; // Couldn't get it, so assume not
-					// Search for bosa_sdm_xl* dialog box with title Function Arguments.
-					//xldlg_enum_struct es = { FALSE, xHwnd.val.w, "Function Arguments" };
-
-					wizard_detection_impl::xldlg_enum_struct es = { FALSE, 0, "Function Arguments" };
-					EnumWindows((WNDENUMPROC)wizard_detection_impl::xldlg_enum_proc, (LPARAM)&es);
-					return es.is_dlg;
-				}
-			};
-
-			// called_from_wizard detects if a function was invoked from Excel function wizard
-			struct called_from_wizard {
-				static bool check() {
-					return wizard_detection_impl::called_from_paste_fn_dlg();
-				}
-				operator bool() const {
-					return check();
-				}
-			};
-
-			// display a message box
-			inline void alert(std::string const& text, std::string const& title = "Warning") {
-				MessageBoxA(NULL, text.c_str(), title.c_str(), MB_ICONEXCLAMATION | MB_OK | MB_SETFOREGROUND);
-			}
-
-			// transposing linear and simple grids
-			template< typename TValue>
-			struct xl_transposed {
-				using value_type = TValue;
-				using stripped_value_type = typename std::remove_reference<typename TValue>::type;
-				
-				stripped_value_type const _value;
-				xl_transposed(stripped_value_type const& value_ = stripped_value_type()) :_value(value_) {}
-				stripped_value_type const& value() const { return _value; }
-				operator stripped_value_type const&() const { return _value; }
-			};
-
-			template<typename TValue>
-			inline xl_transposed<TValue> xl_transpose(TValue const& value) { return xl_transposed<TValue>{value}; }
-
-			// sometimes you may want to transpose an XLOPER12 itself
-			static LPXLOPER12 xl_transpose(LPXLOPER12 in) {
-				if (!inner::xl_type_ops::is_xl_type(*in, xltypeMulti))
-					return in;
-				if (((in->val.array.rows) * (in->val.array.columns)) == 0)
-					return in;
-
-				LPXLOPER12 out = inner::xl_memory::new_xloper12();
-				inner::xl_type_ops::set_xl_type(*out, xltypeMulti);
-				out->val.array.columns = in->val.array.rows;
-				out->val.array.rows = in->val.array.columns;
-				for (size_t r = 0; r < out->val.array.rows; ++r) {
-					for (size_t c = 0; c < out->val.array.columns; ++c) {
-						size_t i_out = c + r * out->val.array.columns;
-						size_t i_in = r + c * in->val.array.columns;
-						inner::xl_memory::clone_value(in->val.array.lparray[i_in], out->val.array.lparray[i_out]);
-					}
-				}
-				return in;
-			}
-		}
-
-
-		struct xl_errors {
-			// there a few options on what to do with errors and empty values
-			// all wrapped up in this namespace
-			static LPXLOPER12 xlpError(DWORD errCode) {
-				LPXLOPER12 out = inner::xl_memory::new_xloper12();
-				inner::xl_type_ops::set_xl_type(*out, xltypeErr);
-				out->val.err = errCode;
-				return out;
-			}
-
-			class error_policy {
-				// by default, all exceptions get transformed to #N/A
-				// this helps spreadsheets work, because ISERROR function will detect these properly
-				// but for debugging it may be helpful to display more information
-				// then we can set the policy to show "rich" information
-				// by returning strings prefixed by #ERR and containing exception text
-				bool _rich_error_text; // when an exception is caught, return "ERR:" + exception.what()
-				
-				bool _propagate_errors; // when there is an error in the input XLOPER12, return it as function output
-				bool _interpret_missing; // missing values are coerced to default values for types
-
-				// disabling wizard calls is not strictly speaking about error handling
-				// we have it here because it is really not worth adding complexity with a separate configuration class
-				// but we will pretend that it's because slow execution is a kind of an error
-				bool _disable_wizard_calls; // do not evaluate functions if invoked from the function wizard
-			private:
-				error_policy(
-						bool rich_error_text_, 
-						bool propagate_errors_, 
-						bool interpret_missing_, 
-						bool disable_wizard_calls_):
-					_rich_error_text(rich_error_text_), 
-					_propagate_errors(propagate_errors_), 
-					_interpret_missing(interpret_missing_),
-					_disable_wizard_calls(disable_wizard_calls_){
-				}
-				static error_policy& instance() {
-					static error_policy _instance{ false, true, true, true };
-					return _instance;
-				}
-			public:
-				static bool rich_error_text() {
-					return instance()._rich_error_text;
-				}
-				static void set_rich_error_text(bool rich_error_text_) {
-					instance()._rich_error_text = rich_error_text_;
-				}
-				static bool propagate_errors() {
-					return instance()._propagate_errors;
-				}
-				static void set_propagate_errors(bool propagate_errors_) {
-					instance()._propagate_errors = propagate_errors_;
-				}
-				static bool interpret_missing() {
-					return instance()._interpret_missing;
-				}
-				static void set_interpret_missing(bool interpret_missing_) {
-					instance()._interpret_missing = interpret_missing_;
-				}
-				static bool disable_wizard_calls() {
-					return instance()._disable_wizard_calls;
-				}
-				static void set_disable_wizard_calls(bool disable_wizard_calls_) {
-					instance()._disable_wizard_calls = disable_wizard_calls_;
-				}
-				static void set(
-						bool rich_error_text_, 
-						bool propagate_errors_, 
-						bool interpret_missing_,
-						bool disable_wizard_calls_) {
-					set_rich_error_text(rich_error_text_);
-					set_propagate_errors(propagate_errors_);
-					set_interpret_missing(interpret_missing_);
-					set_disable_wizard_calls(disable_wizard_calls_);
-				}
-				
-				// to make these work more easily with excel, we tag the configuration parameters
-				// helps a little in case we want to add something else later
-				//										tag				getter							setter
-				using tags_map = std::unordered_map < std::string, std::pair<std::function<bool()>, std::function<void(bool)>>>;
-
-				static tags_map const& tags() {
-					static tags_map _tags = {
-						{"RichErrorText", {rich_error_text, set_rich_error_text}},
-						{"PropagateErrors", {propagate_errors, set_propagate_errors}},
-						{"InterpretMissing", {interpret_missing, set_interpret_missing}},
-						{"DisableWizardCalls", {disable_wizard_calls, set_disable_wizard_calls}} };
-
-					return _tags;
-				}
-
-			};
-			// these are exposed by the XLL by default
-			static bool af_xl_configure_error_policy(
-				bool rich_error_text_,
-				bool propagate_errors_,
-				bool interpret_missing_,
-				bool disable_wizard_calls_) {
-				error_policy::set(rich_error_text_, propagate_errors_, interpret_missing_, disable_wizard_calls_);
-				return true;
-			}
-
-			static std::unordered_map<std::string, bool> af_xl_display_error_policy() {
-				std::unordered_map<std::string, bool>  out;
-				for (auto const& tag : error_policy::tags()) {
-					out[tag.first] = (tag.second.first)();
-				}
-				return out;
-			}
-
-			static std::unordered_map<std::string, bool>
-			af_xl_configure_error_policy_ex(std::unordered_map<std::string, bool> const& policy_details) {
-				for (auto const& in : policy_details) {
-					auto it = error_policy::tags().find(in.first);
-					if (it == error_policy::tags().end())
-						throw std::runtime_error(std::string("Unknown configuration tag: ") + in.first);
-					(it->second.second)(in.second);
-				}
-				return af_xl_display_error_policy();
-			}
-			
-			
-			// depending on the policy, we translate error text in various ways
-			// that is all embedded in here
-			static inline LPXLOPER12 translate_error(const char* const error_text) {
-				static constexpr auto error_prefix = "#ERR: ";
-				if (!error_policy::rich_error_text())
-					return const_cast<LPXLOPER12>(& inner::xl_constants::xlNA());
-
-				try {
-					std::string err(error_text);
-					err = error_prefix + err;
-					return inner::xl_strings::xlpString(err);
-				}
-				catch (...) {
-					return const_cast<LPXLOPER12>(&inner::xl_constants::xlNull());
-				}
-			}
-			static LPXLOPER12 translate_error(std::exception const& error_exception) {
-				return translate_error(error_exception.what());
-			}
-			static LPXLOPER12 translate_error() {
-				return translate_error("Unknown error.");
-			}
-			
-			// we handle errors by using exceptions later in the code
-			// this is to wrap XLOPER12 errors, so we can propagate them
-			class xloper_exception : public std::exception {
-				LPXLOPER12 _errorXlp;
-			public:
-				xloper_exception(DWORD errCode) :_errorXlp(xlpError(errCode)) {}
-				xloper_exception(const XLOPER12* const xlp) :_errorXlp(xlpError(xlp->val.err)) {}
-				const char* what() const {
-					switch (_errorXlp->val.err) {
-					case xlerrNull: return "Excel Error: Null";
-					case xlerrDiv0: return "Excel Error: Division by 0";
-					case xlerrValue: return "Excel Error: Value error";
-					case xlerrRef: return "Excel Error: Invalid Reference";
-					case xlerrName: return "Excel Error: Invalid Name";
-					case xlerrNum: return "Excel Error: Invalid Number";
-					case xlerrNA: return "Excel Error: NA";
-					case xlerrGettingData: return "Excel Error: Error Getting Data";
-					default: return "Excel Error: Unknown Excel Error";
-					}
-				}
-				LPXLOPER12 errorXlp() const {
-					if (error_policy::propagate_errors())
-						return _errorXlp;
-					else
-						return translate_error(*this);
-				}
-			};
-
-			// finally, some common checks
-			static void check_null_xlp(const XLOPER12 * const xlp) {
-				if (!xlp)
-					if (error_policy::rich_error_text())
-						throw std::runtime_error("NULL input.");
-					else
-						throw xloper_exception(&inner::xl_constants::xlNull());
-			}
-			static void check_input_xl(XLOPER12 const& xl) {
-				if (xl.xltype & xltypeErr) {
-					if (error_policy::propagate_errors())
-						throw xloper_exception(&xl);
-					else if (error_policy::rich_error_text())
-						throw std::runtime_error("Error in input.");
-					else
-						throw xloper_exception(&inner::xl_constants::xlNA());
-				}
-			}
-			static void check_wizard() {
-				if (error_policy::disable_wizard_calls() && 
-					xl_util::called_from_wizard()) 
-						throw xloper_exception(&inner::xl_constants::xlNA());
-			}
-		};
 
 		namespace xl_conversions {
 			// this is the beating heart of the magic part where we expose functions automatically
@@ -804,13 +66,13 @@ namespace autotelica {
 			}
 			template<typename T>
 			std::remove_const_t<std::remove_reference_t<T>> handle_missing(const XLOPER12 * const in) {
-				if (!xl_errors::error_policy::interpret_missing()) {
+				if (!errors::error_policy::interpret_missing()) {
 					throw std::runtime_error("Unexpected Nil or Missing value.");
 				}
 				return meaning_of_missing<std::remove_const_t<std::remove_reference_t<T>>>();
 			}
 
-#define CHECK_INPUT(XL12, OutV) xl_errors::check_input_xl(XL12);if(is_xl_missing(&XL12)){ OutV = handle_missing<decltype(OutV)>(&XL12); return;}
+#define CHECK_INPUT(XL12, OutV) util::check_input_xl(XL12);if(is_xl_missing(&XL12)){ OutV = handle_missing<decltype(OutV)>(&XL12); return;}
 
 			// supported types:
 			// supported contained types: int, unsigned short, short, double, float, string, wstring
@@ -1017,11 +279,11 @@ namespace autotelica {
 				linear_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed<std::vector<T>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::vector<T>> const& in, XLOPER12& out) {
 				linear_to_xl(in.value(), out, true);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed<std::list<T>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::list<T>> const& in, XLOPER12& out) {
 				linear_to_xl(in.value(), out, true);
 			}
 			template<typename TLinearTransposed>
@@ -1142,19 +404,19 @@ namespace autotelica {
 				simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed <std::vector<std::vector<T>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed <std::vector<std::vector<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed<std::vector<std::list<T>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::vector<std::list<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed<std::list<std::list<T>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::list<std::list<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(xl_util::xl_transposed<std::list<std::vector<T>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::list<std::vector<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 
@@ -1267,11 +529,11 @@ namespace autotelica {
 				linear_map_to_xl(in, out);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::map<TKey, TValue>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::map<TKey, TValue>> const& in, XLOPER12& out) {
 				linear_map_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, TValue>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::unordered_map<TKey, TValue>> const& in, XLOPER12& out) {
 				linear_map_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
@@ -1395,19 +657,19 @@ namespace autotelica {
 				map_grid_to_xl(in, out);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::unordered_map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(util::xl_transposed<std::unordered_map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
@@ -1498,13 +760,13 @@ namespace autotelica {
 			}
 
 			// FP12
-			inline FP12* to_xl(xl_util::xl_fast_array const& in) {
+			inline FP12* to_xl(fast_array::xl_fast_array const& in) {
 				return in.fp12();
 			}
-			inline FP12* to_xlp(xl_util::xl_fast_array const& in) {
+			inline FP12* to_xlp(fast_array::xl_fast_array const& in) {
 				return in.fp12();
 			}
-			inline xl_util::xl_fast_array from_xl(FP12* in) {
+			inline fast_array::xl_fast_array from_xl(FP12* in) {
 				return in;
 			}
 
@@ -1517,7 +779,7 @@ namespace autotelica {
 			}
 			template<>
 			inline FP12* to_return_type<FP12*>(LPXLOPER12 in) {
-				static xl_util::xl_fast_array fp12(1, 1, 0.0);
+				static fast_array::xl_fast_array fp12(1, 1, 0.0);
 				return fp12.fp12();
 			}
 
@@ -1561,7 +823,7 @@ namespace autotelica {
 			}
 			template<typename T>
 			typename std::remove_const_t<std::remove_reference_t<T>> from_xl(LPXLOPER12 const& in) {
-				xl_errors::check_null_xlp(in);
+				util::check_null_xlp(in);
 				return from_xl<typename std::remove_const_t<std::remove_reference_t<T>>>(*in);
 			}
 			template<typename T>
@@ -1656,9 +918,9 @@ namespace autotelica {
 			__AF_DECLARE_XL_STRING_TRAIT(std::wstring);
 
 // FP12
-			__AF_DECLARE_XL_TYPE_TRAIT(xl_util::xl_fast_array, FP12*, "K%");
-			__AF_DECLARE_XL_TYPE_TRAIT(const xl_util::xl_fast_array, FP12*, "K%");
-			__AF_DECLARE_XL_TYPE_TRAIT(const xl_util::xl_fast_array&, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(fast_array::xl_fast_array, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(const fast_array::xl_fast_array, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(const fast_array::xl_fast_array&, FP12*, "K%");
 
 			// translate a type to Excel type string
 			template< typename T >
@@ -1671,13 +933,13 @@ namespace autotelica {
 			inline void append_xl_ret_type_string(std::string& out) {
 				out.append("Q"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<xl_util::xl_fast_array>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<fast_array::xl_fast_array>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<const xl_util::xl_fast_array>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<const fast_array::xl_fast_array>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<const xl_util::xl_fast_array&>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<const fast_array::xl_fast_array&>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
 		}
@@ -2214,17 +1476,17 @@ namespace autotelica {
 	)
 
 #define __AF_XL_TRY try {\
-	autotelica::xloper::xl_errors::check_wizard();
+	autotelica::xloper::util::check_wizard();
 
 #define __AF_XL_CATCH }\
-		catch(autotelica::xloper::xl_errors::xloper_exception const& e) { return e.errorXlp(); }\
-		catch(std::runtime_error const& e) { return autotelica::xloper::xl_errors::translate_error(e); }\
-		catch(...) { return autotelica::xloper::xl_errors::translate_error(); }
+		catch(autotelica::xloper::errors::xloper_exception const& e) { return e.errorXlp(); }\
+		catch(std::runtime_error const& e) { return autotelica::xloper::errors::translate_error(e); }\
+		catch(...) { return autotelica::xloper::errors::translate_error(); }
 
 #define __AF_XL_CATCH_2(__F) }\
-		catch(autotelica::xloper::xl_errors::xloper_exception const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(e.errorXlp()); }\
-		catch(std::runtime_error const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::xl_errors::translate_error(e)); }\
-		catch(...) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::xl_errors::translate_error()); }
+		catch(autotelica::xloper::errors::xloper_exception const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(e.errorXlp()); }\
+		catch(std::runtime_error const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::errors::translate_error(e)); }\
+		catch(...) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::errors::translate_error()); }
 
 
 
@@ -3371,37 +2633,37 @@ namespace autotelica {
 		}\
 		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::inner::xl_memory::freeXL(pXL);}\
 		extern "C" __declspec(dllexport) int __stdcall xlAutoOpen(void){return autotelica::xloper::xl_registration::xl_f_registry::xlAutoOpen_impl();}\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy, autotelica::xloper::xl_errors::af_xl_configure_error_policy, \
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy, autotelica::xloper::errors::af_xl_configure_error_policy, \
 			"Configure handling of errors and invocation behaviour.", \
 			RichErrorText, "Provide detailed error descriptions (instead of just #N\\A).",\
 			PropagateErrors, "When there is an error in input, return the same error from function.",\
 			InterpretMissing, "Replace missing values with defaults where sensible.",\
 			DisableWizardCalls, "Disable function invocation within Excel function wizard.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_display_error_policy,autotelica::xloper::xl_errors::af_xl_display_error_policy,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_display_error_policy,autotelica::xloper::errors::af_xl_display_error_policy,\
 			"Display current configuration of error policy.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy_ex, autotelica::xloper::xl_errors::af_xl_configure_error_policy_ex, \
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy_ex, autotelica::xloper::errors::af_xl_configure_error_policy_ex, \
 			"Configure handling of errors and invocation behaviour.", \
 			PolicyDetails, "An array containing inputs laid out like in the output of af_xl_display_error_policy function.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_fast_array_cache_size,autotelica::xloper::xl_util::af_xl_fast_array_cache_size,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_fast_array_cache_size,autotelica::xloper::object_caches::af_xl_fast_array_cache_size,\
 			"Display the number of elements in the fast array cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_fast_array_cache,autotelica::xloper::xl_util::af_xl_clear_fast_array_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_fast_array_cache,autotelica::xloper::object_caches::af_xl_clear_fast_array_cache,\
 			"Clear fast array cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_size,autotelica::xloper::xl_util::af_xl_object_cache_size,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_size,autotelica::xloper::object_caches::af_xl_object_cache_size,\
 			"Size of an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_sizes,autotelica::xloper::xl_util::af_xl_object_cache_sizes,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_sizes,autotelica::xloper::object_caches::af_xl_object_cache_sizes,\
 			"Sizes of all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_object_cache,autotelica::xloper::xl_util::af_xl_clear_object_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_object_cache,autotelica::xloper::object_caches::af_xl_clear_object_cache,\
 			"Clear an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_object_caches,autotelica::xloper::xl_util::af_xl_clear_all_object_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_object_caches,autotelica::xloper::object_caches::af_xl_clear_all_object_caches,\
 			"Clear all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_objects_cache,autotelica::xloper::xl_util::af_xl_list_objects_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_objects_cache,autotelica::xloper::object_caches::af_xl_list_objects_cache,\
 			"List the content of an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_all_objects_caches,autotelica::xloper::xl_util::af_xl_list_all_objects_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_all_objects_caches,autotelica::xloper::object_caches::af_xl_list_all_objects_caches,\
 			"List the content of all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_caches,autotelica::xloper::xl_util::af_xl_clear_all_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_caches,autotelica::xloper::object_caches::af_xl_clear_all_caches,\
 			"Clear all caches (objects and fast arrays).");
 #endif
 	}

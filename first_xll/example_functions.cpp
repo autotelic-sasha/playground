@@ -367,7 +367,7 @@ namespace af_xll_examples {
 	std::string say_hello(std::string const& name) {
 		std::string hello("Hello ");
 		hello += name;
-		autotelica::xloper::xl_util::alert(hello, "Hi");
+		autotelica::xloper::util::alert(hello, "Hi");
 		return hello;
 	}
 	// transposing

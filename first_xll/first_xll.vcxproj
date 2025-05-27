@@ -230,7 +230,11 @@
   <ItemGroup>
     <ClInclude Include="af_xloper.h" />
     <ClInclude Include="af_xloper\af_xloper_data.h" />
+    <ClInclude Include="af_xloper\af_xloper_errors.h" />
+    <ClInclude Include="af_xloper\af_xloper_fast_array.h" />
     <ClInclude Include="af_xloper\af_xloper_inner.h" />
+    <ClInclude Include="af_xloper\af_xloper_object_caches.h" />
+    <ClInclude Include="af_xloper\af_xloper_util.h" />
     <ClInclude Include="af_xloper\XLCALL.H" />
     <ClInclude Include="example_functions.h" />
     <ClInclude Include="first_xll_macros.h" />
