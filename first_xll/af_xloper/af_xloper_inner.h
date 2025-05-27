@@ -13,7 +13,7 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-	namespace inner {
+	namespace xl_inner {
 		// implementation details of the af_xloper wrappers
 		// much of the magic depends on this, but it is ugly stuff best hidden away
 
@@ -96,7 +96,7 @@ namespace autotelica {
 			// Create counted Unicode wchar string from null-terminated Unicode input
 			static wchar_t* new_xl12string(const wchar_t* text)
 			{
-				using namespace inner::xl_constants;
+				using namespace xl_constants;
 				size_t len;
 				if (!text)
 					throw std::runtime_error("Attempted to allocate null string");
@@ -214,10 +214,10 @@ namespace autotelica {
 
 
 			static void xlString(std::wstring const& in, XLOPER12& out) {
-				inner::xl_type_ops::overwrite_xl_type(out, xltypeStr | xlbitDLLFree);
-				out.val.str = inner::xl_memory::new_xl12string(in.c_str());
+				xl_type_ops::overwrite_xl_type(out, xltypeStr | xlbitDLLFree);
+				out.val.str = xl_memory::new_xl12string(in.c_str());
 				if (!out.val.str)
-					inner::xl_type_ops::overwrite_xl_type(out, xltypeNil);
+					xl_type_ops::overwrite_xl_type(out, xltypeNil);
 			}
 			inline void xlString(std::string const& in, XLOPER12& out) {
 				xlString(convert(in), out);
@@ -231,7 +231,7 @@ namespace autotelica {
 				return xlString(convert(in));
 			}
 			static void xlpString(std::wstring const& in, LPXLOPER12& out) {
-				out = inner::xl_memory::new_xloper12();
+				out = xl_memory::new_xloper12();
 				xlString(in, *out);
 			}
 			inline void xlpString(std::string const& in, LPXLOPER12& out) {

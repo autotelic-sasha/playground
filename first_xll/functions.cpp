@@ -7,8 +7,8 @@
 //using namespace autotelica::xloper;
 //	AF_DECLARE_XLL("Autotelica Testing");
 
-	autotelica::xloper::fast_array::xl_fast_array big_array(double v) {
-		autotelica::xloper::fast_array::xl_fast_array ret(100, 100, v);
+	autotelica::xloper::xl_fast_array::xl_fast_array big_array(double v) {
+		autotelica::xloper::xl_fast_array::xl_fast_array ret(100, 100, v);
 		return ret;
 	}
 	AF_DECLARE_EXCEL_FUNCTION(
@@ -16,7 +16,7 @@
 		"makes a big fast grid",
 		v, "value to populate the grid with");
 
-	autotelica::xloper::fast_array::xl_fast_array big_array_add(double v, autotelica::xloper::fast_array::xl_fast_array in) {
+	autotelica::xloper::xl_fast_array::xl_fast_array big_array_add(double v, autotelica::xloper::xl_fast_array::xl_fast_array in) {
 		if (in.empty())
 			return in;
 
@@ -67,7 +67,7 @@
 	//	RHS, "rhs matrix");
 
 	using namespace autotelica::xloper;
-	using namespace autotelica::xloper::util;
+	using namespace autotelica::xloper::xl_util;
 	AF_DECLARE_LAMBDA_EXCEL_FUNCTION(
 		sum_rows_mt, 
 		[](std::map<std::string, std::vector<int>> const& in) {
@@ -152,7 +152,7 @@
 	int add(int x, int y) {
 		using namespace autotelica::xloper;
 		// in this case it's faster to not check, so just as an example
-		if (util::called_from_wizard())
+		if (xl_util::called_from_wizard())
 			return 0;
 		return x + y;
 	}
@@ -169,7 +169,7 @@
 	}
 	AF_DECLARE_QD_EXCEL_FUNCTION(mult, 2);
 
-	using namespace autotelica::xloper::util;
+	using namespace autotelica::xloper::xl_util;
 	AF_DECLARE_LAMBDA_EXCEL_FUNCTION(l_add, [](int i, int j) {return i + j; }, "adds two integers", i, "first integer", j, "second integer");
 	AF_DECLARE_QD_LAMBDA_EXCEL_FUNCTION(t_inc_v, [](std::vector<int> v) {return xl_transpose(inc_v(v)); }, 1);
 	//FIRSTXLL_API  

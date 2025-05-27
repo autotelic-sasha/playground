@@ -4,7 +4,7 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-		namespace fast_array {
+		namespace xl_fast_array {
 			// xl_fast_array is a wrapper for FP12 arrays
 			// they are a pain to use, but apparently the fastest way to pass lots of number to and from excel
 			class xl_fast_array {
@@ -222,11 +222,11 @@ namespace autotelica {
 
 		}
 
-		namespace object_caches {
+		namespace xl_object_caches {
 			// these are exposed by the XLL by default
-			inline size_t af_xl_fast_array_cache_size() { return fast_array::xl_fast_array::cache_size(); }
+			inline size_t af_xl_fast_array_cache_size() { return xl_fast_array::xl_fast_array::cache_size(); }
 
-			inline bool af_xl_clear_fast_array_cache() { fast_array::xl_fast_array::clear_cache(); return true; }
+			inline bool af_xl_clear_fast_array_cache() { xl_fast_array::xl_fast_array::clear_cache(); return true; }
 
 			inline bool af_xl_clear_all_caches() { return af_xl_clear_fast_array_cache() && af_xl_clear_all_object_caches(); }
 	

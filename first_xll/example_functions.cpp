@@ -242,10 +242,10 @@ namespace af_xll_examples {
 
 	// dates
 	std::string to_iso(double d) {
-		return autotelica::xloper::data::xl_date::xl_date_to_iso8601_date(d);
+		return autotelica::xloper::xl_data::xl_date::xl_date_to_iso8601_date(d);
 	}
 	std::string format_date(double d, std::string const& format) {
-		return autotelica::xloper::data::xl_date::format_xl_date(d, format);
+		return autotelica::xloper::xl_data::xl_date::format_xl_date(d, format);
 	}
 
 	
@@ -367,7 +367,7 @@ namespace af_xll_examples {
 	std::string say_hello(std::string const& name) {
 		std::string hello("Hello ");
 		hello += name;
-		autotelica::xloper::util::alert(hello, "Hi");
+		autotelica::xloper::xl_util::alert(hello, "Hi");
 		return hello;
 	}
 	// transposing

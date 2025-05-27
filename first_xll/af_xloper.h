@@ -55,24 +55,24 @@ namespace autotelica {
 			__AF_MEANING_OF_MISSING(size_t, 0);
 			__AF_MEANING_OF_MISSING(std::string, "");
 			__AF_MEANING_OF_MISSING(std::wstring, L"");
-			__AF_MEANING_OF_MISSING(data::xl_variant, data::xl_variant());
-			__AF_MEANING_OF_MISSING(data::xl_nvp, data::xl_nvp());
-			__AF_MEANING_OF_MISSING(data::xl_nvp_cs, data::xl_nvp_cs());
-			__AF_MEANING_OF_MISSING(data::xl_table, data::xl_table());
-			__AF_MEANING_OF_MISSING(data::xl_table_cs, data::xl_table_cs());
+			__AF_MEANING_OF_MISSING(xl_data::xl_variant, xl_data::xl_variant());
+			__AF_MEANING_OF_MISSING(xl_data::xl_nvp, xl_data::xl_nvp());
+			__AF_MEANING_OF_MISSING(xl_data::xl_nvp_cs, xl_data::xl_nvp_cs());
+			__AF_MEANING_OF_MISSING(xl_data::xl_table, xl_data::xl_table());
+			__AF_MEANING_OF_MISSING(xl_data::xl_table_cs, xl_data::xl_table_cs());
 
 			inline bool is_xl_missing(const XLOPER12 * const in) {
-				return inner::xl_type_ops::is_xl_type(*in, xltypeMissing | xltypeNil);
+				return xl_inner::xl_type_ops::is_xl_type(*in, xltypeMissing | xltypeNil);
 			}
 			template<typename T>
 			std::remove_const_t<std::remove_reference_t<T>> handle_missing(const XLOPER12 * const in) {
-				if (!errors::error_policy::interpret_missing()) {
+				if (!xl_errors::error_policy::interpret_missing()) {
 					throw std::runtime_error("Unexpected Nil or Missing value.");
 				}
 				return meaning_of_missing<std::remove_const_t<std::remove_reference_t<T>>>();
 			}
 
-#define CHECK_INPUT(XL12, OutV) util::check_input_xl(XL12);if(is_xl_missing(&XL12)){ OutV = handle_missing<decltype(OutV)>(&XL12); return;}
+#define CHECK_INPUT(XL12, OutV) xl_util::check_input_xl(XL12);if(is_xl_missing(&XL12)){ OutV = handle_missing<decltype(OutV)>(&XL12); return;}
 
 			// supported types:
 			// supported contained types: int, unsigned short, short, double, float, string, wstring
@@ -100,13 +100,13 @@ namespace autotelica {
 			// xl_conversions for supported types
 			// wstring, string 
 			inline void to_xl(std::wstring const& in, XLOPER12& out) {
-				inner::xl_strings::xlString(in, out);
+				xl_inner::xl_strings::xlString(in, out);
 			}
 			static void from_xl(XLOPER12 const& in, std::wstring& out) {
 				CHECK_INPUT(in, out);
 				// based on Excel SDK, FRAMEWORK.C, XLOPER12 to XLOPER
 				out = L"";
-				inner::xl_type_ops::check_xl_type(in, xltypeStr);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeStr);
 
 				XCHAR* st;
 				int cch;
@@ -119,44 +119,44 @@ namespace autotelica {
 			}
 
 			inline void to_xl(std::string const& in, XLOPER12& out) {
-				to_xl(inner::xl_strings::convert(in), out);
+				to_xl(xl_inner::xl_strings::convert(in), out);
 			}
 
 			inline void from_xl(XLOPER12 const& in, std::string& out) {
 				std::wstring wout;
 				from_xl(in, wout);
-				out = inner::xl_strings::convert(wout);
+				out = xl_inner::xl_strings::convert(wout);
 			}
 			
 			// integer types, doubles and bools are passed in as is, but returned as XLOPERS
 			inline void int_to_xl(int const& in, XLOPER12& out) {
-				inner::xl_type_ops::set_xl_type(out, xltypeInt);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeInt);
 				out.val.w = in;
 			}
 
 			inline void int_to_xl(int const& in, LPXLOPER12& out) {
-				out = inner::xl_memory::new_xloper12();
+				out = xl_inner::xl_memory::new_xloper12();
 				int_to_xl(in, *out);
 			}
 			inline void num_to_xl(double const& in, XLOPER12& out) {
-				inner::xl_type_ops::set_xl_type(out, xltypeNum);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeNum);
 				out.val.num = in;
 			}
 
 			inline void num_to_xl(double const& in, LPXLOPER12& out) {
-				out = inner::xl_memory::new_xloper12();
+				out = xl_inner::xl_memory::new_xloper12();
 				num_to_xl(in, *out);
 			}
 			inline int xl_to_int(XLOPER12 const& in) {
-				inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
-				if (inner::xl_type_ops::is_xl_type(in, xltypeInt))
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (xl_inner::xl_type_ops::is_xl_type(in, xltypeInt))
 					return in.val.w;
 				else
 					return static_cast<int>(in.val.num);
 			}
 			inline double xl_to_num(XLOPER12 const& in) {
-				inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
-				if (inner::xl_type_ops::is_xl_type(in, xltypeInt))
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeInt | xltypeNum);
+				if (xl_inner::xl_type_ops::is_xl_type(in, xltypeInt))
 					return static_cast<double>(in.val.w);
 				else
 					return in.val.num;
@@ -205,17 +205,17 @@ namespace autotelica {
 				out = static_cast<float>(xl_to_num(in));
 			}
 			inline void to_xl(bool const& in, XLOPER12& out) {
-				inner::xl_type_ops::set_xl_type(out, xltypeBool);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeBool);
 				out.val.xbool = in;
 			}
 			inline void from_xl(XLOPER12 const& in, bool& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeBool);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeBool);
 				out = static_cast<bool>(in.val.xbool);
 			}
 			
-			inline void to_xl(data::xl_variant const& in, XLOPER12& out);
-			void from_xl(XLOPER12 const& in, data::xl_variant& out);
+			inline void to_xl(xl_data::xl_variant const& in, XLOPER12& out);
+			void from_xl(XLOPER12 const& in, xl_data::xl_variant& out);
 
 			// linear types are lists and vectors of strings, wstrings, int, short, unsigned, double, float, bool
 			// reserve is an optimisation - helps a lot to pre-set vector sizes, but you can't do it with lists
@@ -233,14 +233,14 @@ namespace autotelica {
 			void linear_to_xl(TLinear const& in, XLOPER12& out, bool transposed = false) {
 				const size_t sz = in.size();
 				if (sz == 0) {
-					inner::xl_type_ops::set_xl_type(out, xltypeNil);
+					xl_inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.columns = transposed?((RW)sz):1;
 				out.val.array.rows = transposed?1:(RW)sz;
-				out.val.array.lparray = inner::xl_memory::new_xloper12_array(sz);
+				out.val.array.lparray = xl_inner::xl_memory::new_xloper12_array(sz);
 
 				size_t i = 0;
 				for (auto const& v : in){ 
@@ -251,7 +251,7 @@ namespace autotelica {
 			template<typename TLinear>
 			void linear_from_xl(XLOPER12 const& in, TLinear& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 				if ((in.val.array.columns * in.val.array.rows) == 0) {
 					out.clear();
 					return;
@@ -279,11 +279,11 @@ namespace autotelica {
 				linear_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed<std::vector<T>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::vector<T>> const& in, XLOPER12& out) {
 				linear_to_xl(in.value(), out, true);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed<std::list<T>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::list<T>> const& in, XLOPER12& out) {
 				linear_to_xl(in.value(), out, true);
 			}
 			template<typename TLinearTransposed>
@@ -308,16 +308,16 @@ namespace autotelica {
 					if (r.size() > cols) cols = r.size();
 				}
 				if (rows * cols == 0) {
-					inner::xl_type_ops::set_xl_type(out, xltypeNil);
+					xl_inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 				if (transposed)
 					std::swap(rows, cols);
 
-				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
-				out.val.array.lparray = inner::xl_memory::new_xloper12_array(rows*cols);
+				out.val.array.lparray = xl_inner::xl_memory::new_xloper12_array(rows*cols);
 
 				size_t i = 0;
 				typename std::remove_reference<TSimpleGrid>::type::value_type::value_type default_value;
@@ -342,7 +342,7 @@ namespace autotelica {
 			template<typename TSimpleGrid>
 			void simple_grid_from_xl(XLOPER12 const& in, TSimpleGrid& out, bool transposed = false) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -404,19 +404,19 @@ namespace autotelica {
 				simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed <std::vector<std::vector<T>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed <std::vector<std::vector<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed<std::vector<std::list<T>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::vector<std::list<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed<std::list<std::list<T>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::list<std::list<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 			template<typename T>
-			void to_xl(util::xl_transposed<std::list<std::vector<T>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::list<std::vector<T>>> const& in, XLOPER12& out) {
 				transposed_simple_grid_to_xl(in, out);
 			}
 
@@ -443,17 +443,17 @@ namespace autotelica {
 				const size_t rows = 2;
 				size_t cols = in.size();
 				if (rows == 0) {
-					inner::xl_type_ops::set_xl_type(out, xltypeNil);
+					xl_inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows;
 				out.val.array.columns = (RW)cols;
 				if (transposed) 
 					std::swap(out.val.array.rows, out.val.array.columns);
 				
-				out.val.array.lparray = inner::xl_memory::new_xloper12_array(rows * cols);
+				out.val.array.lparray = xl_inner::xl_memory::new_xloper12_array(rows * cols);
 
 				size_t i = 0;
 				if(transposed){
@@ -480,7 +480,7 @@ namespace autotelica {
 			template<typename TLinearMap>
 			void linear_map_from_xl(XLOPER12 const& in, TLinearMap& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -529,11 +529,11 @@ namespace autotelica {
 				linear_map_to_xl(in, out);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::map<TKey, TValue>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::map<TKey, TValue>> const& in, XLOPER12& out) {
 				linear_map_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::unordered_map<TKey, TValue>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, TValue>> const& in, XLOPER12& out) {
 				linear_map_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
@@ -555,17 +555,17 @@ namespace autotelica {
 					if (c.second.size() > rows) rows = c.second.size();
 				
 				if (rows * cols == 0) {
-					inner::xl_type_ops::set_xl_type(out, xltypeNil);
+					xl_inner::xl_type_ops::set_xl_type(out, xltypeNil);
 					return;
 				}
 
-				inner::xl_type_ops::set_xl_type(out, xltypeMulti);
+				xl_inner::xl_type_ops::set_xl_type(out, xltypeMulti);
 				out.val.array.rows = (RW)rows+1;//keys are titles, so another row
 				out.val.array.columns = (RW)cols;
 				if (transposed)
 					std::swap(out.val.array.rows, out.val.array.columns);
 				size_t sz = (rows + 1) * cols;
-				out.val.array.lparray = inner::xl_memory::new_xloper12_array(sz);
+				out.val.array.lparray = xl_inner::xl_memory::new_xloper12_array(sz);
 				size_t i = 0;
 				if (transposed) {
 					for (auto const& in_ : in) {
@@ -608,7 +608,7 @@ namespace autotelica {
 			template<typename TMapGrid>
 			void map_grid_from_xl(XLOPER12 const& in, TMapGrid& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
 
 				const size_t rows = in.val.array.rows;
 				const size_t cols = in.val.array.columns;
@@ -657,19 +657,19 @@ namespace autotelica {
 				map_grid_to_xl(in, out);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::unordered_map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, std::vector<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
-			void to_xl(util::xl_transposed<std::unordered_map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
+			void to_xl(xl_util::xl_transposed<std::unordered_map<TKey, std::list<TValue>>> const& in, XLOPER12& out) {
 				map_grid_to_xl(in.value(), out, true);
 			}
 			template<typename TKey, typename TValue>
@@ -689,8 +689,8 @@ namespace autotelica {
 				map_grid_from_xl(in, out);
 			}
 			// xl_variant, nvp, table
-			static void to_xl(data::xl_variant const& in, XLOPER12& out) {
-				using namespace data;
+			static void to_xl(xl_data::xl_variant const& in, XLOPER12& out) {
+				using namespace xl_data;
 				switch (in.type()) {
 				case xl_variant::xl_type::xl_typeNum:
 					to_xl(in.get_double(), out);
@@ -721,52 +721,52 @@ namespace autotelica {
 					break;
 				}
 			}
-			inline void from_xl(XLOPER12 const& in, data::xl_variant& out) {
+			inline void from_xl(XLOPER12 const& in, xl_data::xl_variant& out) {
 				CHECK_INPUT(in, out);
 				out.set(in);
 			}
 
-			inline void to_xl(data::xl_nvp const& in, XLOPER12& out) {
+			inline void to_xl(xl_data::xl_nvp const& in, XLOPER12& out) {
 				simple_grid_to_xl(in.values(), out);
 			}
-			inline void from_xl(XLOPER12 const& in, data::xl_nvp& out) {
+			inline void from_xl(XLOPER12 const& in, xl_data::xl_nvp& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
-				simple_grid_from_xl(in, out.values(), data::xl_nvp::transpose_input(in));
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				simple_grid_from_xl(in, out.values(), xl_data::xl_nvp::transpose_input(in));
 			}
-			inline void to_xl(data::xl_nvp_cs const& in, XLOPER12& out) {
+			inline void to_xl(xl_data::xl_nvp_cs const& in, XLOPER12& out) {
 				simple_grid_to_xl(in.values(), out);
 			}
-			inline void from_xl(XLOPER12 const& in, data::xl_nvp_cs & out){
+			inline void from_xl(XLOPER12 const& in, xl_data::xl_nvp_cs & out){
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
-				simple_grid_from_xl(in, out.values(), data::xl_nvp::transpose_input(in));
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				simple_grid_from_xl(in, out.values(), xl_data::xl_nvp::transpose_input(in));
 			}
-			inline void to_xl(data::xl_table const& in, XLOPER12 & out) {
+			inline void to_xl(xl_data::xl_table const& in, XLOPER12 & out) {
 				simple_grid_to_xl(in.table(), out);
 			}
-			inline void from_xl(XLOPER12 const& in, data::xl_table & out){
+			inline void from_xl(XLOPER12 const& in, xl_data::xl_table & out){
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
-				simple_grid_from_xl(in, out.table(), data::xl_table::transpose_input(in));
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				simple_grid_from_xl(in, out.table(), xl_data::xl_table::transpose_input(in));
 			}
-			inline void to_xl(data::xl_table_cs const& in, XLOPER12 & out) {
+			inline void to_xl(xl_data::xl_table_cs const& in, XLOPER12 & out) {
 				simple_grid_to_xl(in.table(), out);
 			}
-			inline void from_xl(XLOPER12 const& in, data::xl_table_cs& out) {
+			inline void from_xl(XLOPER12 const& in, xl_data::xl_table_cs& out) {
 				CHECK_INPUT(in, out);
-				inner::xl_type_ops::check_xl_type(in, xltypeMulti);
-				simple_grid_from_xl(in, out.table(), data::xl_table::transpose_input(in));
+				xl_inner::xl_type_ops::check_xl_type(in, xltypeMulti);
+				simple_grid_from_xl(in, out.table(), xl_data::xl_table::transpose_input(in));
 			}
 
 			// FP12
-			inline FP12* to_xl(fast_array::xl_fast_array const& in) {
+			inline FP12* to_xl(xl_fast_array::xl_fast_array const& in) {
 				return in.fp12();
 			}
-			inline FP12* to_xlp(fast_array::xl_fast_array const& in) {
+			inline FP12* to_xlp(xl_fast_array::xl_fast_array const& in) {
 				return in.fp12();
 			}
-			inline fast_array::xl_fast_array from_xl(FP12* in) {
+			inline xl_fast_array::xl_fast_array from_xl(FP12* in) {
 				return in;
 			}
 
@@ -779,7 +779,7 @@ namespace autotelica {
 			}
 			template<>
 			inline FP12* to_return_type<FP12*>(LPXLOPER12 in) {
-				static fast_array::xl_fast_array fp12(1, 1, 0.0);
+				static xl_fast_array::xl_fast_array fp12(1, 1, 0.0);
 				return fp12.fp12();
 			}
 
@@ -795,7 +795,7 @@ namespace autotelica {
 
 			template<typename T>
 			void to_xlp(T const& in, LPXLOPER12& out) {
-				out = inner::xl_memory::new_xloper12();
+				out = xl_inner::xl_memory::new_xloper12();
 				to_xl(in, *out);
 			}
 
@@ -823,7 +823,7 @@ namespace autotelica {
 			}
 			template<typename T>
 			typename std::remove_const_t<std::remove_reference_t<T>> from_xl(LPXLOPER12 const& in) {
-				util::check_null_xlp(in);
+				xl_util::check_null_xlp(in);
 				return from_xl<typename std::remove_const_t<std::remove_reference_t<T>>>(*in);
 			}
 			template<typename T>
@@ -918,9 +918,9 @@ namespace autotelica {
 			__AF_DECLARE_XL_STRING_TRAIT(std::wstring);
 
 // FP12
-			__AF_DECLARE_XL_TYPE_TRAIT(fast_array::xl_fast_array, FP12*, "K%");
-			__AF_DECLARE_XL_TYPE_TRAIT(const fast_array::xl_fast_array, FP12*, "K%");
-			__AF_DECLARE_XL_TYPE_TRAIT(const fast_array::xl_fast_array&, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(xl_fast_array::xl_fast_array, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(const xl_fast_array::xl_fast_array, FP12*, "K%");
+			__AF_DECLARE_XL_TYPE_TRAIT(const xl_fast_array::xl_fast_array&, FP12*, "K%");
 
 			// translate a type to Excel type string
 			template< typename T >
@@ -933,13 +933,13 @@ namespace autotelica {
 			inline void append_xl_ret_type_string(std::string& out) {
 				out.append("Q"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<fast_array::xl_fast_array>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<xl_fast_array::xl_fast_array>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<const fast_array::xl_fast_array>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<const xl_fast_array::xl_fast_array>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
-			template<> inline void append_xl_ret_type_string<const fast_array::xl_fast_array&>(std::string& out) {
+			template<> inline void append_xl_ret_type_string<const xl_fast_array::xl_fast_array&>(std::string& out) {
 				out.append("K%"); // everything other than FP12 is returned as XLOPER12
 			}
 		}
@@ -1062,8 +1062,8 @@ namespace autotelica {
 
 				void xlfRegister_impl(XLOPER12 const& xDLL, std::string const& function_category_) const {
 					using namespace xl_conversions;
-					using namespace inner::xl_constants;
-					using namespace data;
+					using namespace xl_inner::xl_constants;
+					using namespace xl_data;
 
 					auto_pxl function_category{to_xlp(function_category_)};
 					auto_pxl function_xl_name{ to_xlp(_function_xl_name) };
@@ -1476,17 +1476,17 @@ namespace autotelica {
 	)
 
 #define __AF_XL_TRY try {\
-	autotelica::xloper::util::check_wizard();
+	autotelica::xloper::xl_util::check_wizard();
 
 #define __AF_XL_CATCH }\
-		catch(autotelica::xloper::errors::xloper_exception const& e) { return e.errorXlp(); }\
-		catch(std::runtime_error const& e) { return autotelica::xloper::errors::translate_error(e); }\
-		catch(...) { return autotelica::xloper::errors::translate_error(); }
+		catch(autotelica::xloper::xl_errors::xloper_exception const& e) { return e.errorXlp(); }\
+		catch(std::runtime_error const& e) { return autotelica::xloper::xl_errors::translate_error(e); }\
+		catch(...) { return autotelica::xloper::xl_errors::translate_error(); }
 
 #define __AF_XL_CATCH_2(__F) }\
-		catch(autotelica::xloper::errors::xloper_exception const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(e.errorXlp()); }\
-		catch(std::runtime_error const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::errors::translate_error(e)); }\
-		catch(...) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::errors::translate_error()); }
+		catch(autotelica::xloper::xl_errors::xloper_exception const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(e.errorXlp()); }\
+		catch(std::runtime_error const& e) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::xl_errors::translate_error(e)); }\
+		catch(...) { return autotelica::xloper::xl_conversions::to_return_type<__af_xl_ret_t(__F)>(autotelica::xloper::xl_errors::translate_error()); }
 
 
 
@@ -2624,46 +2624,46 @@ namespace autotelica {
 		namespace {\
 			static const auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::set_function_category(Category);\
 		}\
-		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::inner::xl_memory::freeXL(pXL);}\
+		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::xl_inner::xl_memory::freeXL(pXL);}\
 		extern "C" __declspec(dllexport) int __stdcall xlAutoOpen(void){return autotelica::xloper::xl_registration::xl_f_registry::xlAutoOpen_impl();}
 #else
 #define AF_DECLARE_XLL(Category) \
 		namespace {\
 			static const auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::set_function_category(Category);\
 		}\
-		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::inner::xl_memory::freeXL(pXL);}\
+		extern "C" __declspec(dllexport) void __stdcall xlAutoFree12(LPXLOPER12 pXL) {autotelica::xloper::xl_inner::xl_memory::freeXL(pXL);}\
 		extern "C" __declspec(dllexport) int __stdcall xlAutoOpen(void){return autotelica::xloper::xl_registration::xl_f_registry::xlAutoOpen_impl();}\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy, autotelica::xloper::errors::af_xl_configure_error_policy, \
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy, autotelica::xloper::xl_errors::af_xl_configure_error_policy, \
 			"Configure handling of errors and invocation behaviour.", \
 			RichErrorText, "Provide detailed error descriptions (instead of just #N\\A).",\
 			PropagateErrors, "When there is an error in input, return the same error from function.",\
 			InterpretMissing, "Replace missing values with defaults where sensible.",\
 			DisableWizardCalls, "Disable function invocation within Excel function wizard.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_display_error_policy,autotelica::xloper::errors::af_xl_display_error_policy,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_display_error_policy,autotelica::xloper::xl_errors::af_xl_display_error_policy,\
 			"Display current configuration of error policy.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy_ex, autotelica::xloper::errors::af_xl_configure_error_policy_ex, \
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_configure_error_policy_ex, autotelica::xloper::xl_errors::af_xl_configure_error_policy_ex, \
 			"Configure handling of errors and invocation behaviour.", \
 			PolicyDetails, "An array containing inputs laid out like in the output of af_xl_display_error_policy function.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_fast_array_cache_size,autotelica::xloper::object_caches::af_xl_fast_array_cache_size,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_fast_array_cache_size,autotelica::xloper::xl_object_caches::af_xl_fast_array_cache_size,\
 			"Display the number of elements in the fast array cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_fast_array_cache,autotelica::xloper::object_caches::af_xl_clear_fast_array_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_fast_array_cache,autotelica::xloper::xl_object_caches::af_xl_clear_fast_array_cache,\
 			"Clear fast array cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_size,autotelica::xloper::object_caches::af_xl_object_cache_size,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_size,autotelica::xloper::xl_object_caches::af_xl_object_cache_size,\
 			"Size of an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_sizes,autotelica::xloper::object_caches::af_xl_object_cache_sizes,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_object_cache_sizes,autotelica::xloper::xl_object_caches::af_xl_object_cache_sizes,\
 			"Sizes of all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_object_cache,autotelica::xloper::object_caches::af_xl_clear_object_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_object_cache,autotelica::xloper::xl_object_caches::af_xl_clear_object_cache,\
 			"Clear an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_object_caches,autotelica::xloper::object_caches::af_xl_clear_all_object_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_object_caches,autotelica::xloper::xl_object_caches::af_xl_clear_all_object_caches,\
 			"Clear all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_objects_cache,autotelica::xloper::object_caches::af_xl_list_objects_cache,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_objects_cache,autotelica::xloper::xl_object_caches::af_xl_list_objects_cache,\
 			"List the content of an objects cache.",\
 			cache_name, "Name of an objects cache.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_all_objects_caches,autotelica::xloper::object_caches::af_xl_list_all_objects_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_list_all_objects_caches,autotelica::xloper::xl_object_caches::af_xl_list_all_objects_caches,\
 			"List the content of all objects caches.");\
-		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_caches,autotelica::xloper::object_caches::af_xl_clear_all_caches,\
+		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_caches,autotelica::xloper::xl_object_caches::af_xl_clear_all_caches,\
 			"Clear all caches (objects and fast arrays).");
 #endif
 	}

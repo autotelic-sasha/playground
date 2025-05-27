@@ -7,7 +7,7 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-	namespace data {
+	namespace xl_data {
 		// use this for locally created xlopers, works like auto_ptr (kinda)
 		struct auto_pxl {
 			LPXLOPER12 _pxl;
@@ -15,7 +15,7 @@ namespace autotelica {
 			operator LPXLOPER12() { return _pxl; }
 			LPXLOPER12 operator->() { return _pxl; }
 			XLOPER12 operator*() { return *_pxl; }
-			~auto_pxl() { inner::xl_memory::freeXL(_pxl); }
+			~auto_pxl() { xl_inner::xl_memory::freeXL(_pxl); }
 		};
 
 		// dealing with Excel time
@@ -204,7 +204,7 @@ namespace autotelica {
 				_value._str = str_;
 			}
 			xl_variant(std::string const& str_) : _type(xl_type::xl_typeStr) {
-				_value._str = inner::xl_strings::convert(str_);
+				_value._str = xl_inner::xl_strings::convert(str_);
 			}
 			xl_variant(bool xbool_) : _type(xl_type::xl_typeBool) {
 				_value._xbool = xbool_;
@@ -269,11 +269,11 @@ namespace autotelica {
 			}
 			void set(std::string const& str_) {
 				_type = xl_type::xl_typeStr;
-				_value._str = inner::xl_strings::convert(str_);
+				_value._str = xl_inner::xl_strings::convert(str_);
 			}
 			std::wstring const& get_wstring() const { check_type(xl_type::xl_typeStr);  return _value._str; }
 			std::wstring& get_wstring() { check_type(xl_type::xl_typeStr); return _value._str; }
-			std::string get_string() const { check_type(xl_type::xl_typeStr);  return inner::xl_strings::convert(_value._str); }
+			std::string get_string() const { check_type(xl_type::xl_typeStr);  return xl_inner::xl_strings::convert(_value._str); }
 			operator std::wstring const& () const { return get_wstring(); }
 			operator std::wstring& () { return get_wstring(); }
 			operator std::string() const { return get_string(); }
@@ -449,19 +449,19 @@ namespace autotelica {
 			xl_variant const& get(std::wstring const& key) const {
 				size_t i = find_key(key);
 				if (i == -1)
-					throw std::runtime_error(std::string("Key ") + inner::xl_strings::convert(key) + " is not present.");
+					throw std::runtime_error(std::string("Key ") + xl_inner::xl_strings::convert(key) + " is not present.");
 				return _values[i][1];
 			}
 			xl_variant& get(std::wstring const& key) {
 				size_t i = find_key(key);
 				if (i == -1)
-					throw std::runtime_error(std::string("Key ") + inner::xl_strings::convert(key) + " is not present.");
+					throw std::runtime_error(std::string("Key ") + xl_inner::xl_strings::convert(key) + " is not present.");
 				return _values[i][1];
 			}
 			inline std::vector<std::vector<xl_variant>> const& values() const { return _values; }
 			inline std::vector<std::vector<xl_variant>>& values() { return _values; }
 			inline xl_variant const& operator[](std::wstring const& key) const { return get(key); }
-			inline xl_variant const& operator[](std::string const& key)  const { return get(inner::xl_strings::convert(key)); }
+			inline xl_variant const& operator[](std::string const& key)  const { return get(xl_inner::xl_strings::convert(key)); }
 			inline size_t size() const { return _values.size(); }
 
 			static bool transpose_input(XLOPER12 const& in) {
@@ -469,8 +469,8 @@ namespace autotelica {
 				// for the logic, see comment above the class declaration
 				if (in.val.array.columns == 2) {
 					if (in.val.array.rows == 2) {
-						if (inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
-							inner::xl_type_ops::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
+						if (xl_inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr) &&
+							xl_inner::xl_type_ops::is_xl_type(in.val.array.lparray[2], xltypeStr)) {
 							return true;
 						}
 						return false;
@@ -528,7 +528,7 @@ namespace autotelica {
 			size_t columns() const { return _table.size() == 0 ? 0 : headings().size(); }
 
 			std::vector<std::vector<xl_variant>> get_column(std::string const& key) const {
-				return get_column(inner::xl_strings::convert(key));
+				return get_column(xl_inner::xl_strings::convert(key));
 			}
 
 			std::vector<std::vector<xl_variant>> get_column(std::wstring const& key) const {
@@ -565,7 +565,7 @@ namespace autotelica {
 				// for the logic, see comment above the class declaration
 				bool all_strings = true;
 				for (size_t i = 0; i < in.val.array.columns; ++i) {
-					if (!inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+					if (!xl_inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 						all_strings = false;
 						break;
 					}
@@ -576,7 +576,7 @@ namespace autotelica {
 				all_strings = true;
 				size_t sz = in.val.array.columns * in.val.array.rows;
 				for (size_t i = 0; i < sz; i += in.val.array.columns) {
-					if (!inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
+					if (!xl_inner::xl_type_ops::is_xl_type(in.val.array.lparray[0], xltypeStr)) {
 						all_strings = false;
 						break;
 					}

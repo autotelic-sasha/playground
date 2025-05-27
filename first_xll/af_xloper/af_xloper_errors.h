@@ -5,12 +5,12 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-	namespace errors {
+	namespace xl_errors {
 		// there a few options on what to do with errors and empty values
 		// all wrapped up in this namespace
 		static LPXLOPER12 xlpError(DWORD errCode) {
-			LPXLOPER12 out = inner::xl_memory::new_xloper12();
-			inner::xl_type_ops::set_xl_type(*out, xltypeErr);
+			LPXLOPER12 out = xl_inner::xl_memory::new_xloper12();
+			xl_inner::xl_type_ops::set_xl_type(*out, xltypeErr);
 			out->val.err = errCode;
 			return out;
 		}
@@ -132,15 +132,15 @@ namespace autotelica {
 		static inline LPXLOPER12 translate_error(const char* const error_text) {
 			static constexpr auto error_prefix = "#ERR: ";
 			if (!error_policy::rich_error_text())
-				return const_cast<LPXLOPER12>(&inner::xl_constants::xlNA());
+				return const_cast<LPXLOPER12>(&xl_inner::xl_constants::xlNA());
 
 			try {
 				std::string err(error_text);
 				err = error_prefix + err;
-				return inner::xl_strings::xlpString(err);
+				return xl_inner::xl_strings::xlpString(err);
 			}
 			catch (...) {
-				return const_cast<LPXLOPER12>(&inner::xl_constants::xlNull());
+				return const_cast<LPXLOPER12>(&xl_inner::xl_constants::xlNull());
 			}
 		}
 		static LPXLOPER12 translate_error(std::exception const& error_exception) {
@@ -181,34 +181,33 @@ namespace autotelica {
 
 
 	}
-
 		
-	namespace util {
+	namespace xl_util {
 		// finally, some common checks
 		static void check_null_xlp(const XLOPER12* const xlp) {
-			using namespace errors;
+			using namespace xl_errors;
 			if (!xlp)
 				if (error_policy::rich_error_text())
 					throw std::runtime_error("NULL input.");
 				else
-					throw errors::xloper_exception(&inner::xl_constants::xlNull());
+					throw xloper_exception(&xl_inner::xl_constants::xlNull());
 		}
 		static void check_input_xl(XLOPER12 const& xl) {
-			using namespace errors;
+			using namespace xl_errors;
 			if (xl.xltype & xltypeErr) {
 				if (error_policy::propagate_errors())
 					throw xloper_exception(&xl);
 				else if (error_policy::rich_error_text())
 					throw std::runtime_error("Error in input.");
 				else
-					throw xloper_exception(&inner::xl_constants::xlNA());
+					throw xloper_exception(&xl_inner::xl_constants::xlNA());
 			}
 		}
 		static void check_wizard() {
-			using namespace errors;
+			using namespace xl_errors;
 			if (error_policy::disable_wizard_calls() &&
-				util::called_from_wizard())
-				throw xloper_exception(&inner::xl_constants::xlNA());
+				called_from_wizard())
+				throw xloper_exception(&xl_inner::xl_constants::xlNA());
 		}
 	}
 

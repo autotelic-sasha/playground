@@ -6,7 +6,7 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-	namespace object_caches {
+	namespace xl_object_caches {
 
 		// A cache for storing objects and accessing them by a versioned tag
 		// A tag is the user given name for the object followed by ":" and a version number. 

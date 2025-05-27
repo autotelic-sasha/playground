@@ -6,7 +6,7 @@
 #pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
-	namespace util {
+	namespace xl_util {
 
 		// called_from_wizard detects if a function was invoked from Excel function wizard
 		struct called_from_wizard {
@@ -118,20 +118,20 @@ namespace autotelica {
 
 		// sometimes you may want to transpose an XLOPER12 itself
 		static LPXLOPER12 xl_transpose(LPXLOPER12 in) {
-			if (!inner::xl_type_ops::is_xl_type(*in, xltypeMulti))
+			if (!xl_inner::xl_type_ops::is_xl_type(*in, xltypeMulti))
 				return in;
 			if (((in->val.array.rows) * (in->val.array.columns)) == 0)
 				return in;
 
-			LPXLOPER12 out = inner::xl_memory::new_xloper12();
-			inner::xl_type_ops::set_xl_type(*out, xltypeMulti);
+			LPXLOPER12 out = xl_inner::xl_memory::new_xloper12();
+			xl_inner::xl_type_ops::set_xl_type(*out, xltypeMulti);
 			out->val.array.columns = in->val.array.rows;
 			out->val.array.rows = in->val.array.columns;
 			for (size_t r = 0; r < out->val.array.rows; ++r) {
 				for (size_t c = 0; c < out->val.array.columns; ++c) {
 					size_t i_out = c + r * out->val.array.columns;
 					size_t i_in = r + c * in->val.array.columns;
-					inner::xl_memory::clone_value(in->val.array.lparray[i_in], out->val.array.lparray[i_out]);
+					xl_inner::xl_memory::clone_value(in->val.array.lparray[i_in], out->val.array.lparray[i_out]);
 				}
 			}
 			return in;

@@ -75,7 +75,7 @@ namespace af_xll_examples {
 	std::string to_iso(double d);
 	std::string format_date(double d, std::string const& format);
 
-	using namespace autotelica::xloper::data;
+	using namespace autotelica::xloper::xl_data;
 	// variants
 	std::string to_string(xl_variant const& in);
 	// containers of variants
