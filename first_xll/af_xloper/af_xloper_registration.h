@@ -7,6 +7,7 @@ namespace autotelica {
 	// the monster switch statement is ugly, but does it efficiently
 	namespace xl_registration {
 		struct xl_function_data {
+			std::string const _function_xl_category;
 			std::string const _function_xl_name;
 			std::string const _function_name;
 			std::string const _signature;
@@ -162,18 +163,8 @@ namespace autotelica {
 				return instance()->_function_category;
 			}
 
-			struct xlf_scoped_category_setter {
-				std::string _old_category;
-				xlf_scoped_category_setter(std::string const& new_category) {
-					_old_category = xl_f_registry::get_function_category();
-					xl_f_registry::set_function_category(new_category);
-				}
-				~xlf_scoped_category_setter() {
-					xl_f_registry::set_function_category(_old_category);
-				}
-			};
-
 			static bool register_function(
+				std::string const& function_xl_category,
 				std::string const& function_xl_name,
 				std::string const& function_name,
 				std::string const& signature,
@@ -211,6 +202,7 @@ namespace autotelica {
 				}
 
 				std::shared_ptr<xl_function_data> fd(new xl_function_data{
+					function_xl_category,
 					f_xl_name,
 					function_name,
 					is_volatile ? (signature + "!") : signature,
@@ -229,8 +221,11 @@ namespace autotelica {
 				std::string f_category(inst->_function_category.empty() ? "af test functions" : inst->_function_category);
 				XLOPER12 xDLL;
 				Excel12(xlGetName, &xDLL, 0);
-				for (auto const& func : inst->_functions)
-					func->xlfRegister_impl(xDLL, f_category);
+				for (auto const& func : inst->_functions) {
+					auto const& category = (func->_function_xl_category == "__GLOBAL_CATEGORY__") ?
+						f_category : func->_function_xl_category;
+					func->xlfRegister_impl(xDLL, category);
+				}
 				Excel12(xlFree, 0, 1, (LPXLOPER12)&xDLL);
 				return 1;
 			}

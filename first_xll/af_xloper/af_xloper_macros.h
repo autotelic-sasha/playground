@@ -36,9 +36,15 @@ namespace autotelica {
 #define __af_xl_qd_signature( __F )	autotelica::xloper::xl_signature::get_signature_string_qd(__F)
 #define __af_xl_lambda_signature( __F )	autotelica::xloper::xl_signature::get_lambda_signature_string<decltype(__F)>()
 
+#ifdef AF_FUNCTION_CATEGORY
+#define __AF_CURRENT_CATEGORY AF_FUNCTION_CATEGORY
+#else
+#define __AF_CURRENT_CATEGORY "__GLOBAL_CATEGORY__"
+#endif
+
 #define __AF_REGISTER_FUNCTION(__F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__F, __AF_XL_IMPL_F_N_STR(__F),\
+			__AF_CURRENT_CATEGORY, #__F, __AF_XL_IMPL_F_N_STR(__F),\
 			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
 			false,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
@@ -46,7 +52,7 @@ namespace autotelica {
 
 #define __AF_REGISTER_VOLATILE_FUNCTION(__F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__F, __AF_XL_IMPL_F_N_STR(__F),\
+			__AF_CURRENT_CATEGORY, #__F, __AF_XL_IMPL_F_N_STR(__F),\
 			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
 			true,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
@@ -54,7 +60,7 @@ namespace autotelica {
 
 #define __AF_REGISTER_NAMED_FUNCTION(__NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
 	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
 			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
 			false,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
@@ -62,28 +68,28 @@ namespace autotelica {
 
 #define __AF_REGISTER_VOLATILE_NAMED_FUNCTION(__NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
 	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
 			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
 			true,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
 	}
 #define __AF_REGISTER_QD_FUNCTION(__F )  namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
+			__AF_CURRENT_CATEGORY, #__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
 			__af_xl_qd_signature( __F ), __af_xl_arg_count(__F),\
 			false);\
 	}
 
 #define __AF_REGISTER_QD_VOLATILE_FUNCTION(__F )  namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
+			__AF_CURRENT_CATEGORY, #__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
 			__af_xl_qd_signature( __F ), __af_xl_arg_count(__F),\
 			true);\
 	}
 
 #define __AF_REGISTER_LAMBDA_FUNCTION(__NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
 	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
 			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
 			false,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
@@ -91,7 +97,7 @@ namespace autotelica {
 
 #define __AF_REGISTER_LAMBDA_VOLATILE_FUNCTION(__NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
 			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
 			true,\
 			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
@@ -99,14 +105,14 @@ namespace autotelica {
 
 #define __AF_REGISTER_QD_LAMBDA_FUNCTION(__NAME )  namespace{\
 	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
 			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
 			false);\
 	}
 
 #define __AF_REGISTER_QD_LAMBDA_VOLATILE_FUNCTION(__NAME)  namespace{\
 	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
-			#__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR(__NAME),\
+			__AF_CURRENT_CATEGORY, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR(__NAME),\
 			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
 			true);\
 	}

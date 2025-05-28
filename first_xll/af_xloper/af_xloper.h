@@ -4,7 +4,7 @@
 
 namespace autotelica {
 	namespace xloper {
-		// much of this is based on https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
+		// bits of this are relying on https://www.wiley.com/en-gb/Financial+Applications+using+Excel+Add-in+Development+in+C+%2F+C%2B%2B%2C+2nd+Edition-p-9780470319048
 
 // This is he user interface parts
 // It is hard to read macro's code, can't be helped. 
@@ -149,12 +149,16 @@ namespace autotelica {
 			"Clear all caches (objects and fast arrays).");
 #endif
 
-#define AF_BEGIN_FUNCTIONS_CATEGORY(Category) \
-		namespace {\
-			auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::xlf_scoped_category_setter(Category);
+/*
+To change function category for some functions only:
 
-#define AF_END_FUNCTIONS_CATEGORY(Category) \
-		}
+#define AF_FUNCTION_CATEGORY NewCategoryName
+...
+SOME FUNCTION DECLARATIONS
+...
+#undef AF_FUNCTION_CATEGORY
+
+*/
 
 	}
 }
