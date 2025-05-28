@@ -158,9 +158,20 @@ namespace autotelica {
 				instance()->_function_category = function_category;
 				return true;
 			}
-			static std::string const& get_function_category(std::string const& function_category) {
+			static std::string const& get_function_category() {
 				return instance()->_function_category;
 			}
+
+			struct xlf_scoped_category_setter {
+				std::string _old_category;
+				xlf_scoped_category_setter(std::string const& new_category) {
+					_old_category = xl_f_registry::get_function_category();
+					xl_f_registry::set_function_category(new_category);
+				}
+				~xlf_scoped_category_setter() {
+					xl_f_registry::set_function_category(_old_category);
+				}
+			};
 
 			static bool register_function(
 				std::string const& function_xl_name,

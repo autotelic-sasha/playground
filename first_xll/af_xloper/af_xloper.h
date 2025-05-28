@@ -148,5 +148,13 @@ namespace autotelica {
 		AF_DECLARE_EXCEL_NAMED_FUNCTION(af_xl_clear_all_caches,autotelica::xloper::xl_object_caches::af_xl_clear_all_caches,\
 			"Clear all caches (objects and fast arrays).");
 #endif
+
+#define AF_BEGIN_FUNCTIONS_CATEGORY(Category) \
+		namespace {\
+			auto af_xl_category_declaration = autotelica::xloper::xl_registration::xl_f_registry::xlf_scoped_category_setter(Category);
+
+#define AF_END_FUNCTIONS_CATEGORY(Category) \
+		}
+
 	}
 }
