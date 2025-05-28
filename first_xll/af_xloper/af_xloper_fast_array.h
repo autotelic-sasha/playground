@@ -1,9 +1,9 @@
 #pragma once
 #include "af_xloper/af_xloper_object_caches.h"
 
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
+
 		namespace xl_fast_array {
 			// xl_fast_array is a wrapper for FP12 arrays
 			// they are a pain to use, but apparently the fastest way to pass lots of number to and from excel

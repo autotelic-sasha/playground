@@ -10,7 +10,7 @@
 #include <iostream>
 #include <locale>
 #include <codecvt>
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
+
 namespace autotelica {
 	namespace xloper {
 	namespace xl_inner {

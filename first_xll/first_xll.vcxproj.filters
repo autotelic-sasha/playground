@@ -24,9 +24,6 @@
     <ClInclude Include="first_xll_macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="af_xloper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="example_functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -49,6 +46,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="af_xloper\af_xloper_errors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_conversions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_traits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_signature.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_registration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper_macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\af_xloper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

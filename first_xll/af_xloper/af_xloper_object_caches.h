@@ -3,9 +3,9 @@
 #include <map>
 #include <unordered_map>
 
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
+
 	namespace xl_object_caches {
 
 		// A cache for storing objects and accessing them by a versioned tag
@@ -189,5 +189,6 @@ namespace autotelica {
 
 	
 	}
-	}
+	
+}
 }

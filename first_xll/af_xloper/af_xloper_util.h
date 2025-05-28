@@ -3,9 +3,9 @@
 #include <map>
 #include <unordered_map>
 
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
+
 	namespace xl_util {
 
 		// called_from_wizard detects if a function was invoked from Excel function wizard

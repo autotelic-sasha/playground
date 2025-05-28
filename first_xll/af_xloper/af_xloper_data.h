@@ -4,7 +4,7 @@
 #include <vector>
 #include <cwctype>
 #include <sstream>
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
+
 namespace autotelica {
 	namespace xloper {
 	namespace xl_data {

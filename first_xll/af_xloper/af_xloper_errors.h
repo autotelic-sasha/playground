@@ -2,9 +2,9 @@
 #include "af_xloper/af_xloper_util.h"
 #include <functional>
 
-#pragma warning ( disable : 26495)// known problem in visual studio, it doesn't like union constructors
 namespace autotelica {
 	namespace xloper {
+
 	namespace xl_errors {
 		// there a few options on what to do with errors and empty values
 		// all wrapped up in this namespace
