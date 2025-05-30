@@ -36,12 +36,15 @@ namespace autotelica {
 #define __af_xl_qd_signature( __F )	autotelica::xloper::xl_signature::get_signature_string_qd(__F)
 #define __af_xl_lambda_signature( __F )	autotelica::xloper::xl_signature::get_lambda_signature_string<decltype(__F)>()
 
+
+// AF_FUNCTION_CATEGORY can be used to change the category of a group of functions
 #ifdef AF_FUNCTION_CATEGORY
 #define __AF_CURRENT_CATEGORY AF_FUNCTION_CATEGORY
 #else
 #define __AF_CURRENT_CATEGORY "__GLOBAL_CATEGORY__"
 #endif
 
+// Registration of Functions
 #define __AF_REGISTER_FUNCTION(__F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
 	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
 			__AF_CURRENT_CATEGORY, #__F, __AF_XL_IMPL_F_N_STR(__F),\
@@ -116,6 +119,86 @@ namespace autotelica {
 			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
 			true);\
 	}
+
+// Registration of functions with Category included
+#define __AF_REGISTER_FUNCTION_CAT(__CAT, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
+	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__F, __AF_XL_IMPL_F_N_STR(__F),\
+			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
+			false,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+
+#define __AF_REGISTER_VOLATILE_FUNCTION_CAT(__CAT, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
+	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__F, __AF_XL_IMPL_F_N_STR(__F),\
+			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
+			true,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+
+#define __AF_REGISTER_NAMED_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
+	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
+			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
+			false,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+
+#define __AF_REGISTER_VOLATILE_NAMED_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
+	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_F_N_STR(__NAME),\
+			__af_xl_signature( __F ), __af_xl_arg_count(__F),\
+			true,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+#define __AF_REGISTER_QD_FUNCTION_CAT(__CAT, __F )  namespace{\
+	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
+			__af_xl_qd_signature( __F ), __af_xl_arg_count(__F),\
+			false);\
+	}
+
+#define __AF_REGISTER_QD_VOLATILE_FUNCTION_CAT(__CAT, __F )  namespace{\
+	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__F, __AF_XL_IMPL_QD_F_N_STR(__F),\
+			__af_xl_qd_signature( __F ), __af_xl_arg_count(__F),\
+			true);\
+	}
+
+#define __AF_REGISTER_LAMBDA_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP ) namespace{\
+	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
+			false,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+
+#define __AF_REGISTER_LAMBDA_VOLATILE_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP, __ARG_NAMES, __ARGS_HELP )  namespace{\
+	static const auto registering_##__F = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
+			true,\
+			__F_HELP, __ARG_NAMES, __ARGS_HELP);\
+	}
+
+#define __AF_REGISTER_QD_LAMBDA_FUNCTION_CAT(__CAT, __NAME )  namespace{\
+	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR( __NAME ),\
+			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
+			false);\
+	}
+
+#define __AF_REGISTER_QD_LAMBDA_VOLATILE_FUNCTION_CAT(__CAT, __NAME)  namespace{\
+	static const auto registering_##__NAME = autotelica::xloper::xl_registration::xl_f_registry::register_function(\
+			__CAT, #__NAME, __AF_XL_IMPL_LAMBDA_F_N_STR(__NAME),\
+			__af_xl_lambda_signature( __AF_XL_DECL_LAMBDA_F_N(__NAME) ), __af_xl_lambda_arg_count(__AF_XL_DECL_LAMBDA_F_N(__NAME)),\
+			true);\
+	}
+
+
+
+// Helpers to extract argument names and help strings
 #define __AF_XL_ARG_NAMES_0(__F, __FH, ...) ""
 #define __AF_XL_ARGS_HELP_0(__F, __FH, ...) {}
 #define __AF_XL_ARG_NAMES_1(__F, __FH, __A0, __A0H) #__A0
@@ -165,41 +248,42 @@ namespace autotelica {
 			 __AF_XL_ARGS_HELP_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _0, _ERROR, _ERROR, N, ...)(__VA_ARGS__)\
 		)\
 
+// Dispatchers for function registration, with names and help text included
 #define __AF_REGISTER_FUNCTION_DISPATCH(__F, __F_HELP, ... )\
 	__AF_XL_EXPAND(\
 		__AF_REGISTER_FUNCTION(__F, __F_HELP,\
-		__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
-		__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
 	)
 
 
 #define __AF_REGISTER_VOLATILE_FUNCTION_DISPATCH(__F, __F_HELP, ... )\
 	__AF_XL_EXPAND(\
 		__AF_REGISTER_VOLATILE_FUNCTION(__F, __F_HELP,\
-		__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
-		__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
 	)
 
 #define __AF_REGISTER_NAMED_FUNCTION_DISPATCH(__NAME, __F, __F_HELP, ... )\
 	__AF_XL_EXPAND(\
 		__AF_REGISTER_NAMED_FUNCTION(__NAME, __F, __F_HELP,\
-		__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
-		__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
 	)
 
 
 #define __AF_REGISTER_VOLATILE_NAMED_FUNCTION_DISPATCH(__NAME, __F, __F_HELP, ... )\
 	__AF_XL_EXPAND(\
 		__AF_REGISTER_VOLATILE_NAMED_FUNCTION(__NAME, __F, __F_HELP,\
-		__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
-		__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
 	)
 
 #define __AF_REGISTER_LAMBDA_FUNCTION_DISPATCH(__NAME, __F, __F_HELP, ... )\
 	__AF_XL_EXPAND(\
 		__AF_REGISTER_LAMBDA_FUNCTION(__NAME, __F, __F_HELP,\
-		__AF_XL_ARG_NAMES(__NAME, __F_HELP, __VA_ARGS__),\
-		__AF_XL_ARGS_HELP(__NAME, __F_HELP, __VA_ARGS__))\
+			__AF_XL_ARG_NAMES(__NAME, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__NAME, __F_HELP, __VA_ARGS__))\
 	)
 
 
@@ -210,6 +294,54 @@ namespace autotelica {
 		__AF_XL_ARGS_HELP(__NAME, __F_HELP, __VA_ARGS__))\
 	)
 
+// Dispatchers like above, but including function categories
+#define __AF_REGISTER_FUNCTION_DISPATCH_CAT(__CAT, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_FUNCTION_CAT(__CAT, __F, __F_HELP,\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+	)
+
+
+#define __AF_REGISTER_VOLATILE_FUNCTION_DISPATCH_CAT(__CAT, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_VOLATILE_FUNCTION_CAT(__CAT, __F, __F_HELP,\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+	)
+
+#define __AF_REGISTER_NAMED_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_NAMED_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP,\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+	)
+
+
+#define __AF_REGISTER_VOLATILE_NAMED_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_VOLATILE_NAMED_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP,\
+			__AF_XL_ARG_NAMES(__F, __F_HELP, __VA_ARGS__), \
+			__AF_XL_ARGS_HELP(__F, __F_HELP, __VA_ARGS__))\
+	)
+
+#define __AF_REGISTER_LAMBDA_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_LAMBDA_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP,\
+			__AF_XL_ARG_NAMES(__NAME, __F_HELP, __VA_ARGS__),\
+			__AF_XL_ARGS_HELP(__NAME, __F_HELP, __VA_ARGS__))\
+	)
+
+
+#define __AF_REGISTER_LAMBDA_VOLATILE_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __F_HELP, ... )\
+	__AF_XL_EXPAND(\
+		__AF_REGISTER_LAMBDA_VOLATILE_FUNCTION_CAT(__CAT, __NAME, __F, __F_HELP,\
+		__AF_XL_ARG_NAMES(__NAME, __F_HELP, __VA_ARGS__), \
+		__AF_XL_ARGS_HELP(__NAME, __F_HELP, __VA_ARGS__))\
+	)
+
+
+// Error handling
 #define __AF_XL_TRY try {\
 	autotelica::xloper::xl_util::check_wizard();
 
@@ -1254,7 +1386,7 @@ namespace autotelica {
 		__AF_XL_CATCH;\
 		}
 
-
+// Dispatchers to macros creating wrapper functions
 #define __AF_XL_FUNC_DISPATCH( _26, _25, _24, _23, _22, _21, _20, _19, _18, _17, _16, _15, _14, _13, _12, _11, _10, _9, _8, _7, _6, _5, _4, _3, _2, _1, N, ...) __AF_XL_FUNC##N
 #define __AF_XL_NAMED_FUNC_DISPATCH( _26, _25, _24, _23, _22, _21, _20, _19, _18, _17, _16, _15, _14, _13, _12, _11, _10, _9, _8, _7, _6, _5, _4, _3, _2, _1, N, ...) __AF_XL_NAMED_FUNC##N
 #define __AF_XL_LAMBDA_FUNC_DISPATCH( _26, _25, _24, _23, _22, _21, _20, _19, _18, _17, _16, _15, _14, _13, _12, _11, _10, _9, _8, _7, _6, _5, _4, _3, _2, _1, N, ...) __AF_XL_LAMBDA_WRAPPER_FUNCTION##N

@@ -17,13 +17,33 @@ namespace autotelica {
 			__AF_REGISTER_FUNCTION_DISPATCH(__VA_ARGS__)\
 		);
 
+#define AF_DECLARE_EXCEL_FUNCTION_CAT(__CAT, ...) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__VA_ARGS__)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_FUNCTION_DISPATCH_CAT(__CAT, __VA_ARGS__)\
+		);
+
+
+
 #define AF_DECLARE_EXCEL_VOLATILE_FUNCTION(...) \
 		__AF_XL_EXPAND(\
 			 __AF_XL_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__VA_ARGS__)\
 		);\
 		__AF_XL_EXPAND(\
-			__AF_REGISTER_VOLATILE_FUNCTION(__VA_ARGS__)\
+			__AF_REGISTER_VOLATILE_FUNCTION_DISPATCH(__VA_ARGS__)\
 		);
+
+#define AF_DECLARE_EXCEL_VOLATILE_FUNCTION_CAT(__CAT, ...) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__VA_ARGS__)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_VOLATILE_FUNCTION_DISPATCH_CAT(__CAT, __VA_ARGS__)\
+		);
+
+
 
 #define AF_DECLARE_EXCEL_NAMED_FUNCTION(__NAME, ...) \
 		__AF_XL_EXPAND(\
@@ -33,13 +53,35 @@ namespace autotelica {
 			__AF_REGISTER_NAMED_FUNCTION_DISPATCH(__NAME, __VA_ARGS__)\
 		);
 
+#define AF_DECLARE_EXCEL_NAMED_FUNCTION_CAT(__CAT,__NAME, ...) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_NAMED_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__NAME, __VA_ARGS__)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_NAMED_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __VA_ARGS__)\
+		);
+
+		
+
+
 #define AF_DECLARE_EXCEL_VOLATILE_NAMED_FUNCTION(__NAME, ...) \
 		__AF_XL_EXPAND(\
 			 __AF_XL_NAMED_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__NAME, __VA_ARGS__)\
 		);\
 		__AF_XL_EXPAND(\
-			__AF_REGISTER_VOLATILE_NAMED_FUNCTION(__NAME, __VA_ARGS__)\
+			__AF_REGISTER_VOLATILE_NAMED_FUNCTION_DISPATCH(__NAME, __VA_ARGS__)\
 		);
+
+#define AF_DECLARE_EXCEL_VOLATILE_NAMED_FUNCTION_CAT(__CAT, __NAME, ...) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_NAMED_FUNC_DISPATCH(__VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__NAME, __VA_ARGS__)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_VOLATILE_NAMED_FUNCTION_DISPATCH_CAT(__CAT,__NAME, __VA_ARGS__)\
+		);
+
+		
+
 
 #define AF_DECLARE_QD_EXCEL_FUNCTION(__F, __NO_OF_ARGS) \
 		__AF_XL_EXPAND(\
@@ -49,6 +91,15 @@ namespace autotelica {
 			__AF_REGISTER_QD_FUNCTION(__F )\
 		);
 
+#define AF_DECLARE_QD_EXCEL_FUNCTION_CAT(__CAT, __F, __NO_OF_ARGS) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_QD_WRAPPER_FUNCTION_##__NO_OF_ARGS(__F)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_QD_FUNCTION_CAT(__CAT, __F )\
+		);
+
+
 #define AF_DECLARE_QD_EXCEL_VOLATILE_FUNCTION(__F, __NO_OF_ARGS) \
 		__AF_XL_EXPAND(\
 			 __AF_XL_QD_WRAPPER_FUNCTION_##__NO_OF_ARGS(__F)\
@@ -56,6 +107,16 @@ namespace autotelica {
 		__AF_XL_EXPAND(\
 			__AF_REGISTER_QD_VOLATILE_FUNCTION(__F )\
 		);
+
+#define AF_DECLARE_QD_EXCEL_VOLATILE_FUNCTION_CAT(__CAT, __F, __NO_OF_ARGS) \
+		__AF_XL_EXPAND(\
+			 __AF_XL_QD_WRAPPER_FUNCTION_##__NO_OF_ARGS(__F)\
+		);\
+		__AF_XL_EXPAND(\
+			__AF_REGISTER_QD_VOLATILE_FUNCTION_CAT(__CAT, __F )\
+		);
+
+
 
 #define AF_DECLARE_LAMBDA_EXCEL_FUNCTION(__NAME, __F, ...) \
 		namespace {\
@@ -68,6 +129,18 @@ namespace autotelica {
 			);\
 		}
 
+#define AF_DECLARE_LAMBDA_EXCEL_FUNCTION_CAT(__CAT, __NAME, __F, ...) \
+		namespace {\
+			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
+			__AF_XL_EXPAND(\
+				 __AF_XL_LAMBDA_FUNC_DISPATCH(__F, __VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__NAME)\
+			);\
+			__AF_XL_EXPAND(\
+				__AF_REGISTER_LAMBDA_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __VA_ARGS__)\
+			);\
+		}
+
+
 #define AF_DECLARE_LAMBDA_EXCEL_VOLATILE_FUNCTION(__NAME, __F, ...) \
 		namespace {\
 			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
@@ -78,6 +151,18 @@ namespace autotelica {
 				__AF_REGISTER_LAMBDA_VOLATILE_FUNCTION_DISPATCH(__NAME, __F, __VA_ARGS__)\
 			);\
 		}
+
+#define AF_DECLARE_LAMBDA_EXCEL_VOLATILE_FUNCTION_CAT(__CAT, __NAME, __F, ...) \
+		namespace {\
+			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
+			__AF_XL_EXPAND(\
+				 __AF_XL_LAMBDA_FUNC_DISPATCH(__F, __VA_ARGS__, _12, _ERROR, _11, _ERROR, _10, _ERROR, _9, _ERROR, _8, _ERROR, _7, _ERROR, _6, _ERROR, _5, _ERROR, _4, _ERROR, _3, _ERROR, _2, _ERROR, _1, _ERROR, _0, _ERROR, N, ...)(__NAME)\
+			);\
+			__AF_XL_EXPAND(\
+				__AF_REGISTER_LAMBDA_VOLATILE_FUNCTION_DISPATCH_CAT(__CAT, __NAME, __F, __VA_ARGS__)\
+			);\
+		}
+
 
 #define AF_DECLARE_QD_LAMBDA_EXCEL_FUNCTION(__NAME, __F, __NO_OF_ARGS) \
 		namespace {\
@@ -90,6 +175,19 @@ namespace autotelica {
 			);\
 		}
 
+#define AF_DECLARE_QD_LAMBDA_EXCEL_FUNCTION_CAT(__CAT, __NAME, __F, __NO_OF_ARGS) \
+		namespace {\
+			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
+			__AF_XL_EXPAND(\
+				 __AF_XL_LAMBDA_WRAPPER_FUNCTION_##__NO_OF_ARGS( __NAME )\
+			);\
+			__AF_XL_EXPAND(\
+				__AF_REGISTER_QD_LAMBDA_FUNCTION_CAT(__CAT, __NAME )\
+			);\
+		}
+
+
+
 #define AF_DECLARE_QD_LAMBDA_EXCEL_VOLATILE_FUNCTION(__NAME, __F, __NO_OF_ARGS) \
 		namespace {\
 			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
@@ -100,6 +198,18 @@ namespace autotelica {
 				__AF_REGISTER_QD_LAMBDA_VOLATILE_FUNCTION(__NAME)\
 			);\
 		}
+
+#define AF_DECLARE_QD_LAMBDA_EXCEL_VOLATILE_FUNCTION_CAT(__CAT, __NAME, __F, __NO_OF_ARGS) \
+		namespace {\
+			auto __AF_XL_DECL_LAMBDA_F_N(__NAME) = __F;\
+			__AF_XL_EXPAND(\
+				 __AF_XL_NAME_WRAPPER_FUNCTION_##__NO_OF_ARGS(__NAME)\
+			);\
+			__AF_XL_EXPAND(\
+				__AF_REGISTER_QD_LAMBDA_VOLATILE_FUNCTION_CAT(__CAT, __NAME)\
+			);\
+		}
+
 
 #ifdef AF_EXCLUDE_DEFAULT_FUNCTIONS 
 #define AF_DECLARE_XLL(Category) \
