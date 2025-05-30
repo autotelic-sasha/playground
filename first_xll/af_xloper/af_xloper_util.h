@@ -1,7 +1,5 @@
 #pragma once
-#include "af_xloper/af_xloper_data.h"
-#include <map>
-#include <unordered_map>
+#include "af_xloper_data.h"
 
 namespace autotelica {
 	namespace xloper {

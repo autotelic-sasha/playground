@@ -233,8 +233,12 @@
     <ClInclude Include="af_xloper\af_xloper_data.h" />
     <ClInclude Include="af_xloper\af_xloper_errors.h" />
     <ClInclude Include="af_xloper\af_xloper_fast_array.h" />
+    <ClInclude Include="af_xloper\af_xloper_includes.h" />
     <ClInclude Include="af_xloper\af_xloper_inner.h" />
     <ClInclude Include="af_xloper\af_xloper_macros.h" />
+    <ClInclude Include="af_xloper\af_xloper_macros_deductions.h" />
+    <ClInclude Include="af_xloper\af_xloper_macros_function_wrapers.h" />
+    <ClInclude Include="af_xloper\af_xloper_macros_registration.h" />
     <ClInclude Include="af_xloper\af_xloper_object_caches.h" />
     <ClInclude Include="af_xloper\af_xloper_registration.h" />
     <ClInclude Include="af_xloper\af_xloper_signature.h" />

@@ -1,9 +1,5 @@
 #pragma once
-#include "af_xloper/af_xloper_inner.h"
-#include <time.h>
-#include <vector>
-#include <cwctype>
-#include <sstream>
+#include "af_xloper_inner.h"
 
 namespace autotelica {
 	namespace xloper {

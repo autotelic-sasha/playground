@@ -1,13 +1,6 @@
 #pragma once
-#include "af_xloper/af_xloper_errors.h"
-#include "af_xloper/af_xloper_fast_array.h"
-
-#include <type_traits>
-#include <list>
-#include <forward_list>
-#include <map>
-#include <unordered_map>
-#include <iterator>
+#include "af_xloper_errors.h"
+#include "af_xloper_fast_array.h"
 
 namespace autotelica {
 	namespace xloper {

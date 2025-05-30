@@ -1,5 +1,5 @@
 #pragma once
-#include "af_xloper/af_xloper_traits.h"
+#include "af_xloper_traits.h"
 
 namespace autotelica {
 	namespace xloper {
