@@ -3,11 +3,12 @@
 
 namespace autotelica {
 	namespace xloper {
-		// LOOK AWAY, LOOK AWAY ... MACROS GOING CRAZY HERE
-		// this is the implementation details of the magic part
 
-		// the function actually invoked by Excel is a wrapper arround the user's actual function
-		// __AF_XL_IMPL_F_N builds the name of the wrapper function
+// LOOK AWAY, LOOK AWAY ... MACROS GOING CRAZY HERE
+// this is the implementation details of the magic part
+
+// the function actually invoked by Excel is a wrapper arround the user's actual function
+// __AF_XL_IMPL_F_N builds the name of the wrapper function
 #define __AF_XL_IMPL_F_N( __F ) __F##__af_impl
 #define __AF_XL_IMPL_F_N_STR( __F ) #__F##"__af_impl"
 

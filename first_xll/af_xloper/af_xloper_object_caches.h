@@ -3,7 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-
 	namespace xl_object_caches {
 
 		// A cache for storing objects and accessing them by a versioned tag
@@ -187,6 +186,5 @@ namespace autotelica {
 
 	
 	}
-	
 }
 }

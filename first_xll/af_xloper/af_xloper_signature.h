@@ -3,7 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-
 	namespace xl_signature {
 		// deducing the signature of functions that we are exposing
 		// and building Excel type strings to register these functions is a bit of template magic
@@ -108,6 +107,5 @@ namespace autotelica {
 		template<typename Lambda>
 		using lambda_func_types = mem_func_types<decltype(&Lambda::operator())>;
 	}
-
 	}
 }

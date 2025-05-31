@@ -3,10 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-		// LOOK AWAY, LOOK AWAY ... MACROS GOING CRAZY HERE
-		// this is the implementation details of the magic part
-
-
 // AF_FUNCTION_CATEGORY can be used to change the category of a group of functions
 #ifdef AF_FUNCTION_CATEGORY
 #define __AF_CURRENT_CATEGORY AF_FUNCTION_CATEGORY

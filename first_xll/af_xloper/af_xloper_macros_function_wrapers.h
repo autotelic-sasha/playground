@@ -3,10 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-		// LOOK AWAY, LOOK AWAY ... MACROS GOING CRAZY HERE
-		// this is the implementation details of the magic part
-
-
 // Error handling
 #define __AF_XL_TRY try {\
 	autotelica::xloper::xl_util::check_wizard();

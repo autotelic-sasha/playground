@@ -3,7 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-
 	namespace xl_util {
 
 		// called_from_wizard detects if a function was invoked from Excel function wizard
@@ -135,6 +134,5 @@ namespace autotelica {
 			return in;
 		}
 	}
-
 	}
 }

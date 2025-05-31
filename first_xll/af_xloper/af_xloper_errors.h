@@ -3,7 +3,6 @@
 
 namespace autotelica {
 	namespace xloper {
-
 	namespace xl_errors {
 		// there a few options on what to do with errors and empty values
 		// all wrapped up in this namespace
@@ -209,6 +208,5 @@ namespace autotelica {
 				throw xloper_exception(&xl_inner::xl_constants::xlNA());
 		}
 	}
-
 	}
 }

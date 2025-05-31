@@ -3,9 +3,9 @@
 
 namespace autotelica {
 	namespace xloper {
-	// xl_registration of functions depends on the function signature
-	// the monster switch statement is ugly, but does it efficiently
 	namespace xl_registration {
+		// xl_registration of functions depends on the function signature
+		// the monster switch statement is ugly, but does it efficiently
 		struct xl_function_data {
 			std::string const _function_xl_category;
 			std::string const _function_xl_name;
@@ -232,6 +232,5 @@ namespace autotelica {
 		};
 
 	}
-
 	}
 }

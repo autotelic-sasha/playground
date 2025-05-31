@@ -99,6 +99,5 @@ __AF_DECLARE_XL_TYPE_TRAIT(const STRING_TYPE&,	XLOPER12, "C%");
 			out.append("K%"); // everything other than FP12 is returned as XLOPER12
 		}
 	}
-
 	}
 }
