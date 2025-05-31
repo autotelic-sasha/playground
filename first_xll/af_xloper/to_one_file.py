@@ -3,7 +3,7 @@ import os
 import glob
 from functools import cmp_to_key
 
-target_file = "af_xloper_all.h"
+target_file = "../af_xloper_single_header/af_xloper.h"
 wc_files = "af_xloper*.h"
 file_prefix = """
 #pragma once

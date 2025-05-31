@@ -30,9 +30,6 @@
     <ClInclude Include="af_xloper\af_xloper_inner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="af_xloper\XLCALL.H">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="af_xloper\af_xloper_data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -76,6 +73,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="af_xloper\af_xloper_includes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="af_xloper\XLCALL.H">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
