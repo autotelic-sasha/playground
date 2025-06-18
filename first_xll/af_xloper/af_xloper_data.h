@@ -64,20 +64,14 @@ namespace autotelica {
 		private:
 			xl_type _type;
 
-			union xl_value {
+			union {
 				double _num;
 				std::wstring _str;
 				bool _xbool;
 				int _err;
 				int _w;
 				std::vector<std::vector<xl_variant>> _array;
-				xl_value() {}
-				xl_value(xl_value const&) {}
-#pragma warning ( default : 26495) // known problem in visual studio, it doesn't like union constructors
-				~xl_value() {}
-				xl_value& operator=(xl_value const&) { return *this; }
 			};
-			xl_value _value;
 
 			inline void check_type(xl_type const& t) const {
 				if (t != _type)
@@ -88,22 +82,22 @@ namespace autotelica {
 					return false;
 				switch (_type) {
 				case xl_type::xl_typeNum:
-					return (fabs(_value._num - in._value._num) < std::numeric_limits<double>::epsilon());
+					return (fabs(_num - in._num) < std::numeric_limits<double>::epsilon());
 					break;
 				case xl_type::xl_typeStr:
-					return(_value._str == in._value._str);
+					return(_str == in._str);
 					break;
 				case xl_type::xl_typeBool:
-					return (_value._xbool == in._value._xbool);
+					return (_xbool == in._xbool);
 					break;
 				case xl_type::xl_typeErr:
-					return (_value._err == in._value._err);
+					return (_err == in._err);
 					break;
 				case xl_type::xl_typeInt:
-					return (_value._w == in._value._w);
+					return (_w == in._w);
 					break;
 				case xl_type::xl_typeMulti:
-					return (_value._array == in._value._array);
+					return (_array == in._array);
 					break;
 				case xl_type::xl_typeMissing:
 				case xl_type::xl_typeNil:
@@ -113,26 +107,26 @@ namespace autotelica {
 					break;
 				}
 			}
-			void copy_from(xl_variant const& in) {
+			inline void copy_from(xl_variant const& in) {
 				_type = in._type;
 				switch (_type) {
 				case xl_type::xl_typeNum:
-					_value._num = in._value._num;
+					_num = in._num;
 					break;
 				case xl_type::xl_typeStr:
-					_value._str = in._value._str;
+					new(&_str) std::wstring(in._str);
 					break;
 				case xl_type::xl_typeBool:
-					_value._xbool = in._value._xbool;
+					_xbool = in._xbool;
 					break;
 				case xl_type::xl_typeErr:
-					_value._err = in._value._err;
+					_err = in._err;
 					break;
 				case xl_type::xl_typeInt:
-					_value._w = in._value._w;
+					_w = in._w;
 					break;
 				case xl_type::xl_typeMulti:
-					_value._array = in._value._array;
+					new(&_array) std::vector<std::vector<xl_variant>>(in._array);
 					break;
 				case xl_type::xl_typeMissing:
 				case xl_type::xl_typeNil:
@@ -142,35 +136,77 @@ namespace autotelica {
 					break;
 				}
 			}
+			inline void free() {
+				switch (_type) {
+				case xl_type::xl_typeStr:
+					(&_str)->std::wstring::~wstring();
+					break;
+				case xl_type::xl_typeMulti:
+					(&_array)->std::vector<std::vector<xl_variant>>::~vector<std::vector<xl_variant>>();
+					break;
+				default:
+					break;
+				}
+			}
+			inline void move_from(xl_variant& in) {
+				_type = in._type;
+				switch (_type) {
+				case xl_type::xl_typeNum:
+					_num = in._num;
+					break;
+				case xl_type::xl_typeStr:
+					new(&_str) std::wstring(std::move(in._str));
+					break;
+				case xl_type::xl_typeBool:
+					_xbool = in._xbool;
+					break;
+				case xl_type::xl_typeErr:
+					_err = in._err;
+					break;
+				case xl_type::xl_typeInt:
+					_w = in._w;
+					break;
+				case xl_type::xl_typeMulti:
+					new(&_array) std::vector<std::vector<xl_variant>>(std::move(in._array));
+					break;
+				case xl_type::xl_typeMissing:
+				case xl_type::xl_typeNil:
+					break;
+				default:
+					// moving should never throw
+					break;
+				}
+			}
+
 			void from_xl(XLOPER12 const& in) {
 				if (in.xltype & xltypeNum) {
-					_value._num = in.val.num;
+					_num = in.val.num;
 					_type = xl_type::xl_typeNum;
 				}
 				else if (in.xltype & xltypeStr) {
-					_value._str = in.val.str;
+					_str = in.val.str;
 					_type = xl_type::xl_typeStr;
 				}
 				else if (in.xltype & xltypeBool) {
-					_value._xbool = in.val.xbool;
+					_xbool = in.val.xbool;
 					_type = xl_type::xl_typeBool;
 				}
 				else if (in.xltype & xltypeErr) {
-					_value._err = in.val.err;
+					_err = in.val.err;
 					_type = xl_type::xl_typeErr;
 				}
 				else if (in.xltype & xltypeInt) {
-					_value._w = in.val.w;
+					_w = in.val.w;
 					_type = xl_type::xl_typeInt;
 				}
 				else if (in.xltype & xltypeMulti) {
 					_type = xl_type::xl_typeMulti;
 					size_t rows = in.val.array.rows;
 					size_t cols = in.val.array.columns;
-					_value._array.resize(rows);
+					_array.resize(rows);
 					size_t i = 0;
 					for (size_t r = 0; r < rows; ++r) {
-						auto& row = _value._array[r];
+						auto& row = _array[r];
 						if (row.size() != cols)
 							row.resize(cols);
 						for (size_t c = 0; c < cols; ++c)
@@ -188,28 +224,26 @@ namespace autotelica {
 				}
 			}
 		public:
-			xl_variant() : _type(xl_type::xl_typeMissing) {
+			xl_variant() : _type(xl_type::xl_typeNil),_err(0) {
 			}
 			xl_variant(xl_variant const& in) {
 				copy_from(in);
 			}
-			xl_variant(double num_) : _type(xl_type::xl_typeNum) {
-				_value._num = num_;
+			xl_variant(xl_variant&& in) noexcept {
+				move_from(in);
 			}
-			xl_variant(std::wstring const& str_) : _type(xl_type::xl_typeStr) {
-				_value._str = str_;
+			xl_variant(double num_) : _type(xl_type::xl_typeNum), _num(num_) {
 			}
-			xl_variant(std::string const& str_) : _type(xl_type::xl_typeStr) {
-				_value._str = xl_inner::xl_strings::convert(str_);
+			xl_variant(std::wstring const& str_) : _type(xl_type::xl_typeStr),_str(str_) {
 			}
-			xl_variant(bool xbool_) : _type(xl_type::xl_typeBool) {
-				_value._xbool = xbool_;
+			xl_variant(std::string const& str_) : _type(xl_type::xl_typeStr), 
+				_str(xl_inner::xl_strings::convert(str_)) {
 			}
-			xl_variant(int w_) : _type(xl_type::xl_typeInt) {
-				_value._w = w_;
+			xl_variant(bool xbool_) : _type(xl_type::xl_typeBool), _xbool(xbool_) {
 			}
-			xl_variant(std::vector<std::vector<xl_variant>> const& array_) : _type(xl_type::xl_typeMulti) {
-				_value._array = array_;
+			xl_variant(int w_) : _type(xl_type::xl_typeInt), _w(w_) {
+			}
+			xl_variant(std::vector<std::vector<xl_variant>> const& array_) : _type(xl_type::xl_typeMulti), _array(array_) {
 			}
 			xl_variant(XLOPER12 const& in) {
 				from_xl(in);
@@ -219,20 +253,17 @@ namespace autotelica {
 			}
 
 			~xl_variant() {
-				switch (_type) {
-				case xl_type::xl_typeStr:
-					(&_value._str)->std::wstring::~wstring();
-					break;
-				case xl_type::xl_typeMulti:
-					(&_value._array)->std::vector<std::vector<xl_variant>>::~vector<std::vector<xl_variant>>();
-					break;
-				default:
-					break;
-				}
+				free();
 			}
 
 			xl_variant& operator=(xl_variant const& in) {
+				free();
 				copy_from(in);
+				return *this;
+			}
+			xl_variant& operator=(xl_variant&& in) noexcept {
+				free();
+				move_from(in);
 				return *this;
 			}
 
@@ -240,68 +271,88 @@ namespace autotelica {
 				return equals(in);
 			}
 
-			void set_type(xl_type const& type_) { _type = type_; }
-			xl_type type() const { return _type; }
+			inline void set_type(xl_type const& type_) { free(); _type = type_; }
+			inline xl_type type() const { return _type; }
 
-			void set(double num_) {
+			inline void set(double num_) {
+				free();
 				_type = xl_type::xl_typeNum;
-				_value._num = num_;
+				_num = num_;
 			}
 
-			double get_double() const { check_type(xl_type::xl_typeNum);  return _value._num; }
-			double& get_double() { check_type(xl_type::xl_typeNum);  return _value._num; }
-			operator double() const { return get_double(); }
-			operator double& () { return get_double(); }
+			inline double get_double() const { check_type(xl_type::xl_typeNum);  return _num; }
+			inline double& get_double() { check_type(xl_type::xl_typeNum);  return _num; }
+			inline operator double() const { return get_double(); }
+			inline operator double& () { return get_double(); }
 
-			void set_error(int err_) {
+			inline void set_error(int err_) {
+				free();
 				_type = xl_type::xl_typeErr;
-				_value._err = err_;
+				_err = err_;
 			}
-			int get_error() const { check_type(xl_type::xl_typeErr); return _value._err; }
+			inline int get_error() const { check_type(xl_type::xl_typeErr); return _err; }
 
 			void set(std::wstring const& str_) {
-				_type = xl_type::xl_typeStr;
-				_value._str = str_;
+				if (_type & xl_type::xl_typeStr)
+					_str = str_;
+				else {
+					free();
+					_type = xl_type::xl_typeStr;
+					new(&_str) std::wstring(str_);
+				}
 			}
 			void set(std::string const& str_) {
-				_type = xl_type::xl_typeStr;
-				_value._str = xl_inner::xl_strings::convert(str_);
+				if (_type & xl_type::xl_typeStr)
+					_str = xl_inner::xl_strings::convert(str_);
+				else {
+					free();
+					_type = xl_type::xl_typeStr;
+					new(&_str) std::wstring(xl_inner::xl_strings::convert(str_));
+				}
 			}
-			std::wstring const& get_wstring() const { check_type(xl_type::xl_typeStr);  return _value._str; }
-			std::wstring& get_wstring() { check_type(xl_type::xl_typeStr); return _value._str; }
-			std::string get_string() const { check_type(xl_type::xl_typeStr);  return xl_inner::xl_strings::convert(_value._str); }
-			operator std::wstring const& () const { return get_wstring(); }
-			operator std::wstring& () { return get_wstring(); }
-			operator std::string() const { return get_string(); }
+			inline std::wstring const& get_wstring() const { check_type(xl_type::xl_typeStr);  return _str; }
+			inline std::wstring& get_wstring() { check_type(xl_type::xl_typeStr); return _str; }
+			inline std::string get_string() const { check_type(xl_type::xl_typeStr);  return xl_inner::xl_strings::convert(_str); }
+			inline operator std::wstring const& () const { return get_wstring(); }
+			inline operator std::wstring& () { return get_wstring(); }
+			inline operator std::string() const { return get_string(); }
 
-			void set(bool xbool_) {
+			inline void set(bool xbool_) {
+				free();
 				_type = xl_type::xl_typeBool;
-				_value._xbool = xbool_;
+				_xbool = xbool_;
 			}
-			bool get_bool() const { check_type(xl_type::xl_typeBool);  return _value._xbool; }
-			bool& get_bool() { check_type(xl_type::xl_typeBool); return _value._xbool; }
-			operator bool() const { return get_bool(); }
-			operator bool& () { return get_bool(); }
+			inline bool get_bool() const { check_type(xl_type::xl_typeBool);  return _xbool; }
+			inline bool& get_bool() { check_type(xl_type::xl_typeBool); return _xbool; }
+			inline operator bool() const { return get_bool(); }
+			inline operator bool& () { return get_bool(); }
 
-			void set(int w_) {
+			inline void set(int w_) {
+				free();
 				_type = xl_type::xl_typeInt;
-				_value._w = w_;
+				_w = w_;
 			}
-			int get_int() const { check_type(xl_type::xl_typeInt);  return _value._w; }
-			int& get_int() { check_type(xl_type::xl_typeInt); return _value._w; }
-			operator int() const { return get_int(); }
-			operator int& () { return get_int(); }
+			inline int get_int() const { check_type(xl_type::xl_typeInt);  return _w; }
+			inline int& get_int() { check_type(xl_type::xl_typeInt); return _w; }
+			inline operator int() const { return get_int(); }
+			inline operator int& () { return get_int(); }
 
 			void set(std::vector<std::vector<xl_variant>> const& array_) {
-				_type = xl_type::xl_typeMulti;
-				_value._array = array_;
+				if (_type & xl_type::xl_typeMulti)
+					_array = array_;
+				else {
+					free();
+					_type = xl_type::xl_typeMulti;
+					new(&_array) std::vector<std::vector<xl_variant>>(array_);
+				}
 			}
-			std::vector<std::vector<xl_variant>> const& get_multi() const { check_type(xl_type::xl_typeMulti);  return _value._array; }
-			std::vector<std::vector<xl_variant>>& get_multi() { check_type(xl_type::xl_typeMulti); return _value._array; }
-			operator std::vector<std::vector<xl_variant>> const& () const { return get_multi(); }
-			operator std::vector<std::vector<xl_variant>>& () { return get_multi(); }
+			inline std::vector<std::vector<xl_variant>> const& get_multi() const { check_type(xl_type::xl_typeMulti);  return _array; }
+			inline std::vector<std::vector<xl_variant>>& get_multi() { check_type(xl_type::xl_typeMulti); return _array; }
+			inline operator std::vector<std::vector<xl_variant>> const& () const { return get_multi(); }
+			inline operator std::vector<std::vector<xl_variant>>& () { return get_multi(); }
 
-			void set(XLOPER12 const& in) {
+			inline void set(XLOPER12 const& in) {
+				free();
 				from_xl(in);
 			}
 
