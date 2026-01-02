@@ -1,0 +1,23 @@
+{
+  "$id": "https://example.com/schemas/common/address.json",
+  "title": "Address",
+  "type": "object",
+  "properties": {
+    "line1": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "postalCode": {
+      "type": "string"
+    },
+    "country": {
+      "$ref": "Country.json"
+    }
+  },
+  "required": [
+    "line1",
+    "country"
+  ]
+}

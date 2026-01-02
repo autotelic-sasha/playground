@@ -1,0 +1,24 @@
+{
+  "$id": "https://example.com/schemas/payment/paypal-payment.json",
+  "title": "PayPalPayment",
+  "allOf": [
+    {
+      "$ref": "../common/BaseEntity.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "const": "paypal"
+        },
+        "paypalPayerId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "paypalPayerId"
+      ]
+    }
+  ]
+}

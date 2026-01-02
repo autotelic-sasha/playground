@@ -1,0 +1,21 @@
+{
+  "$id": "https://example.com/schemas/catalog/category.json",
+  "title": "Category",
+  "type": "object",
+  "x-graph": {
+    "anchor": true,
+    "x": -200,
+    "y": -150
+  },
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "parent": {
+      "$ref": "Category.json"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "https://example.com/schemas/payment/card-payment.json",
+  "title": "CardPayment",
+  "allOf": [
+    {
+      "$ref": "../common/BaseEntity.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "method": {
+          "const": "card"
+        },
+        "cardBrand": {
+          "type": "string"
+        },
+        "last4": {
+          "type": "string",
+          "pattern": "^[0-9]{4}$"
+        }
+      },
+      "required": [
+        "method",
+        "cardBrand",
+        "last4"
+      ]
+    }
+  ]
+}

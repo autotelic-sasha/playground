@@ -1,0 +1,18 @@
+{
+  "$id": "https://example.com/schemas/common/types.json",
+  "title": "CommonTypes",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "Email": {
+      "type": "string",
+      "format": "email"
+    },
+    "ISODateTime": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

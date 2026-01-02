@@ -1,0 +1,18 @@
+{
+  "$id": "https://example.com/schemas/common/money.json",
+  "title": "Money",
+  "type": "object",
+  "properties": {
+    "amount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "currency": {
+      "$ref": "Currency.json"
+    }
+  },
+  "required": [
+    "amount",
+    "currency"
+  ]
+}

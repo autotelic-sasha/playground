@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JSON Schema → Graph (D3)</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root { --bg:#0b1220; --panel:#11182a; --muted:#93a4bd; --text:#e6edf7; --accent:#8fd3ff; }
+    html,body { height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji"; background:var(--bg); color:var(--text); }
+    .app { display:grid; grid-template-rows:auto 1fr; height:100%; }
+    header { display:flex; gap:12px; align-items:center; padding:10px 12px; background:var(--panel); border-bottom:1px solid #1e2a43; position:sticky; top:0; z-index:2; flex-wrap:wrap; }
+    header h1 { font-size:16px; margin:0 8px 0 0; color:#cfe6ff; font-weight:600; letter-spacing:0.2px; }
+    .btn { appearance:none; border:1px solid #28405d; background:#132036; color:var(--text); padding:8px 10px; border-radius:10px; cursor:pointer; font-size:12px; }
+    .btn:hover { border-color:#3a5f8a; }
+    .toolbar { display:flex; gap:8px; align-items:center; }
+    .sep { width:1px; height:28px; background:#1e2a43; margin:0 2px; }
+    label { font-size:12px; color:var(--muted); }
+    select, input[type="number"], input[type="text"] { background:#0e1a2e; border:1px solid #283d5a; color:var(--text); border-radius:8px; padding:6px 8px; font-size:12px; }
+    #main { display:grid; grid-template-rows: 2fr 1fr; height:100%; }
+    #graph { position:relative; }
+    svg { width:100%; height:100%; display:block; background:linear-gradient(180deg, #0b1220 0%, #0b1324 100%); }
+    .link { stroke:#2b4367; stroke-opacity:0.6; }
+    .link:hover { stroke-opacity:0.95; }
+    .link-label { fill:#9fb3cc; font-size:10px; pointer-events:none; }
+    .node rect { rx:18; ry:18; fill:#16243e; stroke:#385b89; }
+    .node .title { font-size:10.5px; fill:#e6edf7; font-weight:600; }
+    .node .subtitle { font-size:9px; fill:#9fb3cc; }
+    .legend { position:absolute; right:12px; top:12px; background:#0f1a2e; border:1px solid #28405d; border-radius:12px; padding:10px; font-size:12px; color:#cfe6ff; }
+    .legend .swatch { width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:6px; vertical-align:middle; border:1px solid #2b4367; }
+    .status { margin-left:auto; font-size:12px; color:#9fb3cc; }
+    .edgeRef { stroke-dasharray:3 2; }
+    .edgeProp { stroke:#365f98; }
+    .edgeItems { stroke:#6c7fb0; }
+    .edgeComp { stroke:#7b9bd6; }
+    .edgeOther { stroke:#4a6a9c; }
+    .pill { display:inline-flex; gap:8px; align-items:center; background:#0e1a2e; border:1px solid #283d5a; padding:6px 8px; border-radius:999px; }
+    .pill input { margin:0; }
+    .tooltip { position:absolute; pointer-events:none; background:#0f1a2e; border:1px solid #28405d; color:#cfe6ff; padding:8px 10px; border-radius:10px; font-size:12px; max-width:360px; z-index:5; }
+    .hidden { display:none; }
+    #details { background:#0f1a2e; border-top:1px solid #1e2a43; overflow:auto; padding:10px; }
+    #details h2 { margin:0 0 8px 0; font-size:14px; color:#cfe6ff; }
+    table { width:100%; border-collapse: collapse; font-size:12px; }
+    th, td { border-bottom:1px solid #213352; padding:6px 8px; vertical-align:top; }
+    th { text-align:left; color:#9fb3cc; font-weight:600; width:200px; }
+    .kbd { background:#0b1324; border:1px solid #213352; border-radius:6px; padding:2px 6px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; }
+    .tag { display:inline-block; padding:2px 6px; border-radius:12px; background:#13293f; border:1px solid #28405d; margin-right:4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JSON Schema → Graph (D3)</h1>
+    <label class="btn" for="folder">📁 Load folder</label>
+    <input id="folder" type="file" webkitdirectory directory multiple class="hidden" />
+
+    <button id="sample" class="btn">Load sample</button>
+
+    <div class="sep"></div>
+
+    <div class="toolbar">
+      <span class="pill"><input id="toggleRefs" type="checkbox" checked><label for="toggleRefs">$ref</label></span>
+      <span class="pill"><input id="toggleProps" type="checkbox" checked><label for="toggleProps">properties</label></span>
+      <span class="pill"><input id="toggleItems" type="checkbox" checked><label for="toggleItems">items & others</label></span>
+      <span class="pill"><input id="toggleComposites" type="checkbox" checked><label for="toggleComposites">allOf/anyOf/oneOf</label></span>
+      <span class="pill"><input id="toggleLabels" type="checkbox" checked><label for="toggleLabels">edge labels</label></span>
+      
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="toolbar">
+      <label>Charge <input id="charge" type="number" step="50" value="-600" style="width:80px"></label>
+      <label>Link dist <input id="linkdist" type="number" step="10" value="110" style="width:80px"></label>
+      <label>Node size <input id="nodesize" type="number" step="2" value="14" style="width:70px"></label>
+    </div>
+
+    <div class="sep"></div>
+
+    <button id="exportJSON" class="btn">Export graph.json</button>
+    <button id="exportSVG" class="btn">Export SVG</button>
+
+    <div class="status" id="status">No data loaded.</div>
+  </header>
+
+  <div id="main">
+    <div id="graph">
+      <svg id="svg"></svg>
+      <div class="legend" id="legend"></div>
+      <div class="tooltip hidden" id="tooltip"></div>
+    </div>
+    <div id="details">
+      <h2>Details</h2>
+      <div id="detailsBody">Click a node to view its schema as a table.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// -------- Utilities --------------------------------------------------------
+function download(filename, text) {
+  const a = document.createElement('a');
+  a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  a.setAttribute('download', filename);
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function niceLabel(file, pointer, title) {
+  const p = pointer && pointer !== '#' ? pointer : '#';
+  return `${file}
+${p}${title ? `
+«${title}»` : ''}`;
+}
+
+function isSchemaLike(x) {
+  return x && typeof x === 'object' && (
+    ('$ref' in x) || ('type' in x) || 'properties' in x ||
+    'items' in x || 'allOf' in x || 'anyOf' in x || 'oneOf' in x ||
+    'contains' in x || 'not' in x || 'if' in x || 'then' in x || 'else' in x || 'additionalProperties' in x
+  );
+}
+
+function resolvePointer(obj, pointer) { // minimal JSON Pointer
+  if (!pointer || pointer === '#') return obj;
+  const path = pointer.replace(/^#\//, '').split('/').map(s=>s.replace(/~1/g,'/').replace(/~0/g,'~'));
+  let cur = obj;
+  for (const key of path) {
+    if (cur && typeof cur === 'object' && key in cur) cur = cur[key];
+    else throw new Error('Bad pointer ' + pointer);
+  }
+  return cur;
+}
+
+function refParts(ref) {
+  if (!ref) return [null,null];
+  if (ref.startsWith('#')) return [null, ref];
+  const i = ref.indexOf('#');
+  if (i === -1) return [ref, null];
+  return [ref.slice(0,i), '#' + ref.slice(i+1)];
+}
+
+function normalizeRel(fromPath, rel) {
+  const fromParts = (fromPath.split('/').slice(0,-1));
+  const relParts = rel.split('/');
+  const base = [...fromParts];
+  for (const part of relParts) {
+    if (!part || part === '.') continue;
+    if (part === '..') base.pop(); else base.push(part);
+  }
+  return base.join('/');
+}
+
+function pkgName(filePath){
+  const parts = filePath.split('/');
+  // folder path (relative), for coloring
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : '(root)';
+}
+
+// -------- Graph build from FileList ---------------------------------------
+async function filesToGraph(fileList) {
+  // Load all JSON files
+  const files = [...fileList].filter(f => f.name.endsWith('.json'));
+  const map = new Map();     // path -> object
+  const idIndex = new Map(); // $id -> object
+
+  for (const f of files) {
+    try {
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      const key = f.webkitRelativePath || f.name;
+      map.set(key, obj);
+      if (obj && typeof obj === 'object' && typeof obj.$id === 'string') {
+        idIndex.set(obj.$id, obj);
+      }
+    } catch (e) {
+      console.warn('Failed to read', f.name, e);
+    }
+  }
+  if (map.size === 0) throw new Error('No .json files found');
+
+  // Resolver that is $id-aware
+  function resolveDoc(fromPath, refStr) {
+    const parts = refParts(refStr);
+    const filePart = parts[0];
+    const frag = parts[1];
+    if (!filePart) {
+      return { path: fromPath, doc: map.get(fromPath), ptr: frag || '#' };
+    }
+    // absolute by $id hit
+    if (idIndex.has(filePart)) {
+      return { path: filePart, doc: idIndex.get(filePart), ptr: frag || '#' };
+    }
+    // try as loaded relative path
+    const targetRel = normalizeRel(fromPath, filePart);
+    if (map.has(targetRel)) {
+      return { path: targetRel, doc: map.get(targetRel), ptr: frag || '#' };
+    }
+    // try as direct key (already relative from root selection)
+    if (map.has(filePart)) {
+      return { path: filePart, doc: map.get(filePart), ptr: frag || '#' };
+    }
+    return null;
+  }
+
+  // Build graph: one node per file, edges only between files
+  const nodes = new Map(); // file -> node object
+  const edges = [];        // {source,target,kind,label}
+  const edgeSet = new Set();
+
+  function ensureFileNode(path, doc) {
+    if (!nodes.has(path)) {
+      let xg = null;
+      if (doc && typeof doc === 'object' && doc['x-graph']) {
+        xg = doc['x-graph'];
+      }
+      const anchor = !!(xg && xg.anchor);
+      const x0 = xg && typeof xg.x === 'number' ? xg.x : null;
+      const y0 = xg && typeof xg.y === 'number' ? xg.y : null;
+      nodes.set(path, {
+        id: path,
+        file: path,
+        ptr: '#',
+        label: niceLabel(path, '#', doc && doc.title),
+        kind: 'file',
+        title: doc && doc.title,
+        pkg: pkgName(path),
+        anchor,
+        x0,
+        y0
+      });
+    }
+    return nodes.get(path);
+  }
+
+  function addEdgeBetweenFiles(fromPath, toPath, kind) {
+    if (!nodes.has(fromPath) || !nodes.has(toPath)) return;
+    const key = fromPath + '->' + toPath + ':' + kind;
+    if (edgeSet.has(key)) return;
+    edgeSet.add(key);
+    edges.push({ source: fromPath, target: toPath, kind, label: kind });
+  }
+
+  // Seed: file nodes
+  for (const [path, doc] of map.entries()) {
+    ensureFileNode(path, doc);
+  }
+
+  // Traverse schemas to discover file-to-file refs, with cycle protection on (path,ptr)
+  const q = [];
+  const visited = new Set();
+
+  function enqueue(path, ptr, obj) {
+    const key = path + '::' + (ptr || '#');
+    if (visited.has(key)) return;
+    visited.add(key);
+    q.push({ path, ptr, obj });
+  }
+
+  // initial roots
+  for (const [path, doc] of map.entries()) {
+    enqueue(path, '#', doc);
+  }
+
+  while (q.length) {
+    const current = q.shift();
+    const path = current.path;
+    const ptr = current.ptr;
+    const obj = current.obj;
+
+    if (obj && typeof obj === 'object') {
+      // $ref: if it resolves to another file in this set, add an edge between file nodes
+      if ('$ref' in obj && typeof obj.$ref === 'string') {
+        const dest = resolveDoc(path, obj.$ref);
+        if (dest && dest.doc) {
+          if (map.has(dest.path)) {
+            addEdgeBetweenFiles(path, dest.path, 'ref');
+          } else {
+            // external / not in selected set -> ignored (optional stub behavior could go here)
+            console.warn('Referenced file not in selected set:', obj.$ref, 'from', path);
+          }
+          try {
+            const targetObj = resolvePointer(dest.doc, dest.ptr);
+            enqueue(dest.path, dest.ptr, targetObj);
+          } catch (e) {
+            console.warn('Bad $ref pointer', obj.$ref, 'from', path, e.message);
+          }
+        } else {
+          console.warn('Missing referenced file', obj.$ref, 'from', path);
+        }
+      }
+
+      // properties: walk them to find deeper refs, but do not create separate nodes
+      if (obj.properties && typeof obj.properties === 'object') {
+        for (const [pname, pobj] of Object.entries(obj.properties)) {
+          if (isSchemaLike(pobj)) {
+            const childPtr = ptr === '#' ? '#/properties/' + pname : ptr + '/properties/' + pname;
+            enqueue(path, childPtr, pobj);
+          }
+        }
+      }
+
+      // items
+      if (obj.items && isSchemaLike(obj.items)) {
+        const childPtr = ptr === '#' ? '#/items' : ptr + '/items';
+        enqueue(path, childPtr, obj.items);
+      }
+
+      // composites
+      const comps = ['allOf', 'anyOf', 'oneOf'];
+      for (let i = 0; i < comps.length; i++) {
+        const comp = comps[i];
+        const arr = obj[comp];
+        if (Array.isArray(arr)) {
+          arr.forEach((sub, idx) => {
+            if (isSchemaLike(sub)) {
+              const childPtr = ptr === '#' ? '#/' + comp + '/' + idx : ptr + '/' + comp + '/' + idx;
+              enqueue(path, childPtr, sub);
+            }
+          });
+        }
+      }
+
+      // single-schema carriers
+      const singles = ['contains', 'not', 'if', 'then', 'else', 'additionalProperties'];
+      for (let i = 0; i < singles.length; i++) {
+        const k = singles[i];
+        if (obj[k] && isSchemaLike(obj[k])) {
+          const childPtr = ptr === '#' ? '#/' + k : ptr + '/' + k;
+          enqueue(path, childPtr, obj[k]);
+        }
+      }
+    }
+  }
+
+  // return graph with doc index for later details rendering
+  return { nodes: Array.from(nodes.values()), edges: edges, __docs: { map, idIndex } };
+}
+// -------- D3 rendering -----------------------------------------------------
+function renderGraph(graph) {
+  const svg = d3.select('#svg');
+  svg.selectAll('*').remove();
+
+  const width = svg.node().clientWidth;
+  const height = svg.node().clientHeight;
+
+  const gZoom = svg.append('g');
+  const linkG = gZoom.append('g').attr('class','links');
+  const labelG = gZoom.append('g').attr('class','labels');
+  const nodeG = gZoom.append('g').attr('class','nodes');
+
+  const nodeSize = +document.getElementById('nodesize').value;
+
+  const colorByKind = {
+    file: '#244a7f',
+    schema: '#1a3760',
+    property: '#233d6b',
+    items: '#254577',
+    allOf: '#294f87',
+    anyOf: '#2b5794',
+    oneOf: '#2e5fa2',
+    contains: '#3259a0',
+    not: '#3a63a8',
+    if: '#3a66a8', then: '#3a66a8', else: '#3a66a8',
+    additionalProperties: '#35518f'
+  };
+
+  const pkgScale = d3.scaleOrdinal(d3.schemeTableau10);
+
+  const linkClassByKind = (k)=> (
+    k==='ref' ? 'edgeRef link' :
+    k==='property' ? 'edgeProp link' :
+    k==='items' ? 'edgeItems link' :
+    (k==='allOf'||k==='anyOf'||k==='oneOf') ? 'edgeComp link' : 'edgeOther link');
+
+  const links = graph.edges.map(e=>Object.assign({}, e));
+  const nodes = graph.nodes.map(n=>Object.assign({}, n));
+
+  const nodeById = new Map(nodes.map(n=>[n.id,n]));
+  links.forEach(l=>{ l.source = nodeById.get(l.source); l.target = nodeById.get(l.target); });
+
+  nodes.forEach(n => {
+    if (n.anchor && typeof n.x0 === 'number' && typeof n.y0 === 'number') {
+      n.x = n.x0;
+      n.y = n.y0;
+      n.fx = n.x0;
+      n.fy = n.y0;
+    }
+  });
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(+document.getElementById('linkdist').value).strength(0.2))
+    .force('charge', d3.forceManyBody().strength(+document.getElementById('charge').value))
+    .force('center', d3.forceCenter(width/2, height/2))
+    .force('collide', d3.forceCollide(nodeSize*1.5));
+
+  const link = linkG.selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('class', d=>linkClassByKind(d.kind))
+    .attr('stroke-width', 1.2);
+
+  const linkLabel = labelG.selectAll('text')
+    .data(links)
+    .join('text')
+    .attr('class','link-label')
+    .text(d=>d.label || d.kind);
+
+  const node = nodeG.selectAll('g')
+    .data(nodes)
+    .join('g')
+    .attr('class','node')
+    .call(drag(sim))
+    .on('mouseenter', (e,d)=>showTooltip(e,d))
+    .on('mouseleave', hideTooltip)
+    .on('dblclick', (e,d)=>{ pin(d,false); sim.alpha(0.7).restart(); })
+    .on('click', (e,d)=> selectNode(d, graph));
+
+  node.append('rect')
+    .attr('width', n=> nodeSize*7)
+    .attr('height', n=> nodeSize*2.2)
+    .attr('x', n=> -nodeSize*3.5)
+    .attr('y', n=> -nodeSize*1.1)
+    .attr('fill', n=> getNodeFill(n))
+    .attr('stroke', '#385b89');
+
+  node.append('text').attr('class','title').attr('text-anchor','middle').attr('y', -2)
+    .text(n => shortFile(n.file));
+    // subtitle removed for file-level view
+
+  function getNodeFill(n){
+    return pkgScale(n.pkg);
+  }
+
+  function shortFile(f){
+    const base = f.split('/').pop() || f;
+    return base.replace(/\.[^.]+$/, ''); // drop extension
+  }
+
+  function drag(sim){
+    function dragstarted(event,d){ if (!event.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+    function dragged(event,d){ d.fx = event.x; d.fy = event.y; }
+    function dragended(event,d){ if (!event.active) sim.alphaTarget(0); }
+    return d3.drag().on('start',dragstarted).on('drag',dragged).on('end',dragended);
+  }
+
+  function pin(d, lock=true){ d.fx = lock ? d.x : null; d.fy = lock ? d.y : null; }
+
+  const zoom = d3.zoom().scaleExtent([0.1, 4]).on('zoom', (event)=>{ gZoom.attr('transform', event.transform); });
+  svg.call(zoom);
+
+  sim.on('tick', () => {
+    link.attr('x1', d=>d.source.x).attr('y1', d=>d.source.y).attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+
+    linkLabel
+      .attr('x', d=> (d.source.x + d.target.x)/2)
+      .attr('y', d=> (d.source.y + d.target.y)/2);
+
+    node.attr('transform', d=>`translate(${d.x},${d.y})`);
+  });
+
+  function applyFilters(){
+    const refs = document.getElementById('toggleRefs').checked;
+    const props = document.getElementById('toggleProps').checked;
+    const items = document.getElementById('toggleItems').checked;
+    const comps = document.getElementById('toggleComposites').checked;
+    const labels = document.getElementById('toggleLabels').checked;
+
+    link.attr('display', d =>
+      (d.kind==='ref' && !refs) || (d.kind==='property' && !props) ||
+      (d.kind==='items' && !items) || ((d.kind==='allOf'||d.kind==='anyOf'||d.kind==='oneOf') && !comps)
+      ? 'none' : null);
+
+    linkLabel.attr('display', d =>
+      (!labels) || ((d.kind==='ref' && !refs) || (d.kind==='property' && !props) ||
+      (d.kind==='items' && !items) || ((d.kind==='allOf'||d.kind==='anyOf'||d.kind==='oneOf') && !comps))
+      ? 'none' : null);
+
+    node.select('rect').attr('fill', n=> getNodeFill(n));
+  }
+
+  document.getElementById('toggleRefs').onchange = applyFilters;
+  document.getElementById('toggleProps').onchange = applyFilters;
+  document.getElementById('toggleItems').onchange = applyFilters;
+  document.getElementById('toggleComposites').onchange = applyFilters;
+  document.getElementById('toggleLabels').onchange = applyFilters;
+  document.getElementById('togglePkgColor').onchange = applyFilters;
+  applyFilters();
+
+  const legend = d3.select('#legend');
+  legend.html('')
+  const items = [
+    ['file','#244a7f'],['schema','#1a3760'],['property','#233d6b'],['items','#254577'],
+    ['allOf','#294f87'],['anyOf','#2b5794'],['oneOf','#2e5fa2']
+  ];
+  for (const [name,color] of items) {
+    const div = legend.append('div');
+    div.html(`<span class="swatch" style="background:${color}"></span>${name}`);
+  }
+
+  for (const id of ['charge','linkdist']) {
+    document.getElementById(id).addEventListener('change', () => {
+      sim.force('link').distance(+document.getElementById('linkdist').value);
+      sim.force('charge').strength(+document.getElementById('charge').value);
+      sim.alpha(0.7).restart();
+    });
+  }
+}
+
+// -------- Tooltip & Details panel ----------------------------------------
+function showTooltip(event, node){
+  const el = document.getElementById('tooltip');
+  el.innerHTML = `<strong>${node.file}</strong><br>${node.ptr}${node.title?`<br><em>${node.title}</em>`:''}<br><small>${node.kind} • ${node.pkg}</small>`;
+  el.classList.remove('hidden');
+  const {pageX:x, pageY:y} = event;
+  el.style.left = (x+12) + 'px';
+  el.style.top = (y+12) + 'px';
+}
+function hideTooltip(){ document.getElementById('tooltip').classList.add('hidden'); }
+
+function selectNode(node, graph){
+  const docs = graph.__docs;
+  let doc = docs.map.get(node.file) || docs.idIndex.get(node.file);
+  if (!doc) return;
+  let obj;
+  try { obj = resolvePointer(doc, node.ptr); } catch(e){ obj = null; }
+  const el = document.getElementById('detailsBody');
+  if (!obj || typeof obj !== 'object') { el.textContent = 'No object at pointer.'; return; }
+  el.innerHTML = renderSchemaDetails(node, obj);
+  document.getElementById('status').textContent = `${graph.nodes.length} nodes, ${graph.edges.length} edges — Selected: ${node.file} ${node.ptr}`;
+}
+
+function renderSchemaDetails(node, schema){
+  const req = Array.isArray(schema.required) ? schema.required : [];
+  const props = schema.properties && typeof schema.properties==='object' ? schema.properties : {};
+  const propRows = Object.entries(props).map(([k,v])=>{
+    const typ = prettyType(v);
+    const ref = typeof v.$ref === 'string' ? `<span class="tag">$ref</span> <span class="kbd">${escapeHtml(v.$ref)}</span>` : '';
+    const desc = v.description ? escapeHtml(String(v.description)) : '';
+    const reqBadge = req.includes(k) ? '<span class="tag">required</span>' : '';
+    return `<tr><td><strong>${escapeHtml(k)}</strong></td><td>${typ} ${reqBadge} ${ref}${desc?'<br>'+desc:''}</td></tr>`;
+  }).join('');
+
+  const header = `
+    <table>
+      <tr><th>File</th><td><span class="kbd">${escapeHtml(node.file)}</span></td></tr>
+      <tr><th>Pointer</th><td><span class="kbd">${escapeHtml(node.ptr)}</span></td></tr>
+      ${schema.title?`<tr><th>Title</th><td>${escapeHtml(schema.title)}</td></tr>`:''}
+      ${schema.description?`<tr><th>Description</th><td>${escapeHtml(schema.description)}</td></tr>`:''}
+      ${schema.type?`<tr><th>Type</th><td>${escapeHtml(prettyType(schema))}</td></tr>`:''}
+      ${Array.isArray(schema.enum)?`<tr><th>Enum</th><td>${schema.enum.map(x=>`<span class='tag'>${escapeHtml(String(x))}</span>`).join(' ')}</td></tr>`:''}
+      ${schema.$ref?`<tr><th>$ref</th><td><span class="kbd">${escapeHtml(schema.$ref)}</span></td></tr>`:''}
+      ${Array.isArray(schema.allOf)?`<tr><th>allOf</th><td>${schema.allOf.length} items</td></tr>`:''}
+      ${Array.isArray(schema.anyOf)?`<tr><th>anyOf</th><td>${schema.anyOf.length} items</td></tr>`:''}
+      ${Array.isArray(schema.oneOf)?`<tr><th>oneOf</th><td>${schema.oneOf.length} items</td></tr>`:''}
+      ${schema.items?`<tr><th>items</th><td>${escapeHtml(prettyType(schema.items))}</td></tr>`:''}
+      ${req.length?`<tr><th>required</th><td>${req.map(x=>`<span class='tag'>${escapeHtml(x)}</span>`).join(' ')}</td></tr>`:''}
+    </table>
+  `;
+
+  const propsTable = Object.keys(props).length ? `
+    <h3 style="margin:12px 0 6px 0; color:#cfe6ff;">Properties</h3>
+    <table>${propRows}</table>
+  ` : '';
+
+  return header + propsTable;
+}
+
+function prettyType(s){
+  if (!s) return '';
+  if (typeof s === 'string') return s;
+  if (Array.isArray(s.type)) return s.type.join(' | ');
+  if (typeof s.type === 'string') return s.type;
+  if (s.$ref) return `$ref → ${s.$ref}`;
+  if (s.properties) return 'object';
+  if (s.items) return 'array';
+  return '';
+}
+
+function escapeHtml(str) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(str).replace(/[&<>"']/g, s => map[s]);
+}
+
+// -------- Sample data ------------------------------------------------------
+const SAMPLE = {
+  "pkgA/user.json": { "$id":"user.json", "title":"User", "type":"object", "properties": {
+    "id": { "$ref":"types.json#/$defs/Id" },
+    "name": { "type":"string", "description":"Display name" },
+    "address": { "$ref":"../pkgB/address.json#" },
+    "tags": { "type":"array", "items": { "$ref":"types.json#/$defs/Tag" } }
+  }, "required":["id","name"] },
+  "pkgB/address.json": { "$id":"address.json", "title":"Address", "type":"object", "properties":{
+    "street": { "type":"string" },
+    "city": { "type":"string" },
+    "country": { "$ref":"types.json#/$defs/CountryCode" }
+  }, "allOf": [ {"properties": {"postal": {"type":"string"}}} ] },
+  "pkgA/types.json": { "$id":"types.json", "$defs": {
+    "Id": { "title":"Id", "type":"string" },
+    "Tag": { "title":"Tag", "type":"string" },
+    "CountryCode": { "title":"CountryCode", "type":"string", "enum":["US","IE","DE"] }
+  }}
+};
+
+function loadSample(){
+  const asFiles = Object.entries(SAMPLE).map(([name,obj]) => ({
+    name: name.split('/').slice(-1)[0], webkitRelativePath:name, text: async()=>JSON.stringify(obj)
+  }));
+  filesToGraph(asFiles).then(g=>{
+    renderGraph(g);
+    window.__graph = g;
+    document.getElementById('status').textContent = `Sample: ${g.nodes.length} nodes, ${g.edges.length} edges`;
+  }).catch(err=> alert(err.message));
+}
+
+// -------- Hooks ------------------------------------------------------------
+const folder = document.getElementById('folder');
+folder.addEventListener('change', async (e)=>{
+  try {
+    const graph = await filesToGraph(e.target.files);
+    renderGraph(graph);
+    window.__graph = graph;
+    document.getElementById('status').textContent = `${graph.nodes.length} nodes, ${graph.edges.length} edges`;
+  } catch(err) {
+    alert(err.message);
+  }
+});
+
+const exportJSON = document.getElementById('exportJSON');
+exportJSON.onclick = ()=>{
+  const g = window.__graph; if (!g) return alert('No graph yet');
+  download('schema-graph.json', JSON.stringify({nodes:g.nodes, edges:g.edges}, null, 2));
+};
+
+const exportSVG = document.getElementById('exportSVG');
+exportSVG.onclick = ()=>{
+  const svg = document.getElementById('svg').cloneNode(true);
+  const serializer = new XMLSerializer();
+  const src = serializer.serializeToString(svg);
+
+  const header =
+    '<?xml version="1.0" standalone="no"?>\n' +
+    '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n';
+
+  download('schema-graph.svg', header + src);
+};
+
+
+document.getElementById('sample').onclick = loadSample;
+
+function resize(){
+  const svg = document.getElementById('svg');
+  const headerH = document.querySelector('header').offsetHeight;
+  const mainH = window.innerHeight - headerH;
+  const top = Math.round(mainH * 2/3);
+  document.getElementById('main').style.gridTemplateRows = '2fr 1fr';
+  svg.setAttribute('width', window.innerWidth);
+  svg.setAttribute('height', top);
+}
+window.addEventListener('resize', resize); resize();
+
+document.getElementById('status').textContent = 'Click “Load folder” and select your schema directory. Click a node to see its details below.';
+</script>
+</body>
+</html>

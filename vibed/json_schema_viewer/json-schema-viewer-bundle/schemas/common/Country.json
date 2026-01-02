@@ -1,0 +1,18 @@
+{
+  "$id": "https://example.com/schemas/common/country.json",
+  "title": "Country",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 2
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "code"
+  ]
+}

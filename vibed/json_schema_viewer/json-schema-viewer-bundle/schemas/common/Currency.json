@@ -1,0 +1,11 @@
+{
+  "$id": "https://example.com/schemas/common/currency.json",
+  "title": "Currency",
+  "type": "string",
+  "enum": [
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY"
+  ]
+}

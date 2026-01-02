@@ -1,0 +1,31 @@
+{
+  "$id": "https://example.com/schemas/user/user.json",
+  "title": "User",
+  "allOf": [
+    {
+      "$ref": "../common/BaseEntity.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "$ref": "Profile.json"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin",
+              "support"
+            ]
+          }
+        }
+      },
+      "required": [
+        "profile"
+      ]
+    }
+  ]
+}

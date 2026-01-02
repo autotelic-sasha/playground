@@ -1,0 +1,21 @@
+{
+  "$id": "https://example.com/schemas/order/order-item.json",
+  "title": "OrderItem",
+  "type": "object",
+  "properties": {
+    "product": {
+      "$ref": "../catalog/Product.json"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "lineTotal": {
+      "$ref": "../common/Money.json"
+    }
+  },
+  "required": [
+    "product",
+    "quantity"
+  ]
+}

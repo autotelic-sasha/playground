@@ -1,0 +1,31 @@
+{
+  "$id": "https://example.com/schemas/catalog/product.json",
+  "title": "Product",
+  "allOf": [
+    {
+      "$ref": "../common/BaseEntity.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "sku": {
+          "$ref": "https://example.com/schemas/common/types.json#/$defs/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "$ref": "../common/Money.json"
+        },
+        "category": {
+          "$ref": "Category.json"
+        }
+      },
+      "required": [
+        "sku",
+        "name",
+        "price"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$id": "https://example.com/schemas/user/profile.json",
+  "title": "UserProfile",
+  "type": "object",
+  "properties": {
+    "displayName": {
+      "type": "string"
+    },
+    "email": {
+      "$ref": "https://example.com/schemas/common/types.json#/$defs/Email"
+    },
+    "address": {
+      "$ref": "../common/Address.json"
+    }
+  }
+}

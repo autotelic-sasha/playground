@@ -1,0 +1,16 @@
+{
+  "$id": "https://example.com/schemas/order/shipment.json",
+  "title": "Shipment",
+  "type": "object",
+  "properties": {
+    "order": {
+      "$ref": "Order.json"
+    },
+    "shippingAddress": {
+      "$ref": "../common/Address.json"
+    },
+    "shippedAt": {
+      "$ref": "https://example.com/schemas/common/types.json#/$defs/ISODateTime"
+    }
+  }
+}

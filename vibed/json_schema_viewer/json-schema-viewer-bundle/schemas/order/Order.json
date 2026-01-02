@@ -1,0 +1,49 @@
+{
+  "$id": "https://example.com/schemas/order/order.json",
+  "title": "Order",
+  "x-graph": {
+    "anchor": true,
+    "x": 200,
+    "y": -150
+  },
+  "allOf": [
+    {
+      "$ref": "../common/BaseEntity.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "../user/User.json"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "OrderItem.json"
+          },
+          "minItems": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "pending",
+            "paid",
+            "cancelled"
+          ]
+        },
+        "total": {
+          "$ref": "../common/Money.json"
+        },
+        "payment": {
+          "$ref": "../payment/Payment.json"
+        }
+      },
+      "required": [
+        "user",
+        "items",
+        "status"
+      ]
+    }
+  ]
+}

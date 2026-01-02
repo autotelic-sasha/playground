@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JSON Schema → Tree</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --panel:#ffffff;
+      --border:#e5e7eb;
+      --text:#111827;
+      --muted:#6b7280;
+      --muted2:#9ca3af;
+      --shadow: 0 2px 10px rgba(17,24,39,0.06);
+      --shadow2: 0 1px 6px rgba(17,24,39,0.06);
+      --link:#c7cdd8;
+      --icon:#6b7280;
+      --accent:#3b82f6;
+    }
+
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+
+    .app{display:grid; grid-template-rows:auto 1fr; height:100%;}
+
+    header{
+      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+      padding:12px 16px;
+      background:var(--bg);
+      border-bottom:1px solid var(--border);
+    }
+    header h1{
+      margin:0 10px 0 0;
+      font-size:18px;
+      font-weight:750;
+      letter-spacing:.2px;
+    }
+
+    .filebtn, .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      padding:9px 12px;
+      border-radius: 6px;
+      cursor:pointer;
+      font-size:14px;
+      box-shadow: var(--shadow2);
+    }
+    .filebtn{ display:inline-flex; align-items:center; gap:10px; }
+    .filebtn:hover, .btn:hover{ filter:brightness(0.99); }
+    .folderIcon{
+      width:16px; height:12px; position:relative; display:inline-block;
+      background:#f3c969; border-radius:2px;
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
+    }
+    .folderIcon:before{
+      content:"";
+      position:absolute;
+      left:0; top:-3px;
+      width:9px; height:5px;
+      background:#f7d889;
+      border-radius:2px 2px 0 0;
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,0.06);
+    }
+
+    .check{
+      display:flex; align-items:center; gap:8px;
+      font-size:14px; color:var(--muted);
+      user-select:none;
+    }
+    .check input{ width:14px; height:14px; }
+
+    .hidden{display:none;}
+    .status{ margin-left:auto; font-size:13px; color:var(--muted); }
+
+    #main{ display:grid; grid-template-columns: 1.55fr 1fr; height:100%; }
+
+    #chartWrap{
+      position:relative;
+      background:var(--bg);
+      border-right:1px solid var(--border);
+    }
+    #chart{ width:100%; height:100%; }
+
+    #details{
+      background:var(--panel);
+      overflow:auto;
+    }
+
+    #searchWrap{
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--border);
+      background:var(--bg);
+    }
+    .searchBox{
+      position:relative;
+    }
+    #search{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius: 6px;
+      padding:10px 12px 10px 34px;
+      font-size:14px;
+      outline:none;
+      background:var(--panel);
+      box-shadow: var(--shadow2);
+    }
+    .magnifier{
+      position:absolute;
+      left:10px; top:50%;
+      transform:translateY(-50%);
+      width:14px; height:14px;
+      border:2px solid var(--muted2);
+      border-radius:50%;
+      box-sizing:border-box;
+    }
+    .magnifier:after{
+      content:"";
+      position:absolute;
+      width:8px; height:2px;
+      background:var(--muted2);
+      right:-6px; bottom:-3px;
+      transform:rotate(45deg);
+      border-radius:1px;
+    }
+
+    #schemaCard{
+      border-bottom:1px solid var(--border);
+      background:var(--panel);
+    }
+    #schemaCardHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 14px;
+      cursor:pointer;
+    }
+    #schemaTitle{
+      font-size:14px;
+      font-weight:750;
+      color:var(--text);
+    }
+    #chev{
+      width:10px; height:10px;
+      border-right:2px solid var(--muted2);
+      border-bottom:2px solid var(--muted2);
+      transform: rotate(45deg);
+      margin-left:10px;
+    }
+    #schemaMeta{
+      padding:0 14px 12px 14px;
+      color:var(--muted);
+      font-size:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      display:inline-block;
+      padding:3px 8px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:#f9fafb;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background:#f9fafb;
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:2px 6px;
+      color:#374151;
+      font-size:12px;
+    }
+
+    #detailsBody{ padding:10px 14px 18px 14px; }
+
+    /* JSON viewer (screenshot-like) */
+    .jroot{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; color:#374151; }
+    .jline{ display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #eef2f7; }
+    .jline:last-child{ border-bottom:none; }
+    .jkey{ color:#6b7280; min-width:90px; }
+    .jval{ color:#111827; white-space:pre-wrap; word-break:break-word; }
+    .jwrap{ border-left:2px solid #eef2f7; margin-left:10px; padding-left:12px; }
+    .twisty{
+      width:18px; height:18px;
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:6px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center;
+      color:#6b7280;
+      line-height:1;
+      margin-right:6px;
+      flex:0 0 auto;
+      box-shadow: var(--shadow2);
+    }
+    .twisty:hover{ background:#f9fafb; }
+    .jhead{ display:flex; align-items:center; gap:6px; }
+    .jbrace{ color:#9ca3af; }
+    .hiddenNode{ display:none; }
+    .hint{ padding:14px; color:var(--muted); font-size:14px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JSON Schema → Tree</h1>
+
+    <label class="filebtn" for="folder" title="Select a folder containing JSON Schemas">
+      <span class="folderIcon" aria-hidden="true"></span>
+      <span>Load folder</span>
+    </label>
+    <input id="folder" type="file" webkitdirectory directory multiple class="hidden" />
+
+    <label class="check">
+      <input id="toggleExternal" type="checkbox">
+      <span>Show externals</span>
+    </label>
+
+    <button id="collapseAll" class="btn">Collapse all</button>
+
+    <div class="status" id="status">No data loaded.</div>
+  </header>
+
+  <div id="main">
+    <div id="chartWrap">
+      <div id="chart"></div>
+    </div>
+
+    <div id="details">
+      <div id="searchWrap">
+        <div class="searchBox">
+          <span class="magnifier" aria-hidden="true"></span>
+          <input id="search" type="text" placeholder="Search..." />
+        </div>
+      </div>
+
+      <div id="schemaCard">
+        <div id="schemaCardHeader" title="Collapse/expand details">
+          <div id="schemaTitle">Details</div>
+          <div id="chev" aria-hidden="true"></div>
+        </div>
+        <div id="schemaMeta"></div>
+      </div>
+
+      <div id="detailsHint" class="hint">Click a node in the tree to view the schema.</div>
+      <div id="detailsBody" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------------- Helpers ----------------
+function baseNameNoExt(path){
+  const base = (path || '').split('/').pop() || path || '';
+  return base.replace(/\.[^.]+$/, '');
+}
+function folderOf(path){
+  const parts = (path || '').split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : '(root)';
+}
+function normalizeRel(fromPath, rel){
+  const fromParts = (fromPath.split('/').slice(0,-1));
+  const relParts = rel.split('/');
+  const base = [...fromParts];
+  for (const part of relParts){
+    if (!part || part === '.') continue;
+    if (part === '..') base.pop(); else base.push(part);
+  }
+  return base.join('/');
+}
+function refParts(ref){
+  if (!ref) return [null,null];
+  if (ref.startsWith('#')) return [null, ref];
+  const i = ref.indexOf('#');
+  if (i === -1) return [ref, null];
+  return [ref.slice(0,i), '#' + ref.slice(i+1)];
+}
+function isObject(x){ return x && typeof x === 'object' && !Array.isArray(x); }
+function escapeHtml(str){
+  const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  return String(str).replace(/[&<>"']/g, s => map[s]);
+}
+
+// Stable accent per folder (used as a subtle border only, like grouping)
+function hashToAccent(str){
+  const palette = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899','#64748b'];
+  let h = 2166136261;
+  for (let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return palette[Math.abs(h) % palette.length];
+}
+
+// -------- ref scan --------
+function collectRefs(obj, out){
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)){ for (const it of obj) collectRefs(it, out); return; }
+  if (typeof obj.$ref === 'string') out.push(obj.$ref);
+  for (const v of Object.values(obj)) collectRefs(v, out);
+}
+
+// -------- load --------
+async function loadFiles(fileList){
+  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith('.json'));
+  const docs = new Map();     // relpath -> parsed json
+  const idIndex = new Map();  // $id -> relpath
+  for (const f of files){
+    try{
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      const key = f.webkitRelativePath || f.name;
+      docs.set(key, obj);
+      if (obj && typeof obj === 'object' && typeof obj.$id === 'string'){
+        idIndex.set(obj.$id, key);
+      }
+    }catch(e){ console.warn('Failed to parse', f.name, e); }
+  }
+  if (docs.size === 0) throw new Error('No .json files found');
+  return {docs, idIndex};
+}
+
+function resolveRefToFile(fromPath, refStr, docs, idIndex){
+  const [filePart, frag] = refParts(refStr);
+  if (!filePart) return { path: fromPath, ptr: frag || '#', external:false };
+  if (idIndex.has(filePart)) return { path: idIndex.get(filePart), ptr: frag || '#', external:false };
+  const targetRel = normalizeRel(fromPath, filePart);
+  if (docs.has(targetRel)) return { path: targetRel, ptr: frag || '#', external:false };
+  if (docs.has(filePart)) return { path: filePart, ptr: frag || '#', external:false };
+  return { path: filePart, ptr: frag || '#', external:true };
+}
+
+// -------- graph/tree --------
+function buildGraph(docs, idIndex, showExternal){
+  const outgoing = new Map();
+  const incoming = new Map();
+  for (const [path] of docs.entries()){
+    outgoing.set(path, new Set());
+    incoming.set(path, 0);
+  }
+
+  for (const [path, doc] of docs.entries()){
+    const refs = [];
+    collectRefs(doc, refs);
+    for (const r of refs){
+      const res = resolveRefToFile(path, r, docs, idIndex);
+      if (res.external){
+        if (showExternal) outgoing.get(path).add('EXTERNAL::' + res.path);
+      } else if (docs.has(res.path)){
+        outgoing.get(path).add(res.path);
+      }
+    }
+  }
+
+  for (const [from, tos] of outgoing.entries()){
+    for (const to of tos){
+      if (to.startsWith('EXTERNAL::')) continue;
+      incoming.set(to, (incoming.get(to) || 0) + 1);
+    }
+  }
+
+  return {outgoing, incoming};
+}
+
+function buildForestTree(docs, outgoing, incoming){
+  const roots = [];
+  for (const [file, count] of incoming.entries()){
+    if ((count || 0) === 0) roots.push(file);
+  }
+  if (roots.length === 0) roots.push(...docs.keys()); // all cycles
+
+  const externalNodes = new Map();
+  function makeExternalNode(key){
+    if (externalNodes.has(key)) return externalNodes.get(key);
+    const label = key.replace(/^EXTERNAL::/, '');
+    const node = {
+      name: baseNameNoExt(label) || label,
+      filePath: key,
+      kind: 'external',
+      folder: '(external)',
+      itemStyle: { color: '#ffffff', borderColor: '#d1d5db' },
+      children: []
+    };
+    externalNodes.set(key, node);
+    return node;
+  }
+
+  function makeNode(file, stack){
+    const name = baseNameNoExt(file) || file;
+    const folder = folderOf(file);
+    const accent = hashToAccent(folder);
+
+    const node = {
+      name,
+      filePath: file,
+      kind: 'file',
+      folder,
+      _accent: accent,
+      itemStyle: { color:'#ffffff', borderColor:'#d1d5db' }, // actual border handled via label icon accent
+      children: []
+    };
+
+    const kids = outgoing.get(file) ? [...outgoing.get(file)] : [];
+    for (const k of kids){
+      if (k.startsWith('EXTERNAL::')) { node.children.push(makeExternalNode(k)); continue; }
+      if (stack.includes(k)){
+        node.children.push({
+          name: baseNameNoExt(k) + ' ↩',
+          filePath: k,
+          kind: 'cycle',
+          folder: folderOf(k),
+          _accent: '#f59e0b',
+          itemStyle: { color:'#ffffff', borderColor:'#d1d5db' },
+          children: []
+        });
+        continue;
+      }
+      node.children.push(makeNode(k, stack.concat([k])));
+    }
+    return node;
+  }
+
+  return {
+    name: 'Schemas',
+    filePath: '__ROOT__',
+    kind: 'root',
+    children: roots.map(r => makeNode(r, [r])),
+    collapsed: false
+  };
+}
+
+// -------- details (schema in place) --------
+let CURRENT_DOCS = null;
+let CURRENT_TREE_ROOT = null;
+let CURRENT_SELECTED_FILE = null;
+let CURRENT_HIGHLIGHT_KEY = null;
+
+let DETAILS_COLLAPSED = false;
+
+function setSchemaHeader(title, filePath){
+  document.getElementById('schemaTitle').textContent = title || 'Details';
+  const meta = document.getElementById('schemaMeta');
+  if (!filePath){
+    meta.innerHTML = '';
+    return;
+  }
+  const folder = folderOf(filePath);
+  meta.innerHTML = `
+    <span class="kbd">${escapeHtml(filePath)}</span>
+    <span class="pill">${escapeHtml(folder)}</span>
+  `;
+}
+
+function makeJsonNode(key, val){
+  // returns DOM element
+  const container = document.createElement('div');
+
+  if (isObject(val) || Array.isArray(val)){
+    const details = document.createElement('div');
+
+    const header = document.createElement('div');
+    header.className = 'jline';
+
+    const twisty = document.createElement('button');
+    twisty.className = 'twisty';
+    twisty.textContent = '▾';
+
+    const head = document.createElement('div');
+    head.className = 'jhead';
+    const k = document.createElement('div');
+    k.className = 'jkey';
+    k.textContent = String(key);
+
+    const brace = document.createElement('div');
+    brace.className = 'jbrace';
+    brace.textContent = Array.isArray(val) ? `[${val.length}]` : '{ }';
+
+    head.appendChild(k);
+    head.appendChild(brace);
+
+    header.appendChild(twisty);
+    header.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'jwrap';
+    body.style.marginTop = '6px';
+
+    const entries = Array.isArray(val) ? val.map((v,i)=>[i,v]) : Object.entries(val);
+    for (const [kk, vv] of entries){
+      body.appendChild(makeJsonNode(kk, vv));
+    }
+
+    twisty.onclick = () => {
+      const collapsed = !body.classList.contains('hiddenNode') ? true : false;
+      if (collapsed){
+        body.classList.add('hiddenNode');
+        twisty.textContent = '▸';
+      } else {
+        body.classList.remove('hiddenNode');
+        twisty.textContent = '▾';
+      }
+    };
+
+    details.appendChild(header);
+    details.appendChild(body);
+    container.appendChild(details);
+    return container;
+  }
+
+  const line = document.createElement('div');
+  line.className = 'jline';
+
+  // spacer to align with twisty
+  const spacer = document.createElement('div');
+  spacer.style.width = '18px';
+  spacer.style.height = '18px';
+  spacer.style.marginRight = '6px';
+
+  const k = document.createElement('div');
+  k.className = 'jkey';
+  k.textContent = String(key);
+
+  const v = document.createElement('div');
+  v.className = 'jval';
+  if (typeof val === 'string') v.textContent = `"${val}"`;
+  else v.textContent = String(val);
+
+  line.appendChild(spacer);
+  line.appendChild(k);
+  line.appendChild(v);
+  container.appendChild(line);
+  return container;
+}
+
+function renderSchema(schemaObj){
+  const body = document.getElementById('detailsBody');
+  body.innerHTML = '';
+  const root = document.createElement('div');
+  root.className = 'jroot';
+
+  if (!isObject(schemaObj) && !Array.isArray(schemaObj)){
+    root.textContent = String(schemaObj);
+    body.appendChild(root);
+    return;
+  }
+  const entries = Array.isArray(schemaObj) ? schemaObj.map((v,i)=>[i,v]) : Object.entries(schemaObj);
+  for (const [k,v] of entries){
+    root.appendChild(makeJsonNode(k, v));
+  }
+  body.appendChild(root);
+}
+
+function showDetails(filePath, schemaObj){
+  CURRENT_SELECTED_FILE = filePath;
+
+  document.getElementById('detailsHint').classList.add('hidden');
+  const body = document.getElementById('detailsBody');
+  body.classList.remove('hidden');
+
+  setSchemaHeader((baseNameNoExt(filePath) || 'Schema') + ' Schema', filePath);
+  renderSchema(schemaObj);
+
+  // apply collapsed state
+  body.style.display = DETAILS_COLLAPSED ? 'none' : 'block';
+  document.getElementById('schemaMeta').style.display = DETAILS_COLLAPSED ? 'none' : 'flex';
+  document.getElementById('chev').style.transform = DETAILS_COLLAPSED ? 'rotate(-135deg)' : 'rotate(45deg)';
+}
+
+// -------- ECharts tree --------
+let chart = null;
+
+function applyCollapsed(node, collapsed){
+  if (!node || typeof node !== 'object') return;
+  if (node.kind !== 'root') node.collapsed = collapsed;
+  if (Array.isArray(node.children)) for (const c of node.children) applyCollapsed(c, collapsed);
+}
+
+
+function countVisibleAndDepth(root){
+  let visible = 0;
+  let maxDepth = 0;
+
+  function walk(n, depth){
+    if (!n) return;
+    if (n.kind !== 'root') visible += 1;
+    if (depth > maxDepth) maxDepth = depth;
+
+    if (n.collapsed) return;
+    if (Array.isArray(n.children)){
+      for (const c of n.children){
+        walk(c, depth + 1);
+      }
+    }
+  }
+  walk(root, 0);
+  return { visible, maxDepth };
+}
+
+function computeScale(root, viewportW, viewportH){
+  // Fit-to-viewport heuristic: shrink nodes/fonts when the widest/deepest visible
+  // part of the tree would likely overflow and cause overlaps.
+  const info = countVisibleAndDepth(root);
+
+  // Count visible nodes per depth (to approximate required vertical space)
+  const perDepth = new Map();
+  (function walk(n, depth){
+    if (!n) return;
+    if (n.kind !== 'root') perDepth.set(depth, (perDepth.get(depth) || 0) + 1);
+    if (n.collapsed) return;
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c, depth + 1);
+  })(root, 0);
+
+  const maxLayerCount = Math.max(1, ...perDepth.values());
+  const depth = Math.max(1, info.maxDepth + 1);
+
+  // Base sizes (must match the values used in renderTree before scaling)
+  const baseNodeW = 190;
+  const baseNodeH = 40;
+  const baseNodePad = 22;
+  const baseLayerPad = 110;
+
+  const usableW = Math.max(320, viewportW * 0.92);
+  const usableH = Math.max(240, viewportH * 0.92);
+
+  const needW = depth * (baseNodeW + baseLayerPad);
+  const needH = maxLayerCount * (baseNodeH + baseNodePad);
+
+  let sW = usableW / needW;
+  let sH = usableH / needH;
+
+  // Don't scale up beyond 1, but allow shrinking
+  let s = Math.min(1.0, sW, sH);
+
+  // Keep within a sensible range
+  s = Math.max(0.42, Math.min(1.0, s));
+
+  return { scale: s, visible: info.visible, maxDepth: info.maxDepth, maxLayerCount };
+}
+
+function toggleCollapsedByFilePath(node, filePath){
+  if (!node || typeof node !== 'object') return false;
+  if (node.kind !== 'root' && node.filePath === filePath) {
+    node.collapsed = !node.collapsed;
+    return true;
+  }
+  if (Array.isArray(node.children)){
+    for (const c of node.children){
+      if (toggleCollapsedByFilePath(c, filePath)) return true;
+    }
+  }
+  return false;
+}
+
+function deepClone(x){
+  return JSON.parse(JSON.stringify(x));
+}
+
+function applyHighlightStyles(root, key){
+  if (!key) return;
+  (function walk(n){
+    if (!n || typeof n !== 'object') return;
+    if (n.kind !== 'root' && n.filePath === key) {
+      // faint blue selection highlight
+      n.itemStyle = Object.assign({}, n.itemStyle || {}, {
+        color: '#e8f1ff',
+        borderColor: '#93c5fd'
+      });
+      n.label = Object.assign({}, n.label || {}, { color: '#111827' });
+    }
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  })(root);
+}
+
+function renderTree(rootNode){
+  const el = document.getElementById('chart');
+  if (!chart) chart = echarts.init(el, null, {renderer:'canvas'});
+  CURRENT_TREE_ROOT = rootNode;
+
+  // apply persistent multi-node highlight for the selected object
+  const displayRoot = deepClone(rootNode);
+  applyHighlightStyles(displayRoot, CURRENT_HIGHLIGHT_KEY);
+
+    const viewportW = el.clientWidth || window.innerWidth;
+  const viewportH = el.clientHeight || (window.innerHeight * 0.8);
+  const sc = computeScale(displayRoot, viewportW, viewportH);
+  const S = sc.scale;
+  const nodeW = Math.round(190 * S);
+  const nodeH = Math.round(40 * S);
+  const fontT = Math.max(10, Math.round(13 * S));
+  const fontF = Math.max(9, Math.round(11 * S));
+  const lineH = Math.round(16 * S);
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: { show: false },
+    series: [{
+      type: 'tree',
+      data: [displayRoot],
+      top: '6%',
+      left: '6%',
+      bottom: '6%',
+      right: '6%',
+      orient: 'LR',
+      layout: 'orthogonal',
+      edgeShape: 'polyline',
+      roam: true,
+      edgeForkPosition: '50%',
+
+      // spacing (scaled) to reduce overlaps
+      nodePadding: Math.round(22 * S),
+      layerPadding: Math.round(110 * S),
+
+      symbol: 'rect',
+      symbolSize: [nodeW, nodeH],
+
+      itemStyle: {
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        color: '#ffffff',
+        shadowBlur: Math.round(8 * S),
+        shadowColor: 'rgba(17,24,39,0.10)',
+        shadowOffsetY: Math.round(2 * S)
+      },
+
+      expandAndCollapse: false,
+      initialTreeDepth: 1,
+      animationDuration: 220,
+      animationDurationUpdate: 320,
+
+      lineStyle: {
+        color: '#c7cdd8',
+        width: (1.2 * S),
+        curveness: 0,
+        opacity: 1
+      },
+
+      label: {
+        position: 'inside',
+        align: 'center',
+        verticalAlign: 'middle',
+        padding: [0, 0, 0, 0],
+        color: '#111827',
+        fontSize: fontT,
+        lineHeight: lineH,
+        overflow: 'truncate',        formatter: (p) => {
+          const d = p.data || {};
+          if (d.kind === 'root') return '';
+          const fol = d.folder || '';          return `{t|${d.name || ''}}
+{f|${fol}}`;
+        },
+        rich: {          t: { fontSize: fontT, fontWeight: 750, color: '#111827' },
+          f: { fontSize: fontF, fontStyle: 'italic', color: '#6b7280' }
+        }
+      },
+
+      // hide root symbol/label so it looks like screenshot (no "Schemas" node)
+      root: {
+        label: { show: false },
+        itemStyle: { color: 'transparent', borderColor: 'transparent' },
+        symbolSize: [0,0]
+      },
+
+      emphasis: {
+        focus: 'descendant',
+        itemStyle: {
+          shadowBlur: 12,
+          shadowColor: 'rgba(59,130,246,0.18)'
+        }
+      }
+    }]
+  };
+
+  chart.setOption(option, true);
+
+  chart.off('click');
+  chart.on('click', (params) => {
+    const d = params.data || {};
+
+    // Set highlight key for internal files/cycles
+    if ((d.kind === 'file' || d.kind === 'cycle') && d.filePath) {
+      CURRENT_HIGHLIGHT_KEY = d.filePath;
+    }
+
+    // Toggle expand/collapse when node has children
+    if (d && d.kind !== 'external' && Array.isArray(d.children) && d.children.length) {
+      const next = deepClone(CURRENT_TREE_ROOT);
+      toggleCollapsedByFilePath(next, d.filePath);
+      renderTree(next);
+    } else {
+      // just re-render to apply highlight changes
+      renderTree(CURRENT_TREE_ROOT);
+    }
+
+    // Also show details (if it's an internal file)
+    if ((d.kind === 'file' || d.kind === 'cycle') && CURRENT_DOCS && CURRENT_DOCS.docs.has(d.filePath)) {
+      showDetails(d.filePath, CURRENT_DOCS.docs.get(d.filePath));
+      document.getElementById('status').textContent = `Selected: ${d.filePath}`;
+    } else if (d.kind === 'external') {
+      document.getElementById('status').textContent = `External reference: ${String(d.filePath).replace(/^EXTERNAL::/, '')}`;
+    }
+  });
+
+  window.addEventListener('resize', () => chart && chart.resize());
+}
+
+// -------- Search: find a node by name and expand path --------
+function findPathByName(root, query){
+  if (!query) return null;
+  const q = query.toLowerCase();
+
+  function dfs(node, path){
+    if (!node) return null;
+    const name = (node.name || '').toLowerCase();
+    const fp = String(node.filePath || '').toLowerCase();
+    if (name.includes(q) || fp.includes(q)) return path.concat([node]);
+    if (Array.isArray(node.children)){
+      for (const c of node.children){
+        const r = dfs(c, path.concat([node]));
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+  return dfs(root, []);
+}
+
+function expandAlongPath(root, path){
+  if (!path) return root;
+  const clone = JSON.parse(JSON.stringify(root));
+  // Build a set of filePaths along path for quick matching
+  const set = new Set(path.map(n => n.filePath));
+  (function walk(n){
+    if (!n) return;
+    if (set.has(n.filePath)) n.collapsed = false;
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  })(clone);
+  clone.collapsed = false;
+  return clone;
+}
+
+// -------- Wiring --------
+document.getElementById('folder').addEventListener('change', async (e) => {
+  try{
+    const {docs, idIndex} = await loadFiles(e.target.files);
+    CURRENT_DOCS = {docs, idIndex};
+
+    const showExternal = document.getElementById('toggleExternal').checked;
+    const g = buildGraph(docs, idIndex, showExternal);
+    const root = buildForestTree(docs, g.outgoing, g.incoming);
+    renderTree(root);
+
+    document.getElementById('status').textContent = `Loaded: ${docs.size} files`;
+  }catch(err){ alert(err.message); }
+});
+
+document.getElementById('toggleExternal').addEventListener('change', () => {
+  if (!CURRENT_DOCS) return;
+  const showExternal = document.getElementById('toggleExternal').checked;
+  const g = buildGraph(CURRENT_DOCS.docs, CURRENT_DOCS.idIndex, showExternal);
+  const root = buildForestTree(CURRENT_DOCS.docs, g.outgoing, g.incoming);
+  renderTree(root);
+});
+
+document.getElementById('collapseAll').addEventListener('click', () => {
+  if (!CURRENT_TREE_ROOT) return;
+  const clone = JSON.parse(JSON.stringify(CURRENT_TREE_ROOT));
+  applyCollapsed(clone, true);
+  clone.collapsed = false;
+  renderTree(clone);
+  document.getElementById('status').textContent = 'Collapsed all';
+});
+
+document.getElementById('schemaCardHeader').addEventListener('click', () => {
+  DETAILS_COLLAPSED = !DETAILS_COLLAPSED;
+  const body = document.getElementById('detailsBody');
+  const meta = document.getElementById('schemaMeta');
+  body.style.display = DETAILS_COLLAPSED ? 'none' : 'block';
+  meta.style.display = DETAILS_COLLAPSED ? 'none' : 'flex';
+  document.getElementById('chev').style.transform = DETAILS_COLLAPSED ? 'rotate(-135deg)' : 'rotate(45deg)';
+});
+
+document.getElementById('search').addEventListener('input', () => {
+  if (!CURRENT_TREE_ROOT) return;
+  const q = (document.getElementById('search').value || '').trim();
+  if (!q) { renderTree(CURRENT_TREE_ROOT); return; }
+  const path = findPathByName(CURRENT_TREE_ROOT, q);
+  if (!path) return; // no match
+  const expanded = expandAlongPath(CURRENT_TREE_ROOT, path);
+  renderTree(expanded);
+});
+
+// Initial UI state
+setSchemaHeader('Details', null);
+document.getElementById('status').textContent = 'Click “Load folder” to build a left-to-right dependency tree.';
+</script>
+</body>
+</html>

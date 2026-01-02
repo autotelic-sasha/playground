@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JSON Schema → Tree</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --panel2:#ffffff;
+      --border:#e6eaf2;
+      --text:#1f2937;
+      --muted:#6b7280;
+
+      --btn:#ffffff;
+      --btnBorder:#d5dbe8;
+      --btnHover:#c7cfdf;
+
+      --shadow: 0 6px 18px rgba(17,24,39,0.08);
+      --shadow2: 0 2px 10px rgba(17,24,39,0.06);
+
+      --link:#9aa6bf;
+      --nodeBorder:#d6dbe6;
+      --nodeFill:#ffffff;
+
+      --accent:#3b82f6;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    .app{display:grid; grid-template-rows:auto 1fr; height:100%;}
+
+    header{
+      display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+      padding:12px 14px;
+      background:var(--panel);
+      border-bottom:1px solid var(--border);
+      box-shadow: var(--shadow2);
+      z-index:2;
+    }
+    header h1{
+      margin:0 10px 0 0;
+      font-size:18px;
+      font-weight:750;
+      letter-spacing:0.2px;
+    }
+
+    .btn, .filebtn{
+      appearance:none;
+      border:1px solid var(--btnBorder);
+      background:var(--btn);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-size:14px;
+      box-shadow: 0 1px 0 rgba(17,24,39,0.02);
+    }
+    .btn:hover, .filebtn:hover{ border-color: var(--btnHover); }
+    .filebtn{ display:inline-flex; align-items:center; gap:10px; }
+    .filebtn .icon{
+      width:18px; height:18px; display:inline-block;
+      border-radius:4px; background: #fde68a;
+      position:relative;
+    }
+    .filebtn .icon:before{
+      content:"";
+      position:absolute;
+      left:3px; top:4px;
+      width:12px; height:9px;
+      border-radius:2px;
+      background:#f59e0b;
+      opacity:0.25;
+    }
+
+    .check{
+      display:flex; align-items:center; gap:8px;
+      font-size:14px;
+      color:var(--muted);
+      user-select:none;
+    }
+    .check input{ width:16px; height:16px; }
+
+    .hidden{display:none;}
+    .status{ margin-left:auto; font-size:13px; color:var(--muted); }
+
+    #main{
+      display:grid;
+      grid-template-columns: 1.35fr 1fr;
+      height:100%;
+    }
+    #chartWrap{
+      position:relative;
+      border-right:1px solid var(--border);
+      background:
+        radial-gradient(900px 550px at 10% 15%, rgba(59,130,246,0.07), transparent 60%),
+        radial-gradient(900px 550px at 35% 85%, rgba(16,185,129,0.05), transparent 60%),
+        var(--bg);
+    }
+    #chart{ height:100%; width:100%; }
+
+    #details{
+      height:100%;
+      overflow:auto;
+      background:var(--panel2);
+    }
+    #detailsHeader{
+      position:sticky;
+      top:0;
+      background:var(--panel2);
+      border-bottom:1px solid var(--border);
+      padding:12px 14px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      z-index:1;
+    }
+    #detailsHeader h2{
+      margin:0;
+      font-size:16px;
+      font-weight:800;
+    }
+
+    #search{
+      flex:1;
+      min-width:160px;
+      background:#f8fafc;
+      border:1px solid var(--border);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:14px;
+      outline:none;
+    }
+    #search:focus{
+      border-color: rgba(59,130,246,0.55);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+      background:#ffffff;
+    }
+
+    #detailsBody{ padding:12px 14px; }
+    .hint{ font-size:14px; color:var(--muted); padding:12px 14px; }
+
+    .meta{ font-size:13px; color:var(--muted); margin:6px 0 12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .kbd{
+      background:#f8fafc;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:4px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size:12px;
+      color:#111827;
+    }
+    .tag{
+      display:inline-block;
+      padding:3px 10px;
+      border-radius:999px;
+      background:#f3f4f6;
+      border:1px solid var(--border);
+      font-size:12px;
+      color:#374151;
+    }
+
+    details{
+      border:1px solid var(--border);
+      border-radius:14px;
+      margin:10px 0;
+      overflow:hidden;
+      background:#ffffff;
+      box-shadow: var(--shadow2);
+    }
+    summary{
+      cursor:pointer;
+      padding:10px 12px;
+      background:#ffffff;
+      color:#111827;
+      font-weight:700;
+      font-size:13px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    summary:hover{ background:#f8fafc; }
+    .node{ padding:10px 12px; }
+
+    .row{
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap:12px;
+      padding:6px 0;
+      border-bottom:1px dashed #eef1f7;
+    }
+    .row:last-child{ border-bottom:none; }
+    .k{ color:#6b7280; font-size:13px; word-break:break-word; }
+    .v{ font-size:13px; color:#111827; word-break:break-word; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JSON Schema → Tree</h1>
+
+    <label class="filebtn" for="folder" title="Select a folder containing JSON Schemas">
+      <span class="icon" aria-hidden="true"></span>
+      <span>Load folder</span>
+    </label>
+    <input id="folder" type="file" webkitdirectory directory multiple class="hidden" />
+
+    <label class="check" title="Show external refs (to files outside selected folder)">
+      <input id="toggleExternal" type="checkbox">
+      <span>Show externals</span>
+    </label>
+
+    <button id="collapseAll" class="btn" title="Collapse all nodes">Collapse all</button>
+    <button id="sample" class="btn" title="Load sample schemas">Load sample</button>
+
+    <div class="status" id="status">No data loaded.</div>
+  </header>
+
+  <div id="main">
+    <div id="chartWrap">
+      <div id="chart"></div>
+    </div>
+
+    <div id="details">
+      <div id="detailsHeader">
+        <h2 id="detailsTitle">Details</h2>
+        <input id="search" type="text" placeholder="Search keys/values (e.g. properties, $ref, title)..." />
+      </div>
+      <div class="hint" id="detailsHint">Click a node in the tree to view the full schema here.</div>
+      <div id="detailsBody" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Helpers ---------------------------------------------------------
+function baseNameNoExt(path){
+  const base = (path || '').split('/').pop() || path || '';
+  return base.replace(/\.[^.]+$/, '');
+}
+function folderOf(path){
+  const parts = (path || '').split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : '(root)';
+}
+function normalizeRel(fromPath, rel){
+  const fromParts = (fromPath.split('/').slice(0,-1));
+  const relParts = rel.split('/');
+  const base = [...fromParts];
+  for (const part of relParts){
+    if (!part || part === '.') continue;
+    if (part === '..') base.pop();
+    else base.push(part);
+  }
+  return base.join('/');
+}
+function refParts(ref){
+  if (!ref) return [null,null];
+  if (ref.startsWith('#')) return [null, ref];
+  const i = ref.indexOf('#');
+  if (i === -1) return [ref, null];
+  return [ref.slice(0,i), '#' + ref.slice(i+1)];
+}
+function resolvePointer(obj, pointer){
+  if (!pointer || pointer === '#') return obj;
+  const path = pointer.replace(/^#\//, '').split('/').map(s=>s.replace(/~1/g,'/').replace(/~0/g,'~'));
+  let cur = obj;
+  for (const key of path){
+    if (cur && typeof cur === 'object' && key in cur) cur = cur[key];
+    else throw new Error('Bad pointer ' + pointer);
+  }
+  return cur;
+}
+function escapeHtml(str){
+  const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  return String(str).replace(/[&<>"']/g, s => map[s]);
+}
+function hashToColor(str){
+  const palette = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899','#64748b'];
+  let h = 2166136261;
+  for (let i=0;i<str.length;i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return palette[Math.abs(h) % palette.length];
+}
+function isObject(x){ return x && typeof x === 'object' && !Array.isArray(x); }
+
+// ---------- Extract refs from schema JSON -----------------------------------
+function collectRefs(obj, out){
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)){
+    for (const it of obj) collectRefs(it, out);
+    return;
+  }
+  if (typeof obj.$ref === 'string') out.push(obj.$ref);
+  for (const v of Object.values(obj)) collectRefs(v, out);
+}
+
+// ---------- Load & resolve --------------------------------------------------
+async function loadFiles(fileList){
+  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith('.json'));
+  const docs = new Map();     // relpath -> parsed json
+  const idIndex = new Map();  // $id -> relpath
+  for (const f of files){
+    try{
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      const key = f.webkitRelativePath || f.name;
+      docs.set(key, obj);
+      if (obj && typeof obj === 'object' && typeof obj.$id === 'string'){
+        idIndex.set(obj.$id, key);
+      }
+    }catch(e){
+      console.warn('Failed to parse', f.name, e);
+    }
+  }
+  if (docs.size === 0) throw new Error('No .json files found');
+  return {docs, idIndex};
+}
+
+function resolveRefToFile(fromPath, refStr, docs, idIndex){
+  const [filePart, frag] = refParts(refStr);
+  if (!filePart) return { path: fromPath, ptr: frag || '#', external:false };
+  if (idIndex.has(filePart)) return { path: idIndex.get(filePart), ptr: frag || '#', external:false };
+  const targetRel = normalizeRel(fromPath, filePart);
+  if (docs.has(targetRel)) return { path: targetRel, ptr: frag || '#', external:false };
+  if (docs.has(filePart)) return { path: filePart, ptr: frag || '#', external:false };
+  return { path: filePart, ptr: frag || '#', external:true };
+}
+
+// ---------- Build graph & a right-expanding forest tree ---------------------
+function buildGraph(docs, idIndex, showExternal){
+  const outgoing = new Map(); // file -> Set(child)
+  const incoming = new Map(); // file -> count
+
+  for (const [path] of docs.entries()){
+    outgoing.set(path, new Set());
+    incoming.set(path, 0);
+  }
+
+  for (const [path, doc] of docs.entries()){
+    const refs = [];
+    collectRefs(doc, refs);
+    for (const r of refs){
+      const res = resolveRefToFile(path, r, docs, idIndex);
+      if (res.external){
+        if (showExternal) outgoing.get(path).add('EXTERNAL::' + res.path);
+      } else if (docs.has(res.path)){
+        outgoing.get(path).add(res.path);
+      }
+    }
+  }
+
+  for (const [from, tos] of outgoing.entries()){
+    for (const to of tos){
+      if (to.startsWith('EXTERNAL::')) continue;
+      incoming.set(to, (incoming.get(to) || 0) + 1);
+    }
+  }
+
+  return {outgoing, incoming};
+}
+
+function buildForestTree(docs, outgoing, incoming){
+  const roots = [];
+  for (const [file, count] of incoming.entries()){
+    if ((count || 0) === 0) roots.push(file);
+  }
+  if (roots.length === 0) roots.push(...docs.keys()); // cycle-only graphs
+
+  const externalNodes = new Map();
+  function makeExternalNode(key){
+    if (externalNodes.has(key)) return externalNodes.get(key);
+    const label = key.replace(/^EXTERNAL::/, '');
+    const node = {
+      name: baseNameNoExt(label) || label,
+      filePath: key,
+      kind: 'external',
+      folder: '(external)',
+      itemStyle: { color: '#f3f4f6', borderColor: '#d1d5db' },
+      children: []
+    };
+    externalNodes.set(key, node);
+    return node;
+  }
+
+  function makeNode(file, stack){
+    const name = baseNameNoExt(file) || file;
+    const folder = folderOf(file);
+    const accent = hashToColor(folder);
+
+    const node = {
+      name,
+      filePath: file,
+      kind: 'file',
+      folder,
+      // white fill, colored border (folder accent)
+      itemStyle: { color: '#ffffff', borderColor: accent },
+      children: []
+    };
+
+    const kids = outgoing.get(file) ? [...outgoing.get(file)] : [];
+    for (const k of kids){
+      if (k.startsWith('EXTERNAL::')){
+        node.children.push(makeExternalNode(k));
+        continue;
+      }
+      if (stack.includes(k)){
+        node.children.push({
+          name: baseNameNoExt(k) + ' ↩',
+          filePath: k,
+          kind: 'cycle',
+          folder: folderOf(k),
+          itemStyle: { color:'#fff7ed', borderColor:'#fb923c' },
+          children: []
+        });
+        continue;
+      }
+      node.children.push(makeNode(k, stack.concat([k])));
+    }
+    return node;
+  }
+
+  return {
+    name: 'Schemas',
+    filePath: '__ROOT__',
+    kind: 'root',
+    itemStyle: { color: 'transparent', borderColor:'transparent' },
+    children: roots.map(r => makeNode(r, [r])),
+    collapsed: false
+  };
+}
+
+// ---------- Details panel (show full JSON in place) -------------------------
+let CURRENT_DOCS = null;
+let CURRENT_SELECTED_FILE = null;
+
+function renderValue(key, val, filter){
+  const kMatch = !filter || String(key).toLowerCase().includes(filter);
+  const vMatch = !filter || (typeof val === 'string' && val.toLowerCase().includes(filter));
+
+  if (filter && !(kMatch || vMatch)) {
+    if (val && typeof val === 'object') {
+      const inner = renderJson(val, filter);
+      if (inner.trim() === '') return '';
+      return `<details open><summary>${escapeHtml(String(key))}</summary><div class="node">${inner}</div></details>`;
+    }
+    return '';
+  }
+
+  if (val === null || val === undefined){
+    return `<div class="row"><div class="k">${escapeHtml(String(key))}</div><div class="v"><span class="tag">null</span></div></div>`;
+  }
+  if (Array.isArray(val)){
+    const inner = val.map((it, idx) => renderValue(idx, it, filter)).join('');
+    return `<details><summary>${escapeHtml(String(key))} <span class="tag">array</span> <span class="tag">${val.length}</span></summary><div class="node">${inner || '<div class="meta">(empty)</div>'}</div></details>`;
+  }
+  if (isObject(val)){
+    const inner = renderJson(val, filter);
+    return `<details><summary>${escapeHtml(String(key))} <span class="tag">object</span></summary><div class="node">${inner || '<div class="meta">(empty)</div>'}</div></details>`;
+  }
+  const tag = typeof val;
+  return `<div class="row"><div class="k">${escapeHtml(String(key))}</div><div class="v"><span class="tag">${escapeHtml(tag)}</span> ${escapeHtml(String(val))}</div></div>`;
+}
+
+function renderJson(obj, filter){
+  if (!obj || typeof obj !== 'object') return '';
+  if (Array.isArray(obj)){
+    return obj.map((it, idx) => renderValue(idx, it, filter)).join('');
+  }
+  return Object.entries(obj).map(([k,v]) => renderValue(k, v, filter)).join('');
+}
+
+function showDetails(filePath, schemaObj){
+  CURRENT_SELECTED_FILE = filePath;
+  document.getElementById('detailsHint').classList.add('hidden');
+  const body = document.getElementById('detailsBody');
+  body.classList.remove('hidden');
+
+  const title = document.getElementById('detailsTitle');
+  const folder = folderOf(filePath);
+  title.textContent = baseNameNoExt(filePath) || 'Details';
+
+  const filter = (document.getElementById('search').value || '').trim().toLowerCase();
+
+  const headerMeta = `
+    <div class="meta">
+      <span class="kbd">${escapeHtml(filePath)}</span>
+      <span class="tag">${escapeHtml(folder)}</span>
+    </div>
+  `;
+
+  body.innerHTML = headerMeta + renderJson(schemaObj, filter);
+}
+
+// ---------- ECharts tree ----------------------------------------------------
+let chart = null;
+let CURRENT_TREE_ROOT = null;
+
+function applyCollapsed(node, collapsed){
+  if (!node || typeof node !== 'object') return;
+  if (node.kind !== 'root') node.collapsed = collapsed;
+  if (Array.isArray(node.children)){
+    for (const c of node.children) applyCollapsed(c, collapsed);
+  }
+}
+
+function renderTree(rootNode){
+  const el = document.getElementById('chart');
+  if (!chart) chart = echarts.init(el, null, {renderer:'canvas'});
+  CURRENT_TREE_ROOT = rootNode;
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      triggerOn: 'mousemove',
+      backgroundColor: '#ffffff',
+      borderColor: '#e6eaf2',
+      borderWidth: 1,
+      textStyle: { color: '#111827' },
+      formatter: (p) => {
+        const d = p.data || {};
+        if (d.kind === 'root') return 'Schemas';
+        if (d.kind === 'external') return `<b>External</b><br/>${escapeHtml(String(d.filePath || '').replace(/^EXTERNAL::/, ''))}`;
+        const fp = d.filePath || '';
+        const fol = d.folder || folderOf(fp);
+        return `<b>${escapeHtml(d.name || '')}</b><br/><span style="color:#6b7280">${escapeHtml(fol)}</span><br/><span style="color:#9ca3af">${escapeHtml(fp)}</span>`;
+      }
+    },
+    series: [{
+      type: 'tree',
+      data: [rootNode],
+      top: '3%',
+      left: '2%',
+      bottom: '3%',
+      right: '2%',
+      orient: 'LR',
+      layout: 'orthogonal',
+      roam: true,
+      edgeForkPosition: '50%',
+      symbol: 'roundRect',
+      symbolSize: [200, 34],
+      itemStyle: {
+        borderWidth: 2,
+        shadowBlur: 8,
+        shadowColor: 'rgba(17,24,39,0.10)',
+        shadowOffsetY: 2
+      },
+      expandAndCollapse: true,
+      initialTreeDepth: 1,
+      animationDuration: 260,
+      animationDurationUpdate: 360,
+      lineStyle: {
+        color: '#9aa6bf',
+        width: 1.2,
+        curveness: 0.28,
+        opacity: 0.95
+      },
+      label: {
+        position: 'inside',
+        align: 'left',
+        verticalAlign: 'middle',
+        padding: [6, 10, 6, 10],
+        color: '#111827',
+        fontSize: 12,
+        lineHeight: 16,
+        overflow: 'truncate',
+        width: 178,
+        formatter: (p) => {
+          const d = p.data || {};
+          if (!d.name) return '';
+          const fol = (d.kind === 'file') ? (d.folder || '') : (d.kind === 'external' ? '(external)' : '');
+          return `{t|${d.name}}\n{f|${fol}}`;
+        },
+        rich: {
+          t: { fontSize: 12, fontWeight: 750, color: '#111827' },
+          f: { fontSize: 10, color: '#6b7280' }
+        }
+      },
+      emphasis: {
+        focus: 'descendant',
+        lineStyle: { width: 2.0, opacity: 1 }
+      }
+    }]
+  };
+
+  chart.setOption(option, true);
+
+  chart.off('click');
+  chart.on('click', (params) => {
+    const d = params.data || {};
+    if ((d.kind === 'file' || d.kind === 'cycle') && CURRENT_DOCS && CURRENT_DOCS.docs.has(d.filePath)){
+      showDetails(d.filePath, CURRENT_DOCS.docs.get(d.filePath));
+      document.getElementById('status').textContent = `Selected: ${d.filePath}`;
+    } else if (d.kind === 'external'){
+      document.getElementById('status').textContent = `External reference: ${String(d.filePath).replace(/^EXTERNAL::/, '')}`;
+    }
+  });
+
+  window.addEventListener('resize', () => chart && chart.resize());
+}
+
+// ---------- Sample ----------------------------------------------------------
+const SAMPLE = {
+  "schemas/orders/Order.json": {
+    "$id":"Order.json",
+    "title":"Order",
+    "type":"object",
+    "properties": {
+      "orderId": { "type":"string" },
+      "amount": { "type":"number" },
+      "customer": { "$ref":"../common/Customer.json" },
+      "items": { "type":"array", "items": { "$ref":"../catalog/Product.json" } }
+    }
+  },
+  "schemas/common/Customer.json": {
+    "$id":"Customer.json",
+    "title":"Customer",
+    "type":"object",
+    "properties": {
+      "customerId": { "type":"string" },
+      "name": { "type":"string" },
+      "address": { "$ref":"Address.json" }
+    }
+  },
+  "schemas/common/Address.json": {
+    "$id":"Address.json",
+    "title":"Address",
+    "type":"object",
+    "properties": {
+      "street": { "type":"string" },
+      "city": { "type":"string" },
+      "country": { "type":"string" }
+    }
+  },
+  "schemas/billing/Invoice.json": {
+    "$id":"Invoice.json",
+    "title":"Invoice",
+    "type":"object",
+    "properties": {
+      "invoiceId": { "type":"string" },
+      "order": { "$ref":"../orders/Order.json" }
+    }
+  },
+  "schemas/catalog/Product.json": {
+    "$id":"Product.json",
+    "title":"Product",
+    "type":"object",
+    "properties": {
+      "sku": { "type":"string" },
+      "name": { "type":"string" }
+    }
+  }
+};
+
+async function loadSample(){
+  const docs = new Map(Object.entries(SAMPLE));
+  const idIndex = new Map();
+  for (const [k,v] of docs.entries()){
+    if (v && typeof v === 'object' && typeof v.$id === 'string') idIndex.set(v.$id, k);
+  }
+  CURRENT_DOCS = {docs, idIndex};
+  const showExternal = document.getElementById('toggleExternal').checked;
+  const g = buildGraph(docs, idIndex, showExternal);
+  const root = buildForestTree(docs, g.outgoing, g.incoming);
+  renderTree(root);
+  document.getElementById('status').textContent = `Sample loaded: ${docs.size} files`;
+}
+
+// ---------- Wiring ----------------------------------------------------------
+document.getElementById('sample').onclick = loadSample;
+
+document.getElementById('folder').addEventListener('change', async (e) => {
+  try{
+    const {docs, idIndex} = await loadFiles(e.target.files);
+    CURRENT_DOCS = {docs, idIndex};
+    const showExternal = document.getElementById('toggleExternal').checked;
+    const g = buildGraph(docs, idIndex, showExternal);
+    const root = buildForestTree(docs, g.outgoing, g.incoming);
+    renderTree(root);
+    document.getElementById('status').textContent = `Loaded: ${docs.size} files`;
+  }catch(err){
+    alert(err.message);
+  }
+});
+
+document.getElementById('toggleExternal').addEventListener('change', () => {
+  if (!CURRENT_DOCS) return;
+  const showExternal = document.getElementById('toggleExternal').checked;
+  const g = buildGraph(CURRENT_DOCS.docs, CURRENT_DOCS.idIndex, showExternal);
+  const root = buildForestTree(CURRENT_DOCS.docs, g.outgoing, g.incoming);
+  renderTree(root);
+});
+
+document.getElementById('collapseAll').addEventListener('click', () => {
+  if (!CURRENT_TREE_ROOT) return;
+  // mutate collapsed flags and re-render
+  const clone = JSON.parse(JSON.stringify(CURRENT_TREE_ROOT));
+  applyCollapsed(clone, true);
+  // keep root expanded
+  clone.collapsed = false;
+  renderTree(clone);
+  document.getElementById('status').textContent = 'Collapsed all';
+});
+
+document.getElementById('search').addEventListener('input', () => {
+  if (!CURRENT_DOCS || !CURRENT_SELECTED_FILE) return;
+  if (CURRENT_DOCS.docs.has(CURRENT_SELECTED_FILE)) {
+    showDetails(CURRENT_SELECTED_FILE, CURRENT_DOCS.docs.get(CURRENT_SELECTED_FILE));
+  }
+});
+
+// Initial
+document.getElementById('status').textContent = 'Click “Load folder” to build a left-to-right dependency tree.';
+</script>
+</body>
+</html>
