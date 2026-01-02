@@ -47,8 +47,8 @@ namespace autotelica {
                 AF_TEST_RESULT(false, less_nc(s1, s1));
                 AF_TEST_RESULT(false, less_nc(s1, s2));
 
-                string_map_nc<int> m{ {"First",1}, {"second", 2}, {"THIRD", 3} };
-                string_unordered_map_nc<int> um{ {"First",1}, {"second", 2}, {"THIRD", 3} };
+                map_nc<int> m{ {"First",1}, {"second", 2}, {"THIRD", 3} };
+                unordered_map_nc<int> um{ {"First",1}, {"second", 2}, {"THIRD", 3} };
 
                 AF_TEST_COMMENT("Case insesitive string maps.");
                 AF_TEST_RESULT(1, m["FIRST"]);
@@ -58,8 +58,8 @@ namespace autotelica {
                 AF_TEST_RESULT(2, um["second"]);
                 AF_TEST_RESULT(3, um["third"]);
 
-                string_set_nc s{ "First", "second", "THIRD" };
-                string_unordered_set_nc us{ "First", "second", "THIRD" };
+                set_nc<std::string> s{ "First", "second", "THIRD" };
+                unordered_set_nc<std::string> us{ "First", "second", "THIRD" };
 
                 AF_TEST_COMMENT("Case insesitive string sets.");
                 AF_TEST_RESULT(true, (s.find("first") != s.end()));

@@ -19,10 +19,6 @@ namespace autotelica {
 // uncomment the line below to declare your test set
 //AF_DECLARE_TEST_SET("NICE DESCRIPTION OF YOUR TEST", NAMESPACE_NAME, autotelica::examples::NAMESPACE_NAME::examples<>() , autotelica::examples::NAMESPACE_NAME::tests<>());
 
-// remember to also register the test so you can run it nicely
-// you do that by adding a line like this to test_registry
-//AF_REGISTER_TEST_SET(NAMESPACE_NAME);
-
 // also remember to delete these instructional comments when you are done
 // it triggers some of us
 

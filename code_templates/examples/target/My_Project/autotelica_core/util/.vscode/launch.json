@@ -1,14 +1,13 @@
 {
     "configurations": [
-
         {
-            "name": "C/C++: build and debug test runner",
+            "name": "C/C++: build and debug tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/build/apps/test_runner_d",
-            "args": [],
+            "program": "${fileDirname}/linux_build/packages/tests/debug/tests_d",
+            "args": ["-rt","-errors_only", "-no_timestamps"],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}/build/apps/",
+            "cwd": "${fileDirname}/linux_build/packages/tests/debug",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -28,13 +27,13 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "C/C++: release build and run",
+            "name": "C/C++: release build and run tests" ,
             "type":"cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/build/apps/test_runner",
-            "args": ["-re"],
+            "program": "${fileDirname}/linux_build/packages/tests/release/tests",
+            "args": ["-rt","-errors_only", "-no_timestamps"],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}/build/apps/",
+            "cwd": "${fileDirname}/linux_build/packages/tests/release",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

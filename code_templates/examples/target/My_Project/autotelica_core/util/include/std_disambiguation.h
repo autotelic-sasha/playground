@@ -15,6 +15,8 @@
 #include <string>
 #include <initializer_list>
 
+#include <bitset>
+
 #include <type_traits>
 
 namespace autotelica {
@@ -63,7 +65,22 @@ namespace autotelica {
         // C++ 17 has this built in (and calls it std::void_t)     
         template<typename ... Ts>
         using enable_if_types_exist = void;
+        template<typename ... Ts>
+        using _void_t = void;
 
+        // shared_ptr
+        template<typename T, typename U = void>
+        struct is_shared_ptr_impl : std::false_type {};
+
+        template<typename T>
+        struct is_shared_ptr_impl<T, _void_t<std::enable_if_t<std::is_same< T,
+            std::shared_ptr<typename T::element_type>>::value>>> : std::true_type {};
+
+        template<typename T>
+        struct is_shared_ptr_t : is_shared_ptr_impl<T>::type {};
+
+        template<typename T>
+        constexpr bool is_shared_ptr_f(T const& t) { return is_shared_ptr_t<T>(); }
 
         // pair
         template<typename T, typename U = void>
@@ -83,8 +100,8 @@ namespace autotelica {
             struct is_string_impl : std::false_type {};
 
         template<typename T>
-        struct is_string_impl<T, std::enable_if_t<std::is_same< T, 
-            std::basic_string<typename T::value_type, typename T::traits_type, typename T::allocator_type>>::value>> : std::true_type {};
+        struct is_string_impl<T, _void_t<std::enable_if_t<std::is_same< T,
+            std::basic_string<typename T::value_type, typename T::traits_type, typename T::allocator_type>>::value>>> : std::true_type {};
 
         template<typename T>
         struct is_string_t : is_string_impl<T>::type {};
@@ -92,20 +109,65 @@ namespace autotelica {
         template<typename T>\
             constexpr bool is_string_f(T const& t) { return is_string_t<T>(); }
 
+        template<typename T, typename U = void>\
+            struct is_astring_impl : std::false_type {};
+
+        template<typename T>
+        struct is_astring_impl<T, _void_t<std::enable_if_t<std::is_same< T,
+            std::string>::value>>> : std::true_type {};
+
+        template<typename T>
+        struct is_astring_t : is_astring_impl<T>::type {};
+
+        template<typename T>\
+            constexpr bool is_astring_f(T const& t) { return is_astring_t<T>(); }
+
+        template<typename T, typename U = void>\
+            struct is_wstring_impl : std::false_type {};
+
+        template<typename T>
+        struct is_wstring_impl < T, std::enable_if_t < std::is_same< T,
+            std::wstring>::value>> : std::true_type {};
+
+        template<typename T>
+        struct is_wstring_t : is_wstring_impl<T>::type {};
+
+        template<typename T>\
+            constexpr bool is_wstring_f(T const& t) { return is_wstring_t<T>(); }
+
 
         // initializer_list 
         template<typename T, typename U = void>\
             struct is_initializer_list_impl : std::false_type {};
 
         template<typename T>
-        struct is_initializer_list_impl<T, std::enable_if_t<std::is_same< T, 
-            std::initializer_list<typename T::value_type>>::value >> : std::true_type {};
+        struct is_initializer_list_impl<T, _void_t<std::enable_if_t<std::is_same< T,
+            std::initializer_list<typename T::value_type>>::value >>> : std::true_type {};
 
         template<typename T>
         struct is_initializer_list_t : is_initializer_list_impl<T>::type {};
 
         template<typename T>\
-            constexpr bool is_initializer_list_f(T const& t) { return is_string_t<T>(); }
+            constexpr bool is_initializer_list_f(T const& t) { return is_initializer_list_t<T>(); }
+
+        // bitset 
+        template<typename T, typename U = void>\
+            struct is_bitset_impl : std::false_type {};
+
+        template<typename T>
+        struct is_bitset_impl<T, _void_t<std::enable_if_t<
+            std::is_member_pointer<decltype(&T::any)>::value &&
+            std::is_member_pointer<decltype(&T::all)>::value &&
+            std::is_member_pointer<decltype(&T::none)>::value &&
+            std::is_member_pointer<decltype(&T::count)>::value
+            , bool>>> : std::true_type {};
+
+        template<typename T>
+        struct is_bitset_t : is_bitset_impl<T>::type {};
+
+        template<typename T>\
+            constexpr bool is_bitset_f(T const& t) { return is_bitset_t<T>(); }
+
 
 #define GCC_PASTING_NAMEPSACE(L, R) L##::##R
 
@@ -114,7 +176,7 @@ namespace autotelica {
         struct is_##TYPE_## _impl : std::false_type {};\
         \
         template<typename T>\
-        struct is_##TYPE_##_impl<T, std::enable_if_t<std::is_same< T, std:: TYPE_  <__VA_ARGS__>>::value>> : std::true_type {};\
+        struct is_##TYPE_##_impl<T, _void_t<std::enable_if_t<std::is_same< T, std:: TYPE_  <__VA_ARGS__>>::value>>> : std::true_type {};\
         \
         template<typename T>\
         struct is_##TYPE_##_t : is_##TYPE_##_impl<T>::type {};\

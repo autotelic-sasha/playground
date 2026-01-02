@@ -21,7 +21,7 @@
             "label": "C/C++: g++ debug build",
             "command": "/usr/bin/make",
             "args": [
-                "debug"
+                "package_debug"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -37,7 +37,7 @@
             "label": "C/C++: g++ release build",
             "command": "/usr/bin/make",
             "args": [
-                "release"
+                "package_release"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -53,7 +53,7 @@
             "label": "C/C++: g++ rebuild all",
             "command": "/usr/bin/make",
             "args": [
-                "rebuild_all"
+                "package"
             ],
             "options": {
                 "cwd": "${fileDirname}"

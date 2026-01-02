@@ -180,7 +180,7 @@ namespace autotelica {
             }
             std::string parse_argument(const char* const arg) {
                 std::string out(arg);
-                autotelica::string_util::trim_s(out, '"');
+                autotelica::string_util::trim_inpl(out, '"');
                 return out;
             }
             std::vector<std::string> get_arguments(int count, int& current_arg, int argc, const char* argv[]) {
@@ -202,8 +202,8 @@ namespace autotelica {
                 if (current_arg > argc) return nullptr;
                 if (!is_command(argv[current_arg])) return nullptr;
                 std::string command_s(argv[current_arg]);
-                ltrim_s(command_s, cl_command::command_prefix());
-                ltrim_s(command_s);
+                ltrim_inpl(command_s, cl_command::command_prefix());
+                ltrim_inpl(command_s);
                 std::shared_ptr<cl_command> command;
                 for (auto const& c : _commands)
                     if (c->recognise(command_s)) {

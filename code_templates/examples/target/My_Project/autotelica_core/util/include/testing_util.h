@@ -96,7 +96,8 @@ namespace autotelica {
 				std::string const _value;
 				quote_string(const char* const t) : _value(
 					string_util::replace(
-						string_util::af_format_string("\"%\"", string_util::replace(t, "\"", "\\\"")),
+						string_util::af_format_string(
+							"\"%\"", string_util::replace(t, "\"", "\\\"")),
 						"\n", "\\n")
 				) {
 				}
@@ -108,27 +109,46 @@ namespace autotelica {
 				std::string const _value;
 				quote_string(std::string const& t) : _value(
 					string_util::replace(
-						string_util::af_format_string("std::string(\"%\")", string_util::replace(t, "\"", "\\\"")),
+						string_util::af_format_string(
+							"std::string(\"%\")", string_util::replace(t, "\"", "\\\"")),
 						"\n", "\\n")
 				) {
 				}
 				const char* const value() const { return _value.c_str(); }
 			};
-
-
-			// formatting function call from macro arguments
-			// used for various output messages
-			static std::string format_function_call(
-				bool is_function, 
-				const char* const function_name, 
-				const char* const arguments = "") {
-				if (is_function) {
-					return string_util::af_format_string("%(%)", function_name, arguments);
+			template<>
+			struct quote_string<std::wstring> {
+				std::string const _value;
+				quote_string(std::wstring const& t) : _value(
+					string_util::utf8::to_string(
+					string_util::replace(
+						string_util::af_format_string(
+							L"std::wstring(L\"%\")", string_util::replace(t, L"\"", L"\\\"")),
+						L"\n", L"\\n"))
+				) {
 				}
-				else {
-					return function_name;
-				}
-			}
+				const char* const value() const { return _value.c_str(); }
+			};
+			template<typename T>
+			struct handle_wstrings {
+				T const& _value;
+				handle_wstrings(T const& t) : _value(t) {}
+				T const& value() const { return _value; }
+			};
+			template<>
+			struct handle_wstrings<const wchar_t*> {
+				std::string const _value;
+				handle_wstrings(const wchar_t* const t) :
+					_value(string_util::utf8::to_string(t)) {}
+				std::string const& value() const { return _value;}
+			};
+			template<>
+			struct handle_wstrings<std::wstring> {
+				std::string const _value;
+				handle_wstrings(std::wstring const& t) :
+					_value(string_util::utf8::to_string(t)) {}
+				std::string const& value() const { return _value; }
+			};
 
 			static void csv_column_titles() {
 				using namespace diagnostic_messages;
@@ -147,11 +167,9 @@ namespace autotelica {
 			}
 			// reporting success
 			static void report_success(
-					bool is_function, 
-					const char* const function_name, 
+					const char* const code_snippet, 
 					const char* const file_name,
-					int line,
-					const char* const arguments = "") {
+					int line) {
 				using namespace diagnostic_messages;
 
 				if (testing_config::is_run_mode_csv()) {
@@ -159,7 +177,7 @@ namespace autotelica {
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"SUCCESS",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							"",
 							"",
 							"",
@@ -168,20 +186,18 @@ namespace autotelica {
 				}
 				else {
 					messages::message(
-						"SUCCESS: % ran with no exceptions.",
-						format_function_call(is_function, function_name, arguments));
+						"SUCCESS: % evaluated with no exceptions.",
+						code_snippet);
 
 				}
 			}
 			
 			// reporting success of a tests that was meant to throw an exception
 			static void report_throw_success(
-				bool is_function,
-				const char* const function_name,
+				const char* const code_snippet,
 				const char* const file_name,
-				int line, 
-				const char* const arguments = "",
-				std::string const& exception_what = "") {
+				int line,
+				std::string const& exception_what) {
 
 				using namespace diagnostic_messages;
 				if (testing_config::is_run_mode_csv()) {
@@ -189,7 +205,7 @@ namespace autotelica {
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"SUCCESS",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							"Threw an exception as expected.",
 							"",
 							exception_what,
@@ -198,8 +214,8 @@ namespace autotelica {
 				}
 				else {
 					messages::message(
-						"SUCCESS: % has thrown an exception as expected(exception reason was '%').",
-						format_function_call(is_function, function_name, arguments),
+						"SUCCESS: % has thrown an exception as expected (exception reason was '%').",
+						code_snippet,
 						exception_what);
 				}
 			}
@@ -208,37 +224,33 @@ namespace autotelica {
 			template< typename T>
 			static void report_success_result(
 					T const result,
-					bool is_function,
-					const char* const function_name,
+					const char* const code_snippet,
 					const char* const file_name,
-					int line,
-					const char* const arguments = "") {
+					int line) {
 				using namespace diagnostic_messages;
 				if (testing_config::is_run_mode_csv()) {
 					messages::message(
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"SUCCESS",
-							format_function_call(is_function, function_name, arguments),
-							result,
-							result,
+							code_snippet,
+							handle_wstrings<T>(result).value(),
+							handle_wstrings<T>(result).value(),
 							"",
 							file_name,
 							line));
 				}
 				else {
 					messages::message(
-						"SUCCESS: % ran with no exceptions and returned %.",
-						format_function_call(is_function, function_name, arguments),
+						"SUCCESS: % evaluated to: %.",
+						code_snippet,
 						quote_string<T>(result).value());
 				}
 			}
 			
 			// reporting that an exception was thrown when not expected
 			static void report_exception_error(
-					bool is_function,
-					const char* const function_name, 
-					const char* const arguments, 
+					const char* const code_snippet,
 					const char* const file_name, 
 					int line, 
 					const char* const exception_what,
@@ -250,7 +262,7 @@ namespace autotelica {
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"ERROR",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							"",
 							"",
 							exception_what,
@@ -259,15 +271,15 @@ namespace autotelica {
 				}
 				else {
 					if (throw_exception) {
-						messages::error_ex(nullptr, file_name, line,
+						messages::error_ex(file_name, line,
 							"% failed with exception reason: '%'.",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							exception_what);
 					}
 					else {
-						messages::error_text_ex(nullptr, file_name, line,
+						messages::error_text_ex(file_name, line,
 							"% failed with exception reason: '%'.",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							exception_what);
 					}
 				}
@@ -275,9 +287,7 @@ namespace autotelica {
 			
 			// reporting that no exception was throws when one was expected
 			static void report_no_exception_error(
-					bool is_function,
-					const char* const function_name,
-					const char* const arguments,
+					const char* const code_snippet,
 					const char* const file_name,
 					int line,
 					bool throw_exception) {
@@ -287,7 +297,7 @@ namespace autotelica {
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"ERROR",
-							format_function_call(is_function, function_name, arguments),
+							code_snippet,
 							"",
 							"",
 							"Was expected to throw an exception but didn't.",
@@ -296,14 +306,14 @@ namespace autotelica {
 				}
 				else {
 					if (throw_exception) {
-						messages::error_ex(nullptr, file_name, line,
+						messages::error_ex(file_name, line,
 							"%  was expected to throw an exception but didn't.",
-							format_function_call(is_function, function_name, arguments));
+							code_snippet);
 					}
 					else {
-						messages::error_text_ex(nullptr, file_name, line,
+						messages::error_text_ex(file_name, line,
 							"%  was expected to throw an exception but didn't.",
-							format_function_call(is_function, function_name, arguments));
+							code_snippet);
 					}
 				}
 			}
@@ -312,9 +322,7 @@ namespace autotelica {
 			template< typename T > 
 			static void report_value_error(
 					T const expected, T const actual,
-					bool is_function,
-					const char* const function_name, 
-					const char* const arguments,
+					const char* const code_snippet,
 					const char* const file_name, 
 					int line, 
 					bool throw_on_difference) {
@@ -324,26 +332,26 @@ namespace autotelica {
 						string_util::to_csv_row_string(
 							testing_config::is_run_mode_excel_csv(),
 							"ERROR",
-							format_function_call(is_function, function_name, arguments),
-							actual,
-							expected,
+							code_snippet,
+							handle_wstrings<T>(actual).value(),
+							handle_wstrings<T>(expected).value(),
 							"Actual and expected values don't match.",
 							file_name,
 							line));
 				}
 				else {
 					if (throw_on_difference) {
-						messages::error_ex(nullptr, file_name, line,
-							"%  returned % but expected value was: %.",
-							format_function_call(is_function, function_name, arguments),
+						messages::error_ex(file_name, line,
+							"%  evaluated to: %, but expected value was: %.",
+							code_snippet,
 							quote_string<T>(actual).value(),
 							quote_string<T>(expected).value()
 						);
 					}
 					else {
-						messages::error_text_ex(nullptr, file_name, line,
-							"%  returned % but expected value was: %.",
-							format_function_call(is_function, function_name, arguments),
+						messages::error_text_ex(file_name, line,
+							"%  evaluated to: %, but expected value was: %.",
+							code_snippet,
 							quote_string<T>(actual).value(),
 							quote_string<T>(expected).value()
 						);
@@ -354,20 +362,12 @@ namespace autotelica {
 			// recording macros			
 			static void record_macro(
 					const char* const macro_name, 
-					const char* const function_name, 
-					const char* const arguments = nullptr) {
+					const char* const code_snippet) {
 				using namespace diagnostic_messages;
 				timestamp_disabler _t;
-				if (arguments) {
-					messages::message(
-						"\t%(%, %);",
-						macro_name, function_name, arguments);
-				}
-				else {
-					messages::message(
-						"\t%(%);",
-						macro_name, function_name);
-				}
+				messages::message(
+					"\t%(%);",
+					macro_name, code_snippet);
 			}
 
 			// recording macros with expected results
@@ -375,31 +375,25 @@ namespace autotelica {
 			static void record_macro_with_result(
 					T const expected, 
 					const char* const macro_name, 
-					const char* const function_name, 
-					const char* const arguments = nullptr) {
+					const char* const code_snippet) {
 				using namespace diagnostic_messages;
 				timestamp_disabler _t;
-				if (arguments) {
-					messages::message(
-						"\t%(%, %, %);",
-						macro_name, quote_string< T >(expected).value(),
-						function_name, arguments);
-				}
-				else {
-					messages::message(
-						"\t%(%, %);",
-						macro_name, quote_string< T >(expected).value(),
-						function_name);
-				}
+				messages::message(
+					"\t%(%, %);",
+					macro_name, 
+					quote_string< T >(expected).value(),
+					code_snippet);
 			}
 
 			// reporting the result of a function or expression or a snippet
 			template< typename T >
 			static void report_result(
-					T  const expected, T const actual,
-					bool is_function,
-					const char* const function_name, const char* const arguments,
-					const char* const file_name, int line, bool throw_on_difference) {
+					T const expected, 
+					T const actual,
+					const char* const code_snippet, 
+					const char* const file_name, 
+					int line, 
+					bool throw_on_difference) {
 				using namespace comparissons;
 				const double double_eps = comparissons_config::double_epsilon();
 				const float float_eps = comparissons_config::float_epsilon();
@@ -410,22 +404,120 @@ namespace autotelica {
 				if (are_equal_f(expected, actual))
 					report_success_result(
 						actual, 
-						is_function, 
-						function_name, 
-						file_name,line,
-						arguments);
+						code_snippet,
+						file_name,
+						line);
 				else
 					report_value_error(
 						expected, actual,
-						is_function,
-						function_name, arguments,
-						file_name, line, throw_on_difference);
+						code_snippet,
+						file_name, 
+						line, 
+						throw_on_difference);
 				
 				comparissons_config::set_double_epsilon(double_eps);
 				comparissons_config::set_float_epsilon(float_eps);
 			}
 
-			
+			template<typename lambda_t>
+			static void test_no_throw(
+				const char* const macro_name,
+				lambda_t lambda,
+				const char* const code_snippet,
+				const char* const file_name,
+				int line
+			) {
+				using config = autotelica::testing::testing_config;
+				if (config::is_run_mode_recording()) {
+					record_macro(macro_name, code_snippet);
+					return;
+				}
+				try {
+					lambda();
+					report_success(code_snippet, file_name, line);
+				}
+				catch (std::exception const& e) {
+					report_exception_error(code_snippet, file_name, line, e.what(), config::throw_on_error());
+				}
+				catch (...) {
+					report_exception_error(code_snippet, file_name, line, "Unknown exception", config::throw_on_error()); 
+				}
+			}
+
+			template<typename lambda_t>
+			static void test_throws(
+				const char* const macro_name,
+				lambda_t lambda,
+				const char* const code_snippet,
+				const char* const file_name,
+				int line
+			) {
+				using config = autotelica::testing::testing_config;
+				if (config::is_run_mode_recording()) {
+					record_macro(macro_name, code_snippet);
+					return;
+				}
+				try {
+					lambda();
+					report_no_exception_error(code_snippet, file_name, line, config::throw_on_error());
+				}
+				catch (std::exception const& e) {
+					report_throw_success(code_snippet, file_name, line, e.what());
+				}
+				catch (...) {
+					report_throw_success(code_snippet, file_name, line, "Unknown exception");
+				}
+			}
+			template<typename result_t, typename lambda_t>
+			static void test_result(
+				result_t const& expected_result,
+				const char* const macro_name,
+				lambda_t lambda,
+				const char* const code_snippet,
+				const char* const file_name,
+				int line
+			) {
+				using config = autotelica::testing::testing_config;
+				if (config::is_run_mode_recording()) {
+					record_macro_with_result(lambda(), macro_name, code_snippet);
+					return;
+				}
+				try {
+					static_assert(
+						std::is_convertible<decltype(expected_result), decltype(lambda())>::value,
+						"AF TESTS ERROR: Expected and actual value are not of compatible types.");
+					decltype(lambda()) converted_expected(expected_result);
+					report_result(
+						converted_expected, 
+						lambda(),
+						code_snippet,file_name, line, 
+						config::throw_on_error());
+				}
+				catch (std::exception const& e) {
+					report_exception_error(code_snippet, file_name, line, e.what(), config::throw_on_error());
+				}
+				catch (...) {
+					report_exception_error(code_snippet, file_name, line, "Unknown exception", config::throw_on_error());
+				}
+			}
+
+			static void comment_test(const char* const comment) {
+				using namespace autotelica::diagnostic_messages;
+				using config = autotelica::testing::testing_config;
+				if (config::is_run_mode_csv()) {
+				}
+				else if (config::is_run_mode_recording()) {
+					timestamp_disabler _t; 
+					messages::message(
+						"\n\t//% \n\tAF_TEST_COMMENT( % );", 
+						comment, comment); 
+				}
+				else {
+					timestamp_disabler _t;
+					print::underline(string_util::trim(comment,'"'), true);
+				}
+			}
+
 		}
 
 		// base class for all test runners
@@ -444,7 +536,7 @@ namespace autotelica {
 				std::string _file;
 				std::string _class;
 			};
-			string_util::string_map_nc<test_record> _tests;
+			string_util::map_nc<test_record> _tests;
 
 			all_tests(){}
 			static all_tests& get() {
@@ -457,9 +549,23 @@ namespace autotelica {
 				std::string const& file_, 
 				std::string const& class_
 				) {
-				if (_tests.find(name) != _tests.end()) {
-					throw std::runtime_error(
-						string_util::af_format_string("Test runner % is already registered", name));
+				// we look for duplicates, but we are very forgiving of static initialisation issues
+				auto const& existing = _tests.find(name);
+				if (existing != _tests.end()) {
+					if (existing->second._class != class_) {
+						auto error = string_util::af_format_string(
+							"ERROR: Test runner % is already registered with different class name.(first % , now %)",
+							name, existing->second._class, class_);
+						std::cout << error << std::endl;
+						throw std::runtime_error(error);
+					}
+					else if (existing->second._file != file_) {
+						auto error = string_util::af_format_string(
+							"ERROR: Test runner % is already registered with different file name.(first % , now %)",
+							name, existing->second._file, file_);
+						std::cout << error << std::endl;
+						throw std::runtime_error(error);
+					}
 				}
 				_tests[name] = test_record{ runner, file_, class_ };
 			}
@@ -585,11 +691,13 @@ namespace autotelica {
 			
 			// run named test sets as examples
 			static void run_examples(std::vector<std::string> const& names) {
+				testing_impl::csv_column_titles();
 				for(auto const & name : names)
 					get().run_examples_impl(name);
 			}
 			// run named test sets as tests
 			static void run_tests(std::vector<std::string> const& names) {
+				testing_impl::csv_column_titles();
 				for (auto const& name : names)
 					get().run_tests_impl(name);
 			}
@@ -601,10 +709,12 @@ namespace autotelica {
 
 			// run all test sets as examples
 			static void run_all_examples() {
+				testing_impl::csv_column_titles();
 				get().run_all_examples_impl();
 			}
 			// run all test sets as tests
 			static void run_all_tests() {
+				testing_impl::csv_column_titles();
 				get().run_all_tests_impl();
 			}
 			// record all test sets
@@ -649,6 +759,7 @@ namespace autotelica {
 								));
 					}
 					else {
+						timestamp_disabler no_timestamps;
 						if (!class_name.empty())
 							print::title(
 								string_util::af_format_string("Test set % (%)", test_set, class_name));
@@ -661,8 +772,10 @@ namespace autotelica {
 				}
 				~test_set_printer() {
 					using namespace diagnostic_messages;
-					if (!testing_config::is_run_mode_csv()) 
+					if (!testing_config::is_run_mode_csv()) {
+						timestamp_disabler no_timestamps;
 						print::line();
+					}
 				}
 			};
 
@@ -731,10 +844,13 @@ namespace autotelica {
 			void run_recording() const override { af_record(); }
 		};
 
+
+// alas, sometimes we need to pass a comman to macros
+#define AF_COMMA ,		
 // setup the needed boring members of a test set runner class
 #define AF_TEST_SET( test_set_name_ )    \
 	static constexpr char const* test_set_name() { return test_set_name_; } \
-	static constexpr char const*  test_set_file() { return __FILE__; }
+	static constexpr char const* test_set_file() { return __FILE__; }
 
 #define af_test_set( test_set_name_ ) AF_TEST_SET( test_set_name_ )
 
@@ -753,28 +869,24 @@ namespace autotelica {
 #define AF_DECLARE_TEST_SET( description, test_namespace, examples_function, test_function )\
 namespace autotelica {\
     namespace examples {\
-        namespace test_namespace {\
+        namespace test_namespace##__af_tests_impl {\
             AF_DECLARE_TEST_SET_CLASS(run, description);\
             static void af_examples() {\
-                AF_START_EXAMPLES_ONLY();\
-                examples_function;\
-                AF_END_EXAMPLES_ONLY();\
+                if(autotelica::testing::testing_config::run_examples()) {\
+					examples_function;\
+                }\
                 test_function;\
             }\
             AF_END_TEST_SET_CLASS_DECLARATION();\
         }\
     }\
+}\
+namespace {\
+	static bool test_namespace##__af_test_registration_ = \
+		autotelica::testing::all_tests::register_tests<autotelica::examples::test_namespace##__af_tests_impl::run>( #test_namespace );\
 }
 
 #define af_declare_test_set( description, test_namespace, examples_function, test_function) AF_DECLARE_TEST_SET( description, test_namespace, examples_function, test_function )\
-
-// register a test set
-#define AF_REGISTER_TEST_SET( test_namespace )  namespace {\
-		static bool NAME_WITH_LINE(__test_registration_) = \
-			autotelica::testing::all_tests::register_tests<autotelica::examples::test_namespace::run>( #test_namespace );\
-	}
-
-#define af_register_test_set( test_namespace ) AF_REGISTER_TEST_SET( test_namespace )
 
 // list all registered test sets 
 #define AF_LIST_TEST_SETS( ) autotelica::testing::all_tests::list_tests();
@@ -782,16 +894,12 @@ namespace autotelica {\
 #define af_list_test_sets( ) AF_LIST_TEST_SETS( ) 
 
 // run named test sets as examples
-#define AF_RUN_EXAMPLES(...) \
-	autotelica::testing::testing_impl::csv_column_titles();\
-	autotelica::testing::all_tests::run_examples( { __VA_ARGS__ } )
+#define AF_RUN_EXAMPLES(...) autotelica::testing::all_tests::run_examples( { __VA_ARGS__ } )
 
 #define af_run_examples(...) AF_RUN_EXAMPLES(__VA_ARGS__)
 
 // run named test sets as examples
-#define AF_RUN_TESTS(...) \
-	autotelica::testing::testing_impl::csv_column_titles();\
-	autotelica::testing::all_tests::run_tests( { __VA_ARGS__ } )
+#define AF_RUN_TESTS(...) autotelica::testing::all_tests::run_tests( { __VA_ARGS__ } )
 
 #define af_run_tests(...) AF_RUN_TESTS(__VA_ARGS__)
 
@@ -801,16 +909,12 @@ namespace autotelica {\
 #define af_record_tests(...) AF_RECORD_TESTS(__VA_ARGS__)
 
 // run all registered test sets as examples
-#define AF_RUN_ALL_EXAMPLES( ) \
-	autotelica::testing::testing_impl::csv_column_titles();\
-	autotelica::testing::all_tests::run_all_examples(  )
+#define AF_RUN_ALL_EXAMPLES( ) autotelica::testing::all_tests::run_all_examples(  )
 
 #define af_run_all_examples( ) AF_RUN_ALL_EXAMPLES( )
 
 // run all registered test sets as tests
-#define AF_RUN_ALL_TESTS( ) \
-	autotelica::testing::testing_impl::csv_column_titles();\
-	autotelica::testing::all_tests::run_all_tests(  )
+#define AF_RUN_ALL_TESTS( ) autotelica::testing::all_tests::run_all_tests(  )
 
 #define af_run_all_tests( ) AF_RUN_ALL_TESTS( )
 
@@ -825,7 +929,7 @@ namespace autotelica {\
 // hence the overloaded versions too.
 #define AF_START_CSV_TRACING( excel_specific ) {\
 	autotelica::diagnostic_messages::timestamp_disabler	NAME_WITH_LINE(__disabler);\
-	auto NAME_WITH_LINE(__csv_tracer){autotelica::testing::testing_impl::scoped_csv_format(excel_specific)};
+	auto NAME_WITH_LINE(__af_csv_tracer){autotelica::testing::testing_impl::scoped_csv_format(excel_specific)};
 
 #define af_start_csv_tracing( ) AF_START_CSV_TRACING( )
 
@@ -867,7 +971,7 @@ namespace autotelica {\
 // to trace all output to a file suround the block where tests sets are executed 
 // with AF_START_FILE_TRACING and AF_END_FILE_TRACING; or package it all up within AF_FILE_TRACING parameters
 #define AF_START_FILE_TRACING( file_name ) {\
-	auto NAME_WITH_LINE(__tracer){autotelica::diagnostic_messages::file_message_handler::make_scoped( file_name )};
+	auto NAME_WITH_LINE(__af_file_tracer){autotelica::diagnostic_messages::make_scoped_file_message_handler( file_name )};
 
 #define af_start_file_tracing( file_name ) AF_START_FILE_TRACING( file_name )
 
@@ -886,7 +990,7 @@ namespace autotelica {\
 // to trace all output to a string suround the block where tests sets are executed 
 // with AF_START_STRING_TRACING and AF_END_STRING_TRACING; or package it all up within AF_STRING_TRACING parameters
 #define AF_START_STRING_TRACING( string_reference ) {\
-	auto NAME_WITH_LINE(__tracer){autotelica::diagnostic_messages::string_message_handler::make_scoped( string_reference )};
+	auto NAME_WITH_LINE(__af_string_tracer){autotelica::diagnostic_messages::make_scoped_string_message_handler( string_reference )};
 
 #define af_start_string_tracing( string_reference ) AF_START_STRING_TRACING( string_reference ) 
 
@@ -901,206 +1005,31 @@ namespace autotelica {\
 
 #define af_string_tracing( string_reference, snippet ) AF_STRING_TRACING( string_reference, snippet )
 
-
-// mark code as only executable during example runs surround it with
-//  AF_START_EXAMPLES_ONLY() and AF_END_EXAMPLES_ONLY()
-#define AF_START_EXAMPLES_ONLY() { if(autotelica::testing::testing_config::run_examples()) {
-
-#define af_start_examples_only() AF_START_EXAMPLES_ONLY()
-
-#define AF_END_EXAMPLES_ONLY() }}
-
-#define af_end_examples_only() AF_END_EXAMPLES_ONLY()
-
-
-
-// test that a function with listed arguments runs without exceptions
-#define AF_TEST_FUNCTION(function,...) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					function(__VA_ARGS__);\
-					__af_impl::report_success(true, #function, __FILE__, __LINE__, STRINGIFY_VA_ARGS(__VA_ARGS__));\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_exception_error(true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__), __FILE__, __LINE__, e.what(),__af_conf::throw_on_error());\
-				}\
-				catch (...) {\
-					__af_impl::report_exception_error(true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__), __FILE__, __LINE__, "Unknown exception", __af_conf::throw_on_error());\
-				}\
-			}\
-			else\
-			{\
-				__af_impl::record_macro("AF_TEST_FUNCTION", #function, STRINGIFY_VA_ARGS(__VA_ARGS__));\
-			}\
-		}
-
-#define af_test_function(function,...) AF_TEST_FUNCTION(function,__VA_ARGS__)
-
-// test that a function with listed arguments throws an exception
-#define AF_TEST_FUNCTION_THROWS(function,...) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					function(__VA_ARGS__);\
-					__af_impl::report_no_exception_error(true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__), \
-						__FILE__, __LINE__, __af_conf::throw_on_error());\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_throw_success(true, #function, __FILE__, __LINE__, STRINGIFY_VA_ARGS(__VA_ARGS__), e.what());\
-				}\
-				catch (...) {\
-					__af_impl::report_throw_success(true, #function, __FILE__, __LINE__, STRINGIFY_VA_ARGS(__VA_ARGS__), "Unknown exception");\
-				}\
-			}\
-			else\
-			{\
-				__af_impl::record_macro("AF_TEST_FUNCTION_THROWS", #function, STRINGIFY_VA_ARGS(__VA_ARGS__));\
-			}\
-		}
-
-#define af_test_function_throws(function,...) AF_TEST_FUNCTION_THROWS(function,__VA_ARGS__)
-
-
-// test that the result of the function with listed arguments is as expected
-#define AF_TEST_FUNCTION_RESULT(expected_result, function,...) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					auto __af_l = [&](){ return function(__VA_ARGS__) ;};\
-					static_assert(std::is_convertible<decltype(expected_result),decltype(__af_l())>::value,\
-						"AF TESTS ERROR: Expected and actual value are not of compatible types.");\
-					decltype(__af_l()) converted_expected(expected_result);\
-					__af_impl::report_result(converted_expected, __af_l(), true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__),\
-						__FILE__, __LINE__, __af_conf::throw_on_error());\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_exception_error(true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__), __FILE__, __LINE__, e.what(), __af_conf::throw_on_error());\
-				}\
-				catch (...) {\
-					__af_impl::report_exception_error(true, #function, STRINGIFY_VA_ARGS(__VA_ARGS__), __FILE__, __LINE__, "Unknown exception", __af_conf::throw_on_error());\
-				}\
-			}\
-			else\
-			{\
-				__af_impl::record_macro_with_result(function(__VA_ARGS__), "AF_TEST_FUNCTION_RESULT", #function, STRINGIFY_VA_ARGS(__VA_ARGS__));\
-			}\
-		}
-
-#define af_test_function_result(expected_result, function,...) AF_TEST_FUNCTION_RESULT(expected_result, function,__VA_ARGS__)
-
 // test that a code snippet runs without exceptions
 #define AF_TEST( snippet ) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					auto __af_l = [&](){ snippet ;};\
-					__af_l();\
-					__af_impl::report_success(false, #snippet, __FILE__, __LINE__);\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_exception_error(false, #snippet, "", __FILE__, __LINE__, e.what(), __af_conf::throw_on_error()); \
-				}\
-				catch (...) {\
-					__af_impl::report_exception_error(false, #snippet, "", __FILE__, __LINE__, "Unknown exception", __af_conf::throw_on_error());\
-				}\
-			}\
-			else\
-			{\
-				__af_impl::record_macro("AF_TEST", #snippet);\
-			}\
-		}
+		autotelica::testing::testing_impl::test_no_throw(\
+			"AF_TEST",[&](){ snippet ;},#snippet,__FILE__, __LINE__);
 
 #define af_test( snippet ) AF_TEST( snippet )
 
 
 // test that a code snippet throws exceptions
 #define AF_TEST_THROWS(snippet) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					auto __af_l = [&](){ snippet ;};\
-					__af_l();\
-					__af_impl::report_no_exception_error(false, #snippet, "", __FILE__, __LINE__, __af_conf::throw_on_error());\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_throw_success(false, #snippet, __FILE__, __LINE__, "", e.what());\
-				}\
-				catch (...) {\
-					__af_impl::report_throw_success(false, #snippet, __FILE__, __LINE__, "", "Unknown exception");\
-				}\
-			}\
-			else\
-			{\
-				__af_impl::record_macro("AF_TEST_THROWS", #snippet);\
-			}\
-		}
+		autotelica::testing::testing_impl::test_throws(\
+			"AF_TEST_THROWS",[&](){ snippet ;},#snippet,__FILE__, __LINE__); 
 
 #define af_test_throws(snippet) AF_TEST_THROWS(snippet)
 
 // test that the result of an expression is as expected
 #define AF_TEST_RESULT( expected_result, expression ) \
-		{\
-			using __af_conf = autotelica::testing::testing_config;\
-			namespace __af_impl = autotelica::testing::testing_impl;\
-			if(!__af_conf::is_run_mode_recording())\
-			{\
-				try{\
-					auto __af_l = [&](){ return (expression);};\
-					static_assert(std::is_convertible<decltype(expected_result),decltype(__af_l())>::value,\
-						"AF TESTS ERROR: Expected and actual value are not of compatible types.");\
-					decltype(__af_l()) converted_expected(expected_result);\
-					__af_impl::report_result(converted_expected, __af_l(), false, #expression, "",\
-						__FILE__, __LINE__, __af_conf::throw_on_error());\
-				}\
-				catch (std::exception const& e) {\
-					__af_impl::report_exception_error(false, #expression, "", __FILE__, __LINE__, e.what(), __af_conf::throw_on_error()); \
-				}\
-				catch (...) {\
-					__af_impl::report_exception_error(false, #expression, "", __FILE__, __LINE__, "Unknown exception", __af_conf::throw_on_error());\
-				}\
-			}\
-			else\
-			{\
-				auto __af_l = [&](){ return (expression);};\
-				__af_impl::record_macro_with_result(__af_l(), "AF_TEST_RESULT", #expression);\
-			}\
-		}
+		autotelica::testing::testing_impl::test_result(\
+			expected_result, "AF_TEST_RESULT", [&](){ return (expression);},#expression,__FILE__, __LINE__); 
 
 #define af_test_result( expected_result, expression ) AF_TEST_RESULT( expected_result, expression ) 
 
 // add a comment to the test output
-#define AF_TEST_COMMENT( comment ) {\
-		namespace __af_dm = autotelica::diagnostic_messages;\
-		using __af_conf = autotelica::testing::testing_config;\
-		namespace __af_impl = autotelica::testing::testing_impl;\
-		if (__af_conf::is_run_mode_csv()){\
-		}\
-		else if(__af_conf::is_run_mode_recording()){\
-				__af_dm::timestamp_disabler _t;\
-				__af_dm::messages::message(\
-					"\n\t//% \n\tAF_TEST_COMMENT( % );",\
-					comment, #comment);\
-		}\
-		else{\
-			__af_dm::print::underline(comment, true);\
-		}\
-	}
+#define AF_TEST_COMMENT( comment ) \
+	autotelica::testing::testing_impl::comment_test(#comment);
 
 #define af_test_comment( comment ) AF_TEST_COMMENT( comment )
 

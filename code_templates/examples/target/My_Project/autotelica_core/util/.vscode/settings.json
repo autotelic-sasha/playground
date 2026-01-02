@@ -4,8 +4,8 @@
         "iosfwd": "cpp",
         "functional": "cpp"
     },
-    "test_runner":{
-        "release_target_name" : "test_runner",
-        "debug_target_name" : "test_runner_d"
+    "tests":{
+        "release_target_name" : "tests",
+        "debug_target_name" : "tests_d"
     }
 }
