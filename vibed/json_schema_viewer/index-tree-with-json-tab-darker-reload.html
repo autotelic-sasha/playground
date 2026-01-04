@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JSON Schema → Tree</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --panel:#ffffff;
+      --border:#e5e7eb;
+      --text:#111827;
+      --muted:#6b7280;
+      --muted2:#9ca3af;
+      --shadow: 0 2px 10px rgba(17,24,39,0.06);
+      --shadow2: 0 1px 6px rgba(17,24,39,0.06);
+      --link:#c7cdd8;
+      --icon:#6b7280;
+      --accent:#3b82f6;
+    }
+
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+
+    .app{display:grid; grid-template-rows:auto 1fr; height:100%;}
+
+    header{
+      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+      padding:12px 16px;
+      background:var(--bg);
+      border-bottom:1px solid var(--border);
+    }
+    header h1{
+      margin:0 10px 0 0;
+      font-size:18px;
+      font-weight:750;
+      letter-spacing:.2px;
+    }
+
+    .filebtn, .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      padding:9px 12px;
+      border-radius: 6px;
+      cursor:pointer;
+      font-size:14px;
+      box-shadow: var(--shadow2);
+    }
+    .filebtn{ display:inline-flex; align-items:center; gap:10px; }
+    .filebtn:hover, .btn:hover{ filter:brightness(0.99); }
+    .folderIcon{
+      width:16px; height:12px; position:relative; display:inline-block;
+      background:#f3c969; border-radius:2px;
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
+    }
+    .folderIcon:before{
+      content:"";
+      position:absolute;
+      left:0; top:-3px;
+      width:9px; height:5px;
+      background:#f7d889;
+      border-radius:2px 2px 0 0;
+      box-shadow: inset 0 -1px 0 rgba(0,0,0,0.06);
+    }
+
+    .check{
+      display:flex; align-items:center; gap:8px;
+      font-size:14px; color:var(--muted);
+      user-select:none;
+    }
+    .check input{ width:14px; height:14px; }
+
+    .hidden{display:none;}
+    .status{ margin-left:auto; font-size:13px; color:var(--muted); }
+
+    #main{ display:grid; grid-template-columns: 1.55fr 1fr; height:100%; }
+
+    #chartWrap{
+      position:relative;
+      background:var(--bg);
+      border-right:1px solid var(--border);
+    }
+    #chart{ width:100%; height:100%; }
+
+    #details{
+      background:var(--panel);
+      overflow:auto;
+    }
+
+    #searchWrap{
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--border);
+      background:var(--bg);
+    }
+    .searchBox{
+      position:relative;
+    }
+    #search{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius: 6px;
+      padding:10px 12px 10px 34px;
+      font-size:14px;
+      outline:none;
+      background:var(--panel);
+      box-shadow: var(--shadow2);
+    }
+    .magnifier{
+      position:absolute;
+      left:10px; top:50%;
+      transform:translateY(-50%);
+      width:14px; height:14px;
+      border:2px solid var(--muted2);
+      border-radius:50%;
+      box-sizing:border-box;
+    }
+    .magnifier:after{
+      content:"";
+      position:absolute;
+      width:8px; height:2px;
+      background:var(--muted2);
+      right:-6px; bottom:-3px;
+      transform:rotate(45deg);
+      border-radius:1px;
+    }
+
+    #schemaCard{
+      border-bottom:1px solid var(--border);
+      background:var(--panel);
+    }
+    #schemaCardHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 14px;
+      cursor:pointer;
+    }
+    #schemaTitle{
+      font-size:14px;
+      font-weight:750;
+      color:var(--text);
+    }
+    #chev{
+      width:10px; height:10px;
+      border-right:2px solid var(--muted2);
+      border-bottom:2px solid var(--muted2);
+      transform: rotate(45deg);
+      margin-left:10px;
+    }
+    #schemaMeta{
+      padding:0 14px 12px 14px;
+      color:var(--muted);
+      font-size:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      display:inline-block;
+      padding:3px 8px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:#f9fafb;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background:#f9fafb;
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:2px 6px;
+      color:#374151;
+      font-size:12px;
+    }
+
+    #detailsBody{ padding:10px 14px 18px 14px; }
+
+    /* JSON viewer (screenshot-like) */
+    .jroot{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; color:#374151; }
+    .jline{ display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #eef2f7; }
+    .jline:last-child{ border-bottom:none; }
+    .jkey{ color:#6b7280; min-width:90px; }
+    .jval{ color:#111827; white-space:pre-wrap; word-break:break-word; }
+    .jwrap{ border-left:2px solid #eef2f7; margin-left:10px; padding-left:12px; }
+    .twisty{
+      width:18px; height:18px;
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:6px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center;
+      color:#6b7280;
+      line-height:1;
+      margin-right:6px;
+      flex:0 0 auto;
+      box-shadow: var(--shadow2);
+    }
+    .twisty:hover{ background:#f9fafb; }
+    .jhead{ display:flex; align-items:center; gap:6px; }
+    .jbrace{ color:#9ca3af; }
+    .hiddenNode{ display:none; }
+    .hint{ padding:14px; color:var(--muted); font-size:14px; }
+  
+    /* Right pane tabs */
+    .tabs { display:flex; gap:6px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border); background: var(--panel2); position:sticky; top:0; z-index:2; }
+    .tab { appearance:none; border:1px solid transparent; background:transparent; color:var(--muted); padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:650; }
+    .tab:hover { color:var(--text); border-color: rgba(148,163,184,.35); }
+    .tab.active { color:var(--text); background: rgba(148,163,184,.10); border-color: rgba(148,163,184,.35); }
+    .tabspacer { flex:1; }
+    .pane { display:none; padding:10px; }
+    .pane.active { display:block; }
+
+    /* JSON tree viewer */
+    .jsonWrap { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12.75px; line-height: 1.55; color: #d1d5db; }
+    .jt-row { white-space: nowrap; }
+    .jt { margin-left: 14px; padding-left: 10px; border-left: 1px dashed rgba(148,163,184,.35); }
+    .jt-toggle { display:inline-flex; width: 14px; justify-content:center; color: rgba(203,213,225,.85); cursor:pointer; user-select:none; }
+    .jt-toggle:hover { color: var(--text); }
+    .jt-key { color: #2563eb; }
+    .jt-str { color: #059669; }
+    .jt-num { color: #b45309; }
+    .jt-bool { color: #7c3aed; }
+    .jt-null { color: #94a3b8; font-style: italic; opacity: .95; }
+    .jt-brace { color: #cbd5e1; opacity: .9; }
+    .jt-comma { color: #94a3b8; opacity: .85; }
+    .jt-collapsed > .jt { display:none; }
+    .jt-header { display:flex; align-items:center; gap:8px; margin: 6px 0 10px; }
+    .jt-title { font-weight:700; color: var(--text); }
+    .jt-actions { margin-left:auto; display:flex; gap:8px; }
+    .miniBtn { appearance:none; border:1px solid rgba(148,163,184,.35); background: rgba(148,163,184,.08); color: var(--text); padding:6px 8px; border-radius:10px; cursor:pointer; font-size:12px; }
+    .miniBtn:hover { background: rgba(148,163,184,.14); }
+
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JSON Schema → Tree</h1>
+
+    <label class="filebtn" for="folder" title="Select a folder containing JSON Schemas">
+      <span class="folderIcon" aria-hidden="true"></span>
+      <span>Load folder</span>
+    </label>
+    <input id="folder" type="file" webkitdirectory directory multiple class="hidden" />
+
+    <button id="reload" class="btn" title="Reload schemas from the previously selected folder">Reload</button>
+
+    <label class="check">
+      <input id="toggleExternal" type="checkbox">
+      <span>Show externals</span>
+    </label>
+
+
+    <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted);">
+      Depth
+      <select id="depth" style="padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel); box-shadow: var(--shadow2);">
+        <option value="2">2</option>
+        <option value="3" selected>3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="7">7</option>
+        <option value="10">10</option>
+        <option value="0">All</option>
+      </select>
+    </label>
+    <button id="collapseAll" class="btn">Collapse all</button>
+
+    <div class="status" id="status">No data loaded.</div>
+  </header>
+
+  <div id="main">
+    <div id="chartWrap">
+      <div id="chart"></div>
+    </div>
+
+    <div id="details">
+      <div id="searchWrap">
+        <div class="searchBox">
+          <span class="magnifier" aria-hidden="true"></span>
+          <input id="search" type="text" placeholder="Search..." />
+        </div>
+      </div>
+
+      <div id="schemaCard">
+        <div id="schemaCardHeader" title="Collapse/expand details">
+          <div id="schemaTitle">Details</div>
+          <div id="chev" aria-hidden="true"></div>
+        </div>
+        <div id="schemaMeta"></div>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Inspector tabs">
+        <button id="tabDetails" class="tab active" type="button" role="tab" aria-selected="true">Details</button>
+        <button id="tabJson" class="tab" type="button" role="tab" aria-selected="false">JSON</button>
+        <div class="tabspacer"></div>
+      </div>
+
+      <div id="paneDetails" class="pane active" role="tabpanel">
+        <div id="detailsHint" class="hint">Click a node in the tree to view the schema.</div>
+        <div id="detailsBody" class="hidden"></div>
+      </div>
+
+      <div id="paneJson" class="pane" role="tabpanel">
+        <div class="jt-header">
+          <div class="jt-title" id="jsonTitle">No file selected</div>
+          <div class="jt-actions">
+            <button id="jsonExpand" class="miniBtn" type="button">Expand all</button>
+            <button id="jsonCollapse" class="miniBtn" type="button">Collapse all</button>
+            <button id="jsonCopy" class="miniBtn" type="button">Copy</button>
+          </div>
+        </div>
+        <div id="jsonBody" class="jsonWrap"></div>
+      </div>
+</div>
+  </div>
+</div>
+
+<script>
+// ---------------- Helpers ----------------
+function baseNameNoExt(path){
+  const base = (path || '').split('/').pop() || path || '';
+  return base.replace(/\.[^.]+$/, '');
+}
+function folderOf(path){
+  const parts = (path || '').split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : '(root)';
+}
+function normalizeRel(fromPath, rel){
+  const fromParts = (fromPath.split('/').slice(0,-1));
+  const relParts = rel.split('/');
+  const base = [...fromParts];
+  for (const part of relParts){
+    if (!part || part === '.') continue;
+    if (part === '..') base.pop(); else base.push(part);
+  }
+  return base.join('/');
+}
+function refParts(ref){
+  if (!ref) return [null,null];
+  if (ref.startsWith('#')) return [null, ref];
+  const i = ref.indexOf('#');
+  if (i === -1) return [ref, null];
+  return [ref.slice(0,i), '#' + ref.slice(i+1)];
+}
+function isObject(x){ return x && typeof x === 'object' && !Array.isArray(x); }
+function escapeHtml(str){
+  const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  return String(str).replace(/[&<>"']/g, s => map[s]);
+}
+
+// Stable accent per folder (used as a subtle border only, like grouping)
+function hashToAccent(str){
+  const palette = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899','#64748b'];
+  let h = 2166136261;
+  for (let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return palette[Math.abs(h) % palette.length];
+}
+
+// -------- ref scan --------
+function collectRefs(obj, out){
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)){ for (const it of obj) collectRefs(it, out); return; }
+  if (typeof obj.$ref === 'string') out.push(obj.$ref);
+  for (const v of Object.values(obj)) collectRefs(v, out);
+}
+
+// -------- load --------
+async function loadFiles(fileList){
+  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith('.json'));
+  const docs = new Map();     // relpath -> parsed json
+  const idIndex = new Map();  // $id -> relpath
+  for (const f of files){
+    try{
+      const txt = await f.text();
+      const obj = JSON.parse(txt);
+      const key = f.webkitRelativePath || f.name;
+      docs.set(key, obj);
+      if (obj && typeof obj === 'object' && typeof obj.$id === 'string'){
+        idIndex.set(obj.$id, key);
+      }
+    }catch(e){ console.warn('Failed to parse', f.name, e); }
+  }
+  if (docs.size === 0) throw new Error('No .json files found');
+  return {docs, idIndex};
+}
+
+function resolveRefToFile(fromPath, refStr, docs, idIndex){
+  const [filePart, frag] = refParts(refStr);
+  if (!filePart) return { path: fromPath, ptr: frag || '#', external:false };
+  if (idIndex.has(filePart)) return { path: idIndex.get(filePart), ptr: frag || '#', external:false };
+  const targetRel = normalizeRel(fromPath, filePart);
+  if (docs.has(targetRel)) return { path: targetRel, ptr: frag || '#', external:false };
+  if (docs.has(filePart)) return { path: filePart, ptr: frag || '#', external:false };
+  return { path: filePart, ptr: frag || '#', external:true };
+}
+
+// -------- graph/tree --------
+function buildGraph(docs, idIndex, showExternal){
+  const outgoing = new Map();
+  const incoming = new Map();
+  for (const [path] of docs.entries()){
+    outgoing.set(path, new Set());
+    incoming.set(path, 0);
+  }
+
+  for (const [path, doc] of docs.entries()){
+    const refs = [];
+    collectRefs(doc, refs);
+    for (const r of refs){
+      const res = resolveRefToFile(path, r, docs, idIndex);
+      if (res.external){
+        if (showExternal) outgoing.get(path).add('EXTERNAL::' + res.path);
+      } else if (docs.has(res.path)){
+        outgoing.get(path).add(res.path);
+      }
+    }
+  }
+
+  for (const [from, tos] of outgoing.entries()){
+    for (const to of tos){
+      if (to.startsWith('EXTERNAL::')) continue;
+      incoming.set(to, (incoming.get(to) || 0) + 1);
+    }
+  }
+
+  return {outgoing, incoming};
+}
+
+function buildForestTree(docs, outgoing, incoming){
+  let __uid = 0;
+  const nextUid = () => 'n' + (++__uid);
+  const roots = [];
+  for (const [file, count] of incoming.entries()){
+    if ((count || 0) === 0) roots.push(file);
+  }
+  if (roots.length === 0) roots.push(...docs.keys()); // all cycles
+
+  const externalNodes = new Map();
+  function makeExternalNode(key){
+    if (externalNodes.has(key)) return externalNodes.get(key);
+    const label = key.replace(/^EXTERNAL::/, '');
+    const node = {
+      _uid: nextUid(),
+      name: baseNameNoExt(label) || label,
+      filePath: key,
+      kind: 'external',
+      folder: '(external)',
+      itemStyle: { color: '#ffffff', borderColor: '#d1d5db' },
+      children: []
+    };
+    externalNodes.set(key, node);
+    node._hasChildren = false;
+    return node;
+  }
+
+  function makeNode(file, stack){
+    const name = baseNameNoExt(file) || file;
+    const folder = folderOf(file);
+    const accent = hashToAccent(folder);
+
+    const node = {
+      _uid: nextUid(),
+      name,
+      filePath: file,
+      kind: 'file',
+      folder,
+      _accent: accent,
+      itemStyle: { color:'#ffffff', borderColor:'#d1d5db' }, // actual border handled via label icon accent
+      children: []
+    };
+
+    const kids = outgoing.get(file) ? [...outgoing.get(file)] : [];
+    for (const k of kids){
+      if (k.startsWith('EXTERNAL::')) { node.children.push(makeExternalNode(k)); continue; }
+      if (stack.includes(k)){
+        node.children.push({
+          _uid: nextUid(),
+          name: baseNameNoExt(k) + ' ↩',
+          filePath: k,
+          kind: 'cycle',
+          folder: folderOf(k),
+          _accent: '#f59e0b',
+          itemStyle: { color:'#ffffff', borderColor:'#d1d5db' },
+          children: []
+        });
+        continue;
+      }
+      node.children.push(makeNode(k, stack.concat([k])));
+    }
+    node._hasChildren = Array.isArray(node.children) && node.children.length > 0;
+    return node;
+  }
+
+  return roots.map(r => makeNode(r, [r]));
+}
+
+// -------- details (schema in place) --------
+let CURRENT_DOCS = null;
+let LAST_FILELIST = null;
+let CURRENT_TREE_ROOT = null;
+let CURRENT_SELECTED_FILE = null;
+let CURRENT_HIGHLIGHT_KEY = null;
+let SEARCH_QUERY = '';
+let DEPTH_LIMIT = 3; // default visible depth
+
+let DETAILS_COLLAPSED = false;
+
+function setSchemaHeader(title, filePath){
+  document.getElementById('schemaTitle').textContent = title || 'Details';
+  const meta = document.getElementById('schemaMeta');
+  if (!filePath){
+    meta.innerHTML = '';
+    return;
+  }
+  const folder = folderOf(filePath);
+  meta.innerHTML = `
+    <span class="kbd">${escapeHtml(filePath)}</span>
+    <span class="pill">${escapeHtml(folder)}</span>
+  `;
+}
+
+// ---------------- Right pane tabs + JSON viewer ----------------
+let ACTIVE_RIGHT_TAB = 'details';
+
+function setRightTab(tab){
+  ACTIVE_RIGHT_TAB = tab;
+  const isDetails = tab === 'details';
+  document.getElementById('tabDetails').classList.toggle('active', isDetails);
+  document.getElementById('tabJson').classList.toggle('active', !isDetails);
+  document.getElementById('tabDetails').setAttribute('aria-selected', isDetails ? 'true' : 'false');
+  document.getElementById('tabJson').setAttribute('aria-selected', !isDetails ? 'true' : 'false');
+  document.getElementById('paneDetails').classList.toggle('active', isDetails);
+  document.getElementById('paneJson').classList.toggle('active', !isDetails);
+}
+
+function tokenSpan(cls, txt){
+  const s = document.createElement('span');
+  s.className = cls;
+  s.textContent = txt;
+  return s;
+}
+
+function renderJsonInto(container, obj){
+  container.innerHTML = '';
+  const rootNode = buildJsonNode(null, obj, true);
+  container.appendChild(rootNode);
+}
+
+function buildJsonNode(key, value, isLast){
+  const isArr = Array.isArray(value);
+  const isObj = value && typeof value === 'object' && !isArr;
+
+  const node = document.createElement('div');
+  node.className = 'jt-node';
+
+  const row = document.createElement('div');
+  row.className = 'jt-row';
+
+  const toggle = document.createElement('span');
+  toggle.className = 'jt-toggle';
+  toggle.textContent = (isObj || isArr) ? '▾' : '';
+  row.appendChild(toggle);
+
+  if (key !== null){
+    row.appendChild(tokenSpan('jt-key', JSON.stringify(key)));
+    row.appendChild(tokenSpan('jt-brace', ': '));
+  }
+
+  if (isObj || isArr){
+    const open = isArr ? '[' : '{';
+    const close = isArr ? ']' : '}';
+    const count = isArr ? value.length : Object.keys(value).length;
+
+    row.appendChild(tokenSpan('jt-brace', open));
+        // (count indicator removed)
+    // closing brace appears in footer row
+    node.appendChild(row);
+
+    const kids = document.createElement('div');
+    kids.className = 'jt';
+
+    const entries = isArr ? value.map((v,i)=>[String(i), v]) : Object.entries(value);
+    entries.forEach(([k,v], idx) => {
+      kids.appendChild(buildJsonNode(isArr ? Number(k) : k, v, idx === entries.length - 1));
+    });
+
+    // footer with closing brace + optional comma
+    const foot = document.createElement('div');
+    foot.className = 'jt-row';
+    foot.appendChild(tokenSpan('jt-toggle', ''));
+    foot.appendChild(tokenSpan('jt-brace', close + (isLast ? '' : ',')));
+    kids.appendChild(foot);
+
+    node.appendChild(kids);
+
+    // collapse/expand behavior
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const collapsed = node.classList.toggle('jt-collapsed');
+      toggle.textContent = collapsed ? '▸' : '▾';
+    });
+
+  } else {
+    // primitive
+    let cls = 'jt-null';
+    let txt = 'null';
+    if (typeof value === 'string') { cls = 'jt-str'; txt = JSON.stringify(value); }
+    else if (typeof value === 'number') { cls = 'jt-num'; txt = String(value); }
+    else if (typeof value === 'boolean') { cls = 'jt-bool'; txt = String(value); }
+    else if (value === null) { cls = 'jt-null'; txt = 'null'; }
+    else { cls = 'jt-str'; txt = JSON.stringify(value); }
+
+    row.appendChild(tokenSpan(cls, txt));
+    row.appendChild(tokenSpan('jt-brace', isLast ? '' : ','));
+    node.appendChild(row);
+  }
+
+  return node;
+}
+
+function collapseAllJson(){
+  document.querySelectorAll('#jsonBody .jt-node').forEach(n=>{
+    const hasKids = n.querySelector(':scope > .jt');
+    const tog = n.querySelector(':scope > .jt-row > .jt-toggle');
+    if (hasKids && tog && tog.textContent) {
+      n.classList.add('jt-collapsed');
+      tog.textContent = '▸';
+    }
+  });
+}
+function expandAllJson(){
+  document.querySelectorAll('#jsonBody .jt-node').forEach(n=>{
+    const hasKids = n.querySelector(':scope > .jt');
+    const tog = n.querySelector(':scope > .jt-row > .jt-toggle');
+    if (hasKids && tog && tog.textContent) {
+      n.classList.remove('jt-collapsed');
+      tog.textContent = '▾';
+    }
+  });
+}
+
+
+function restoreFocusAfterLoad(){
+  if (!CURRENT_DOCS) return;
+  // Restore right-pane tab
+  try { if (typeof setRightTab === 'function') setRightTab(ACTIVE_RIGHT_TAB === 'json' ? 'json' : 'details'); } catch(_) {}
+
+  // Restore selection + highlight
+  if (CURRENT_SELECTED_FILE && CURRENT_DOCS.docs.has(CURRENT_SELECTED_FILE)) {
+    CURRENT_HIGHLIGHT_KEY = CURRENT_SELECTED_FILE;
+    showDetails(CURRENT_SELECTED_FILE, CURRENT_DOCS.docs.get(CURRENT_SELECTED_FILE));
+    setJsonPanel(CURRENT_SELECTED_FILE, CURRENT_DOCS.docs.get(CURRENT_SELECTED_FILE));
+  } else {
+    setJsonPanel(null, null);
+  }
+}
+
+function setJsonPanel(filePath, docObj){
+  const title = document.getElementById('jsonTitle');
+  if (!filePath || !docObj){
+    title.textContent = 'No file selected';
+    document.getElementById('jsonBody').innerHTML = '';
+    return;
+  }
+  title.textContent = baseNameNoExt(filePath);
+  renderJsonInto(document.getElementById('jsonBody'), docObj);
+  // start moderately collapsed for big docs
+  if (JSON.stringify(docObj).length > 8000) collapseAllJson();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tD = document.getElementById('tabDetails');
+  const tJ = document.getElementById('tabJson');
+  if (tD && tJ){
+    tD.addEventListener('click', ()=> setRightTab('details'));
+    tJ.addEventListener('click', ()=> setRightTab('json'));
+  }
+  const bExp = document.getElementById('jsonExpand');
+  const bCol = document.getElementById('jsonCollapse');
+  const bCpy = document.getElementById('jsonCopy');
+  if (bExp) bExp.addEventListener('click', expandAllJson);
+  if (bCol) bCol.addEventListener('click', collapseAllJson);
+  if (bCpy) bCpy.addEventListener('click', async () => {
+    try {
+      if (!CURRENT_SELECTED_FILE || !CURRENT_DOCS || !CURRENT_DOCS.docs.has(CURRENT_SELECTED_FILE)) return;
+      const raw = JSON.stringify(CURRENT_DOCS.docs.get(CURRENT_SELECTED_FILE), null, 2);
+      await navigator.clipboard.writeText(raw);
+      document.getElementById('jsonCopy').textContent = 'Copied';
+      setTimeout(()=> document.getElementById('jsonCopy').textContent = 'Copy', 900);
+    } catch(_) {}
+  });
+});
+
+function makeJsonNode(key, val){
+  // returns DOM element
+  const container = document.createElement('div');
+
+  if (isObject(val) || Array.isArray(val)){
+    const details = document.createElement('div');
+
+    const header = document.createElement('div');
+    header.className = 'jline';
+
+    const twisty = document.createElement('button');
+    twisty.className = 'twisty';
+    twisty.textContent = '▾';
+
+    const head = document.createElement('div');
+    head.className = 'jhead';
+    const k = document.createElement('div');
+    k.className = 'jkey';
+    k.textContent = String(key);
+
+    const brace = document.createElement('div');
+    brace.className = 'jbrace';
+    brace.textContent = Array.isArray(val) ? `[${val.length}]` : '{ }';
+
+    head.appendChild(k);
+    head.appendChild(brace);
+
+    header.appendChild(twisty);
+    header.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'jwrap';
+    body.style.marginTop = '6px';
+
+    const entries = Array.isArray(val) ? val.map((v,i)=>[i,v]) : Object.entries(val);
+    for (const [kk, vv] of entries){
+      body.appendChild(makeJsonNode(kk, vv));
+    }
+
+    twisty.onclick = () => {
+      const collapsed = !body.classList.contains('hiddenNode') ? true : false;
+      if (collapsed){
+        body.classList.add('hiddenNode');
+        twisty.textContent = '▸';
+      } else {
+        body.classList.remove('hiddenNode');
+        twisty.textContent = '▾';
+      }
+    };
+
+    details.appendChild(header);
+    details.appendChild(body);
+    container.appendChild(details);
+    return container;
+  }
+
+  const line = document.createElement('div');
+  line.className = 'jline';
+
+  // spacer to align with twisty
+  const spacer = document.createElement('div');
+  spacer.style.width = '18px';
+  spacer.style.height = '18px';
+  spacer.style.marginRight = '6px';
+
+  const k = document.createElement('div');
+  k.className = 'jkey';
+  k.textContent = String(key);
+
+  const v = document.createElement('div');
+  v.className = 'jval';
+  if (typeof val === 'string') v.textContent = `"${val}"`;
+  else v.textContent = String(val);
+
+  line.appendChild(spacer);
+  line.appendChild(k);
+  line.appendChild(v);
+  container.appendChild(line);
+  return container;
+}
+
+function renderSchema(schemaObj){
+  const body = document.getElementById('detailsBody');
+  body.innerHTML = '';
+  const root = document.createElement('div');
+  root.className = 'jroot';
+
+  if (!isObject(schemaObj) && !Array.isArray(schemaObj)){
+    root.textContent = String(schemaObj);
+    body.appendChild(root);
+    return;
+  }
+  const entries = Array.isArray(schemaObj) ? schemaObj.map((v,i)=>[i,v]) : Object.entries(schemaObj);
+  for (const [k,v] of entries){
+    root.appendChild(makeJsonNode(k, v));
+  }
+  body.appendChild(root);
+}
+
+function showDetails(filePath, schemaObj){
+  CURRENT_SELECTED_FILE = filePath;
+
+  document.getElementById('detailsHint').classList.add('hidden');
+  const body = document.getElementById('detailsBody');
+  body.classList.remove('hidden');
+
+  setSchemaHeader((baseNameNoExt(filePath) || 'Schema') + ' Schema', filePath);
+  renderSchema(schemaObj);
+
+  // apply collapsed state
+  body.style.display = DETAILS_COLLAPSED ? 'none' : 'block';
+  document.getElementById('schemaMeta').style.display = DETAILS_COLLAPSED ? 'none' : 'flex';
+  document.getElementById('chev').style.transform = DETAILS_COLLAPSED ? 'rotate(-135deg)' : 'rotate(45deg)';
+}
+
+// -------- ECharts tree --------
+let chart = null;
+
+function applyCollapsed(node, collapsed){
+  if (!node || typeof node !== 'object') return;
+  if (node.kind !== 'root') node.collapsed = collapsed;
+  if (Array.isArray(node.children)) for (const c of node.children) applyCollapsed(c, collapsed);
+}
+
+function applyDepthLimitForest(forest, limit){
+  const L = Number(limit || 0);
+  if (!L || L <= 0) {
+    // 0 means unlimited: expand everything
+    const expandAll = (n) => {
+      if (!n || typeof n !== 'object') return;
+      n.collapsed = false;
+      if (Array.isArray(n.children)) for (const c of n.children) expandAll(c);
+    };
+    if (Array.isArray(forest)) for (const r of forest) expandAll(r);
+    else expandAll(forest);
+    return;
+  }
+
+  // Collapse everything deeper than (L - 1), and expand everything shallower,
+  // so the result is consistent no matter the current expand/collapse state.
+  function walk(n, depth){
+    if (!n || typeof n !== 'object') return;
+    n.collapsed = depth >= (L - 1);
+    if (Array.isArray(n.children)){
+      for (const c of n.children) walk(c, depth + 1);
+    }
+  }
+
+  if (Array.isArray(forest)) for (const r of forest) walk(r, 0);
+  else walk(forest, 0);
+}
+
+
+function countVisibleAndDepth(forest){
+  let visible = 0;
+  let maxDepth = 0;
+
+  function walk(n, depth){
+    if (!n) return;
+    visible += 1;
+    if (depth > maxDepth) maxDepth = depth;
+    if (n.collapsed) return;
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c, depth + 1);
+  }
+
+  if (Array.isArray(forest)) for (const r of forest) walk(r, 0);
+  else walk(forest, 0);
+
+  return { visible, maxDepth };
+}
+
+function computeScale(forest, viewportW, viewportH){
+  // Fit-to-viewport heuristic: shrink nodes/fonts when the widest/deepest visible
+  // part of the tree would likely overflow and cause overlaps.
+  const info = countVisibleAndDepth(forest);
+
+  // Count visible nodes per depth (to approximate required vertical space)
+  const perDepth = new Map();
+  function walk(n, depth){
+    if (!n) return;
+    perDepth.set(depth, (perDepth.get(depth) || 0) + 1);
+    if (n.collapsed) return;
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c, depth + 1);
+  }
+  if (Array.isArray(forest)) { for (const r of forest) walk(r, 0); }
+  else { walk(forest, 0); }
+
+  const maxLayerCount = Math.max(1, ...perDepth.values());
+  const depth = Math.max(1, info.maxDepth + 1);
+
+  // Base sizes (must match the values used in renderTree before scaling)
+  const baseNodeW = 190;
+  const baseNodeH = 54;
+  const baseNodePad = 22;
+  const baseLayerPad = 110;
+
+  const usableW = Math.max(320, viewportW * 0.92);
+  const usableH = Math.max(240, viewportH * 0.92);
+
+  const needW = depth * (baseNodeW + baseLayerPad);
+  const needH = maxLayerCount * (baseNodeH + baseNodePad);
+
+  let sW = usableW / needW;
+  let sH = usableH / needH;
+
+  // Don't scale up beyond 1, but allow shrinking
+  let s = Math.min(1.0, sW, sH);
+
+  // Keep within a sensible range
+  s = Math.max(0.42, Math.min(1.0, s));
+
+  return { scale: s, visible: info.visible, maxDepth: info.maxDepth, maxLayerCount };
+}
+
+function toggleCollapsedInForest(forest, uid){
+  if (!uid) return false;
+  if (Array.isArray(forest)){
+    for (const r of forest){ if (toggleCollapsedByUid(r, uid)) return true; }
+    return false;
+  }
+  return toggleCollapsedByUid(forest, uid);
+}
+
+function toggleCollapsedByUid(node, uid){
+  if (!node || typeof node !== 'object') return false;
+  if (node.kind !== 'root' && node._uid === uid) {
+    node.collapsed = !node.collapsed;
+    return true;
+  }
+  if (Array.isArray(node.children)){
+    for (const c of node.children){
+      if (toggleCollapsedByUid(c, uid)) return true;
+    }
+  }
+  return false;
+}
+
+function deepClone(x){
+  return JSON.parse(JSON.stringify(x));
+}
+
+function applyHighlightStyles(forest, key){
+  if (!key) return;
+  function walk(n){
+    if (!n || typeof n !== 'object') return;
+    if (n.kind !== 'root' && n.filePath === key) {
+      n.itemStyle = Object.assign({}, n.itemStyle || {}, {
+        color: '#e8f1ff',
+        borderColor: '#93c5fd'
+      });
+      n.label = Object.assign({}, n.label || {}, { color: '#111827' });
+    }
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  }
+  if (Array.isArray(forest)) for (const r of forest) walk(r);
+  else walk(forest);
+}
+
+function applySearchHighlightStyles(rootOrForest, query){
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return;
+  function matches(n){
+    const name = String(n.name || '').toLowerCase();
+    const fp = String(n.filePath || '').toLowerCase();
+    const folder = String(n.folder || '').toLowerCase();
+    return name.includes(q) || fp.includes(q) || folder.includes(q);
+  }
+  function walk(n){
+    if (!n || typeof n !== 'object') return;
+    if (n.kind !== 'root' && matches(n) && n.filePath !== CURRENT_HIGHLIGHT_KEY){
+      // green search highlight
+      n.itemStyle = Object.assign({}, n.itemStyle || {}, {
+        color: '#eafbea',
+        borderColor: '#22c55e'
+      });
+    }
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  }
+  if (Array.isArray(rootOrForest)) for (const r of rootOrForest) walk(r);
+  else walk(rootOrForest);
+}
+
+function renderTree(rootNode){
+  const el = document.getElementById('chart');
+  if (!chart) chart = echarts.init(el, null, { renderer: 'canvas', useDirtyRect: false });
+  CURRENT_TREE_ROOT = rootNode;
+
+  // apply persistent multi-node highlight for the selected object
+  const displayForest = deepClone(rootNode);
+  applyHighlightStyles(displayForest, CURRENT_HIGHLIGHT_KEY);
+  applySearchHighlightStyles(displayForest, SEARCH_QUERY);
+
+    const viewportW = el.clientWidth || window.innerWidth;
+  const viewportH = el.clientHeight || (window.innerHeight * 0.8);
+  const sc = computeScale(displayForest, viewportW, viewportH);
+  const S = sc.scale;
+  const nodeW = Math.round(190 * S);
+  const nodeH = Math.round(54 * S);
+  const fontT = Math.max(10, Math.round(13 * S));
+  const fontF = Math.max(9, Math.round(11 * S));
+  const lineH = Math.round(16 * S);
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: { show: false },
+    series: [{
+      type: 'tree',
+      data: displayForest,
+      top: '6%',
+      left: '6%',
+      bottom: '6%',
+      right: '6%',
+      orient: 'LR',
+      layout: 'orthogonal',
+      edgeShape: 'polyline',
+      roam: true,
+      edgeForkPosition: '50%',
+
+      // spacing (scaled) to reduce overlaps
+      nodePadding: Math.round(22 * S),
+      layerPadding: Math.round(110 * S),
+
+      symbol: 'rect',
+      symbolSize: [nodeW, nodeH],
+
+      itemStyle: {
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        color: '#ffffff',
+        shadowBlur: Math.round(8 * S),
+        shadowColor: 'rgba(17,24,39,0.10)',
+        shadowOffsetY: Math.round(2 * S)
+      },
+
+      expandAndCollapse: false,
+      initialTreeDepth: 1,
+      animationDuration: 0,
+      animationDurationUpdate: 0,
+
+      lineStyle: {
+        color: '#c7cdd8',
+        width: (1.2 * S),
+        curveness: 0,
+        opacity: 1
+      },
+
+      label: {
+        position: 'inside',
+        align: 'center',
+        verticalAlign: 'middle',
+        padding: [9, 10, 9, 10],
+        color: '#111827',
+        fontSize: fontT,
+        lineHeight: lineH,
+        overflow: 'truncate',        formatter: (p) => {
+          const d = p.data || {};
+          const fol = d.folder || '';
+          const hasKids = !!d._hasChildren;
+          const isCollapsed = !!d.collapsed;
+          const caret = (hasKids && isCollapsed) ? '{c|  ▸}' : '';
+          return `{t|${d.name || ''}}${caret}\n{f|${fol}}`;
+        },
+        rich: {          t: { fontSize: fontT, fontWeight: 750, color: '#111827' },
+          c: { fontSize: 11, color: '#9ca3af' },
+          f: { fontSize: fontF, fontStyle: 'italic', color: '#6b7280' }
+        }
+      },
+
+      // hide root symbol/label so it looks like screenshot (no "Schemas" node)
+      root: {
+        label: { show: false },
+        itemStyle: { color: 'transparent', borderColor: 'transparent' },
+        symbolSize: [0,0]
+      },
+
+      emphasis: {
+        focus: 'descendant',
+        itemStyle: {
+          shadowBlur: 12,
+          shadowColor: 'rgba(59,130,246,0.18)'
+        }
+      }
+    }]
+  };
+
+  chart.setOption(option, { lazyUpdate: true, replaceMerge: ['series'] });
+
+  chart.off('click');
+  chart.on('click', (params) => {
+    const d = params.data || {};
+
+    // Set highlight key for internal files/cycles
+    if ((d.kind === 'file' || d.kind === 'cycle') && d.filePath) {
+      CURRENT_HIGHLIGHT_KEY = d.filePath;
+    }
+
+    // Toggle expand/collapse when node has children
+    if (d && d.kind !== 'external' && d._hasChildren) {
+      const next = deepClone(CURRENT_TREE_ROOT);
+      toggleCollapsedInForest(next, d._uid);
+      // Depth is an initial view setting; don't block user expansion beyond it
+      renderTree(next);
+    } else {
+      // just re-render to apply highlight changes
+      renderTree(CURRENT_TREE_ROOT);
+    }
+
+    // Also show details (if it's an internal file)
+    if ((d.kind === 'file' || d.kind === 'cycle') && CURRENT_DOCS && CURRENT_DOCS.docs.has(d.filePath)) {
+      showDetails(d.filePath, CURRENT_DOCS.docs.get(d.filePath));
+      setJsonPanel(d.filePath, CURRENT_DOCS.docs.get(d.filePath));
+      document.getElementById('status').textContent = `Selected: ${d.filePath}`;
+    } else if (d.kind === 'external') {
+      document.getElementById('status').textContent = `External reference: ${String(d.filePath).replace(/^EXTERNAL::/, '')}`;
+    }
+  });
+
+  window.addEventListener('resize', () => chart && chart.resize());
+}
+
+// -------- Search: find a node by name and expand path --------
+function findPathByName(forest, query){
+  if (!query) return null;
+  const q = query.toLowerCase();
+
+  function dfs(node, path){
+    if (!node) return null;
+    const name = (node.name || '').toLowerCase();
+    const fp = String(node.filePath || '').toLowerCase();
+    if (name.includes(q) || fp.includes(q)) return path.concat([node]);
+    if (Array.isArray(node.children)){
+      for (const c of node.children){
+        const r = dfs(c, path.concat([node]));
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+  if (Array.isArray(forest)){
+    for (const r of forest){
+      const found = dfs(r, []);
+      if (found) return found;
+    }
+    return null;
+  }
+  return dfs(forest, []);
+}
+
+function expandAlongPath(forest, path){
+  if (!path || !path.length) return forest;
+  const set = new Set(path.map(n => n._uid));
+  const cloned = JSON.parse(JSON.stringify(forest));
+
+  function walk(n){
+    if (!n) return;
+    if (set.has(n._uid)) n.collapsed = false;
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  }
+
+  if (Array.isArray(cloned)){
+    for (const r of cloned) walk(r);
+    return cloned;
+  } else {
+    walk(cloned);
+    return cloned;
+  }
+}
+
+// -------- Wiring --------
+document.getElementById('folder').addEventListener('change', async (e) => {
+  try{
+    LAST_FILELIST = e.target.files;
+    const {docs, idIndex} = await loadFiles(e.target.files);
+    CURRENT_DOCS = {docs, idIndex};
+
+    const showExternal = document.getElementById('toggleExternal').checked;
+    const g = buildGraph(docs, idIndex, showExternal);
+    const root = buildForestTree(docs, g.outgoing, g.incoming);
+    applyDepthLimitForest(root, DEPTH_LIMIT);
+        renderTree(root);
+    restoreFocusAfterLoad();
+    document.getElementById('status').textContent = `Loaded: ${docs.size} files`;
+  }catch(err){ alert(err.message); }
+});
+
+
+
+document.getElementById('reload').addEventListener('click', async () => {
+  try{
+    if (!LAST_FILELIST) return alert('Load a folder first.');
+    // keep focus + active tab + search query, just refresh file contents
+    const {docs, idIndex} = await loadFiles(LAST_FILELIST);
+    CURRENT_DOCS = {docs, idIndex};
+
+    const showExternal = document.getElementById('toggleExternal').checked;
+    const g = buildGraph(docs, idIndex, showExternal);
+    const root = buildForestTree(docs, g.outgoing, g.incoming);
+
+    // Apply "collapse to depth" view
+    applyDepthLimitForest(root, DEPTH_LIMIT);
+
+    renderTree(root);
+    restoreFocusAfterLoad();
+
+    document.getElementById('status').textContent = `Reloaded: ${docs.size} files`;
+  }catch(err){ alert(err.message); }
+});
+
+document.getElementById('toggleExternal').addEventListener('change', () => {
+  if (!CURRENT_DOCS) return;
+  const showExternal = document.getElementById('toggleExternal').checked;
+  const g = buildGraph(CURRENT_DOCS.docs, CURRENT_DOCS.idIndex, showExternal);
+  const root = buildForestTree(CURRENT_DOCS.docs, g.outgoing, g.incoming);
+  applyDepthLimitForest(root, DEPTH_LIMIT);
+    renderTree(root);
+});
+
+document.getElementById('depth').addEventListener('change', () => {
+  DEPTH_LIMIT = Number(document.getElementById('depth').value || 0);
+  if (!CURRENT_TREE_ROOT) return;
+  const clone = JSON.parse(JSON.stringify(CURRENT_TREE_ROOT));
+  applyDepthLimitForest(clone, DEPTH_LIMIT);
+  renderTree(clone);
+  document.getElementById('status').textContent = DEPTH_LIMIT ? `Depth (initial): ${DEPTH_LIMIT}` : 'Depth: All (initial)';
+});
+
+document.getElementById('collapseAll').addEventListener('click', () => {
+  if (!CURRENT_TREE_ROOT) return;
+  const clone = JSON.parse(JSON.stringify(CURRENT_TREE_ROOT));
+  if (Array.isArray(clone)) {
+    for (const r of clone) applyCollapsed(r, true);
+  } else {
+    applyCollapsed(clone, true);
+  }
+  // Keep depth selector in sync: collapse all effectively shows depth=1 (roots only)
+  renderTree(clone);
+  document.getElementById('status').textContent = 'Collapsed all';
+});
+
+document.getElementById('schemaCardHeader').addEventListener('click', () => {
+  DETAILS_COLLAPSED = !DETAILS_COLLAPSED;
+  const body = document.getElementById('detailsBody');
+  const meta = document.getElementById('schemaMeta');
+  body.style.display = DETAILS_COLLAPSED ? 'none' : 'block';
+  meta.style.display = DETAILS_COLLAPSED ? 'none' : 'flex';
+  document.getElementById('chev').style.transform = DETAILS_COLLAPSED ? 'rotate(-135deg)' : 'rotate(45deg)';
+});
+
+document.getElementById('search').addEventListener('input', () => {
+  if (!CURRENT_TREE_ROOT) return;
+  SEARCH_QUERY = (document.getElementById('search').value || '').trim();
+  // Re-render to apply green highlights (no auto-expansion)
+  renderTree(CURRENT_TREE_ROOT);
+});
+
+// Initial UI state
+setSchemaHeader('Details', null);
+try { document.getElementById('depth').value = String(DEPTH_LIMIT); } catch(_) {}
+document.getElementById('status').textContent = 'Click “Load folder”. Pan/zoom with mouse wheel + drag (built-in).';
+</script>
+</body>
+</html>
